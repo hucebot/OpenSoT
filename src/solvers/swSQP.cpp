@@ -12,8 +12,10 @@ init();
 
 void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::MatrixXd& B, Eigen::VectorXd& b)
 {
-    A = _ocp->stage(i)->dynamics_derivative->getA() * _Mx[i].transpose();
-    B = _ocp->stage(i)->dynamics_derivative->getA() * _Mu[i].transpose();
+    //A = _ocp->stage(i)->dynamics_derivative->getA() * _Mx[i].transpose();
+    //B = _ocp->stage(i)->dynamics_derivative->getA() * _Mu[i].transpose();
+    A = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->dx->getId(), _ocp->stage(i)->dx->getM().rows());
+    B = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->du->getId(), _ocp->stage(i)->du->getM().rows());
     b = - 1. *_ocp->stage(i)->dynamics_derivative->getb(); //this is negative because it comes from an OpenSoT Task ||Ax - b||!
 }
 
@@ -49,9 +51,12 @@ void swSQP::computeConstraints(const unsigned int i,
     //Do not make sense to check bnounds since bounds in the non-linear problem are constraints
     if(constraints->getAineq().rows() > 0) //there are constraints
     {
-        C = constraints->getAineq() * _Mx[i].transpose();
-        if(_ocp->stage(i)->u)
-            D = constraints->getAineq() * _Mu[i].transpose();
+        //C = constraints->getAineq() * _Mx[i].transpose();
+        C = constraints->getAineq().middleCols(_ocp->stage(i)->dx->getId(), _ocp->stage(i)->dx->getM().rows());
+        if(_ocp->stage(i)->u){
+            //D = constraints->getAineq() * _Mu[i].transpose();
+            D = constraints->getAineq().middleCols(_ocp->stage(i)->du->getId(), _ocp->stage(i)->du->getM().rows());
+        }
 
         dl = constraints->getbLowerBound();
         du = constraints->getbUpperBound();
