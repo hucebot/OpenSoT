@@ -191,6 +191,8 @@ void pyAffineHelper(py::module& m, const std::string& className) {
         .def_static("Identity", &AffineHelper::Identity)
         .def_static("Zero", &AffineHelper::Zero)
 
+        .def("getId", &AffineHelper::getId)
+
         .attr("__array_priority__") = 1000.0;
 
     py::class_<AffineUtils::AffineTask, std::shared_ptr<AffineUtils::AffineTask>, Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "AffineTask")

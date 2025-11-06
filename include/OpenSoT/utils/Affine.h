@@ -73,6 +73,7 @@ public:
     void setM(const DerivedM& M)
     {
         _M.noalias() = M;
+        _start_id = -1;
         check_consistency();
     }
 
@@ -86,6 +87,7 @@ public:
     {
         _M.noalias() = M;
         _q.noalias() = q;
+        _start_id = -1;
         check_consistency();
     }
     
@@ -100,6 +102,7 @@ public:
     {
         _M.noalias() = other.getM();
         _q.noalias() = other.getq();
+        _start_id = -1;
         check_consistency();
         return *this;
     }
@@ -117,6 +120,7 @@ public:
     {
         _M.setZero(output_size, input_size);
         _q.setZero(output_size);
+        _start_id = -1;
         check_consistency();
     }
     
@@ -124,6 +128,7 @@ public:
     {
         _M.setZero(_M.rows(), _M.cols());
         _q.setZero(_q.rows());
+        _start_id = -1;
     }
 
     template <typename OtherM, typename OtherQ>
@@ -192,12 +197,41 @@ public:
         return _value;
     }
 
+    /**
+     * @brief getValue return the cached value of the variable.
+     * IMPORTANT: this has to be called after getValue(...) has been called!
+     * @return cached value
+     */
     const Eigen::VectorXd& getValue() const
     {
         return _value;
     }
     
     virtual void update () {}
+
+    /**
+     * @brief getId return the id of the first element of the variable y in vector x
+     * @return id or -1 if all zeros
+     */
+    inline int getId()
+    {
+        if(_start_id == -1)
+        {
+            using Scalar = typename DerivedM::Scalar;
+            int cols = _M.cols();
+            const Scalar eps = std::numeric_limits<Scalar>::epsilon();
+
+            _start_id = 0;
+            for (; _start_id < cols; ++_start_id)
+            {
+                if (std::abs(_M(0, _start_id)) > eps)
+                    return _start_id;
+            }
+            _start_id = -1;
+        }
+
+        return _start_id;
+    }
     
 protected:
 
@@ -215,6 +249,8 @@ protected:
     DerivedQ _q;
 
     Eigen::VectorXd _value;
+
+    int _start_id = -1;
 
 };
 
