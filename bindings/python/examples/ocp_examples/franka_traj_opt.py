@@ -1,3 +1,4 @@
+from pyopensot.oc import *
 import rclpy
 from rclpy.node import Node
 from rcl_interfaces.srv import GetParameters
@@ -17,6 +18,7 @@ from geometry_msgs.msg import PoseStamped, Point
 from scipy.spatial.transform import Rotation as R
 import unittest
 import os
+from utils import eul
 
 
 np.set_printoptions(linewidth=np.inf)
@@ -44,79 +46,12 @@ class ros2_node(Node):
             self.get_logger().error('Failed to call service')
 
         self.joint_state_publisher = self.create_publisher(JointState, '/joint_states', 10)
-        self.horizon_joint_state_publisher = self.create_publisher(JointState, '/horizon/joint_states', 10)
 
-        self.server = InteractiveMarkerServer(self, 'six_dof_marker_server')
         self.marker_pose = PoseStamped()
-
-    def make_6dof_marker(self, name, pose, frame_id):
-        int_marker = InteractiveMarker()
-        int_marker.header.frame_id = frame_id
-        int_marker.name = name
-        int_marker.description = '6-DOF Control'
-        int_marker.scale = 0.3
-
-        int_marker.pose.position.x = pose.translation[0]
-        int_marker.pose.position.y = pose.translation[1]
-        int_marker.pose.position.z = pose.translation[2]
-
-        quat_xyzw = R.from_matrix(pose.linear).as_quat() # Format: [x, y, z, w]
-        int_marker.pose.orientation.x = quat_xyzw[0]
-        int_marker.pose.orientation.y = quat_xyzw[1]
-        int_marker.pose.orientation.z = quat_xyzw[2]
-        int_marker.pose.orientation.w = quat_xyzw[3]
-
-        self.marker_pose.pose = int_marker.pose
-
-        # Add a visible marker (e.g., a cube)
-        cube_marker = Marker()
-        cube_marker.type = Marker.CUBE
-        cube_marker.scale.x = 0.05
-        cube_marker.scale.y = 0.05
-        cube_marker.scale.z = 0.05
-        cube_marker.color.r = 0.0
-        cube_marker.color.g = 1.0
-        cube_marker.color.b = 0.0
-        cube_marker.color.a = 1.0
-
-        control = InteractiveMarkerControl()
-        control.always_visible = True
-        control.markers.append(cube_marker)
-        int_marker.controls.append(control)
-
-        # Add 6-DOF controls
-        self.add_6dof_controls(int_marker)
-
-
-        self.server.insert(marker=int_marker, feedback_callback=self.process_feedback)
-        self.server.applyChanges()
-    def process_feedback(self, feedback):
-        self.marker_pose.header = feedback.header
-        self.marker_pose.pose = feedback.pose
-    def add_6dof_controls(self, marker):
-        axes = ['x', 'y', 'z']
-        for axis in axes:
-            # Rotation
-            control = InteractiveMarkerControl()
-            control.name = f'rotate_{axis}'
-            control.orientation.w = 1.0
-            setattr(control.orientation, axis, 1.0)
-            control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-            marker.controls.append(control)
-
-            # Translation
-            control = InteractiveMarkerControl()
-            control.name = f'move_{axis}'
-            control.orientation.w = 1.0
-            setattr(control.orientation, axis, 1.0)
-            control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-            marker.controls.append(control)
 
     def publish(self, joint_state_msg):
         self.joint_state_publisher.publish(joint_state_msg)
 
-    def publish_horizon(self, joint_state_msg):
-        self.horizon_joint_state_publisher.publish(joint_state_msg)
 
 
 # Check for franka_cartesio_condif package
@@ -129,13 +64,8 @@ except:
 
 
 roslaunch = subprocess.Popen(['ros2', 'launch', 'franka_cartesio_config', 'fp3.launch'], stdout=subprocess.PIPE, shell=False)
-roslaunch2 = subprocess.Popen(['ros2', 'launch', 'franka_cartesio_config', 'fp3.launch', 'namespace:=horizon'], stdout=subprocess.PIPE, shell=False)
-rosrun = subprocess.Popen(['ros2', 'run', 'tf2_ros', 'static_transform_publisher', '0.', '0.', '0.', '0.', '0.', '0.', '1.', 'world', 'horizon/world'], stdout=subprocess.PIPE, shell=False)
 
-
-#rviz_file_path = package_path + "/rviz/panda.rviz"
-rviz_file_path = os.path.dirname(os.path.abspath(__file__)) + "/panda.rviz"
-print(rviz_file_path)
+rviz_file_path = package_path + "/rviz/panda.rviz"
 rviz = subprocess.Popen(['ros2', 'run', 'rviz2', 'rviz2', '-d', f'{rviz_file_path}'], stdout=subprocess.PIPE, shell=False)
 
 # Initiliaze node and wait for robot_description parameter
@@ -143,7 +73,7 @@ rclpy.init()
 node = ros2_node()
 
 Ns = 20 # number of nodes
-tf = 3.0 # final time
+tf = 2. # final time
 dt = tf/Ns
 
 
@@ -156,6 +86,9 @@ model.setJointPosition(q_val)
 model.update()
 T = model.getPose("fp3_link8")
 
+"""
+This set of variables describe the state and control inputs for the (NLP) OCP.
+"""
 vars = list()
 # x
 vars.append(("q", model.nq))
@@ -167,10 +100,12 @@ variables = OptvarHelper(vars)
 q = variables.getVariable("q")
 qdot = variables.getVariable("qdot")
 qddot = variables.getVariable("qddot")
-
 print(f"variables.getSize(): {variables.getSize()}")
 
-
+"""
+This set of variables describe the state and control inputs for the internal liearized QP which acts in the tangent space.
+In this particular case both sets of variables have the same size, but in general they could be different.
+"""
 dvars = list()
 # dx
 dvars.append(("dq", model.nv))
@@ -185,7 +120,13 @@ dqddot = dvariables.getVariable("dqddot")
 
 print(f"dvariables.getSize(): {dvariables.getSize()}")
 
+
+
 class min_var(Task):
+    """
+    min_var consider the following function: F(var) = var - ref
+    The dvariable is included to carry the information related to the size of the derivative of var
+    """
     def __init__(self, name, variable, dvariable):
         super().__init__(name, variable.getInputSize())
         self.variable = variable
@@ -194,6 +135,8 @@ class min_var(Task):
         self._W = np.eye(dvariable.getOutputSize())
 
     def _update(self):
+        self.variable.update()
+        self.dvariable.update()
         self.lin =  self.dvariable + (self.variable.getValue() - self.ref)
         self._A = self.lin.getM()
         self._b = -self.lin.getq()
@@ -206,7 +149,11 @@ class min_var(Task):
         obj = cls(name, variable, dvariable)
         obj.update()
         return obj
+
 class dynamics_derivative(Task):
+    """
+    This carries the derivative of the linear dynamics computed from euler.
+    """
     def __init__(self, name, df):
         super().__init__(name, df.getInputSize())
         self.df = df
@@ -243,35 +190,39 @@ for i in range(Ns):
 
 print(f"x0[0]: {x0[0]}")
 
-from pyopensot.oc import *
-
 ocp = OCP()
 dd = list()
+const = list()
 for i in range(Ns):
     stage = Stage()
+    """ First we include information related to the state space """
     stage.state_space = CompositeSpace([VectorSpace(model.nq), VectorSpace(model.nv)])
 
+    """ We include both state variables and dvariables """
     stage.x = x
+    stage.xdot = xdot
     stage.dx = dx
 
+    """ We include both control variables and dvariables """
     stage.u = qddot
     stage.du = dqddot
 
+    """ We include q and qdot defined for the state variables """
     stage.q = q
     stage.v = qdot
+    stage.a = qddot
 
     stage.model = xbi.ModelInterface2(node.urdf)
-
-    df = dynamics_derivative.create(f"df{i}", euler(dx, dxdot, dt))
-    dd.append(df)
-    stage.dynamics_derivative = df
 
     ocp.addStage(stage)
 
 
+
+""" Last stage (Ns) does not have dynamics and control variables/dvariables """
 stage = Stage()
 stage.model = xbi.ModelInterface2(node.urdf)
 stage.x = x
+stage.xdot = xdot
 stage.dx = dx
 stage.state_space = CompositeSpace([VectorSpace(model.nq), VectorSpace(model.nq)])
 stage.q = q
@@ -279,126 +230,104 @@ stage.v = qdot
 ocp.addStage(stage)
 
 
-
 ocp.update(x0, u0)
 
+
+for i in range(Ns):
+    df = pysot.oc.EulerVector(stage.model, dx, dxdot, ocp.stage(i).x, ocp.stage(i).xdot, ocp.stage(i+1).x, dt)
+    dd.append(df)
+    ocp.stage(i).dynamics_derivative = df
+
+ocp.update(x0, u0)
 print(f"ocp.getNumberOfNodes(): {ocp.getNumberOfNodes()}")
-utest = unittest.TestCase()
-utest.assertTrue(ocp.getNumberOfNodes() == Ns+1)
+
 
 minus = list()
 for i in range(Ns):
     minu = min_var.create(f"minu{i}", ocp.stage(i).u, ocp.stage(i).du)
-    minu.setWeight(1e0 * np.eye(model.nv))
+    minu.setWeight(1e-3 * np.eye(model.nv))
     minus.append(minu)
     ocp.stage(i).stack = pysot.AutoStack(minu)
 
+    # tau_min
+    tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
+    const.append(tau_lim)
+    ocp.stage(i).stack << tau_lim
 
 
 # set goal at final state
-cartesian_task = Cartesian("Cartesian", ocp.stage(Ns).model, "fp3_link8", "world")
-cartesian_task.setLambda(1)
-cartesian_task.setWeight(1e6 * np.eye(6))
+minvel = min_var.create(f"minvel", ocp.stage(Ns).x[model.nq:], dvariables.getVariable("dqdot"))
+minvel.setWeight(1e-3 * np.eye(model.nv))
 
-ocp.stage(Ns).stack = pysot.AutoStack(AffineTask.toAffine(cartesian_task, dvariables.getVariable("dq")))
+cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "fp3_link8")
+cartesian_task.setWeight(1e3 * np.eye(6))
+ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task)
 
-T, _ = cartesian_task.getReference()
-node.make_6dof_marker(name="fp3_link8", pose=T, frame_id="world")
-#
+
 ocp.update(x0, u0)
-#
-print("ocp updated!")
 
-print(f"ocp.stage(Ns).stack.getStack()[0].getb(): {ocp.stage(Ns).stack.getStack()[0].getb()}")
-#
-
+# joint limits
 qlims = list()
 for i in range(Ns+1):
     qmin, qmax = model.getJointLimits()
     qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
     qlims.append(qlims_i)
-    ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims[-1], dvariables.getVariable("dq"))
-
+    ocp.stage(i).stack << AffineConstraint.toAffine(qlims[-1], dvariables.getVariable("dq"))
 
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 1
-solver.getOptions().verbose = False
+solver.getOptions().max_iters = 100
+solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1e-2
+solver.getOptions().min_abs_delta_solution = 1e-3
 solver.init()
 print(f"{solver.getOptions().print()}")
-#solver.getOptions().min_abs_delta_solution = 1e-12
-print("...solver inited!")
+# print("...solver inited!")
 
-#just a check that is possible to change options of internal QP solver
-print(f"solver.getQPSolver().getOptions().max_iters: {solver.getQPSolver().getOptions().iter_max}")
-solver.getQPSolver().getOptions().iter_max = 100
-print(f"solver.getQPSolver().getOptions().max_iters: {solver.getQPSolver().getOptions().iter_max}")
-solver.getQPSolver().getOptions().iter_max = 30
+pose_ref = cartesian_task.getReference().copy()
+# out of task space
+pose_ref.translation[0] += 0.5
 
+# joint lims test
+# pose_ref.translation[0] -= 0.4
+# pose_ref.translation[2] -= 0.4
+# pose_ref.translation[1] += 0.2
+# try orientatiion task
+
+
+cartesian_task.setReference(pose_ref)
+
+ocp.update(x0, u0)
+success = solver.solve(x0, u0)
+
+
+x0 = solver.getStateSolution()
+u0 = solver.getControlSolution()
+
+state = np.concatenate((q_val,qdot_val))
+space = CompositeSpace([VectorSpace(model.nq), VectorSpace(model.nv)])
+dt_sim = 0.0001
 msg = JointState()
 msg.name = model.getJointNames()
-
-horizon_msg = JointState()
-horizon_msg.name = model.getJointNames()
-
-
-pose_ref = T.copy()
-dt_sim = 0.05
-t = 2.
 try:
     while rclpy.ok():
-        pose_ref.translation[0] = node.marker_pose.pose.position.x
-        pose_ref.translation[1] = node.marker_pose.pose.position.y
-        pose_ref.translation[2] = node.marker_pose.pose.position.z
-        quat = [node.marker_pose.pose.orientation.x, node.marker_pose.pose.orientation.y,
-                node.marker_pose.pose.orientation.z, node.marker_pose.pose.orientation.w]
-        pose_ref.linear = R.from_quat(quat).as_matrix()
-        cartesian_task.setReference(pose_ref)
+        
+        input()
+        for x in x0:
+            msg.position = x[:model.nq].tolist()
+            msg.header.stamp = node.get_clock().now().to_msg()
+            node.publish(msg)
+            time.sleep(dt)
 
-
-        success = solver.solve(x0, u0)
-        if not success:
-            print("OCP not solved!")
-            continue
-
-
-        x0 = solver.getStateSolution()
-        u0 = solver.getControlSolution()
-
-        for i in range(len(x0)):
-            horizon_msg.position = x0[i][:model.nq].tolist()
-            horizon_msg.header.stamp = node.get_clock().now().to_msg()
-            node.publish_horizon(horizon_msg)
-            time.sleep(dt_sim/Ns)
-
-
-        x0 = x0[1:] + [x0[-1]]
-        u0 = u0[1:] + [u0[-1]]
-
-
-
-        # Publish joint states
-        msg.position = x0[0][:model.nq].tolist()
-        msg.header.stamp = node.get_clock().now().to_msg()
         node.publish(msg)
-
-
-        rclpy.spin_once(node, timeout_sec=0.0)
-
-
-        #time.sleep(dt_sim)
+        rclpy.spin_once(node, timeout_sec=dt_sim)
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt: Stopping the node.")
-    pass
 finally:
     print("Stopping the node.")
     roslaunch.kill()
-    roslaunch2.kill()
-    rosrun.kill()
     rviz.kill()
     node.destroy_node()
 

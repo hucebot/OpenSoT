@@ -6,29 +6,29 @@ hpipmOC::hpipmOC(const unsigned int Ns):
     _Ns(Ns)
 {
     //These are taken from examples in hpipm-cpp
-    _solver_settings.mode = hpipm::HpipmMode::Balance;
-    _solver_settings.iter_max = 30;
-    _solver_settings.alpha_min = 1e-8;
-    _solver_settings.mu0 = 1e2;
-    _solver_settings.tol_stat = 1e-04;
-    _solver_settings.tol_eq = 1e-04;
-    _solver_settings.tol_ineq = 1e-04;
-    _solver_settings.tol_comp = 1e-04;
-    _solver_settings.reg_prim = 1e-12;
-    _solver_settings.warm_start = 0;
-    _solver_settings.pred_corr = 1;
-    _solver_settings.ric_alg = 0;
-    _solver_settings.split_step = 1;
+    _solver_settings.mode = hpipm::HpipmMode::Robust;
+    // _solver_settings.iter_max = 30;
+    // _solver_settings.alpha_min = 1e-8;
+    // _solver_settings.mu0 = 1e2;
+    // _solver_settings.tol_stat = 1e-04;
+    // _solver_settings.tol_eq = 1e-04;
+    // _solver_settings.tol_ineq = 1e-04;
+    // _solver_settings.tol_comp = 1e-04;
+    // _solver_settings.reg_prim = 1e-12;
+    // _solver_settings.warm_start = 0;
+    // _solver_settings.pred_corr = 1;
+    // _solver_settings.ric_alg = 0;
+    // _solver_settings.split_step = 1;
 
-    _qp.resize(Ns+1);
+    _qp.resize(Ns);
 
-    _WxAx.resize(Ns+1);
-    _Wxbx.resize(Ns+1);
+    _WxAx.resize(Ns);
+    _Wxbx.resize(Ns);
 
-    _WuAu.resize(Ns);
-    _Wubu.resize(Ns);
+    _WuAu.resize(Ns-1);
+    _Wubu.resize(Ns-1);
 
-    _solution.resize(Ns+1);
+    _solution.resize(Ns);
 }
 
 hpipmOC::~hpipmOC()

@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, SubVariable
 import pyopensot as pysot
-import pyopensot_hpipmoc as hpipmoc
 from ttictoc import tic, toc
 import unittest
 from collections import deque
@@ -80,7 +79,7 @@ print(f"integration.getA() @ u.getM().T \n: {integration.getA() @ u.getM().T}")
 
 
 
-solver = hpipmoc.hpipmOC(Ns)
+solver = pysot.hpipmOC(Ns+1)
 for i in range(Ns):
     Ai = integration.getA() @ x.getM().T
     Bi = integration.getA() @ u.getM().T
@@ -121,6 +120,11 @@ for i in range(Ns):
     solver.setLSCost(i, x_tasks[i].getA() @ x.getM().T, x_tasks[i].getWeight(), x_tasks[i].getb(),
                      zmp_tasks[i].getA() @ u.getM().T, zmp_tasks[i].getWeight(), zmp_tasks[i].getb())
 solver.setLSCost(Ns, x_tasks[Ns].getA() @ x.getM().T, x_tasks[Ns].getWeight(), x_tasks[Ns].getb())
+
+print(f"solver.getOptions().iter_max: {solver.getOptions().iter_max}")
+solver.getOptions().iter_max = 100
+print(f"solver.getOptions().iter_max: {solver.getOptions().iter_max}")
+
 
 tic()
 success = solver.solve(np.array([0., 0., 0, 0.]))

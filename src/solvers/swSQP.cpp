@@ -7,7 +7,7 @@ swSQP::swSQP(OpenSoT::ocp::Ptr ocp):
 {
     _qp_solver = std::make_shared<hpipmOC>(ocp->getNumberOfNodes());
 
-    _init();
+init();
 }
 
 void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::MatrixXd& B, Eigen::VectorXd& b)
@@ -17,27 +17,27 @@ void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::Mat
     b = - 1. *_ocp->stage(i)->dynamics_derivative->getb(); //this is negative because it comes from an OpenSoT Task ||Ax - b||!
 }
 
-void swSQP::computeQuadraticApproximation(const unsigned int i, Eigen::MatrixXd& H, Eigen::VectorXd& g)
-{
-    H.triangularView<Eigen::Upper>() = _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWA();
-    H = H.selfadjointView<Eigen::Upper>();
-
-    g = -1.0 * _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWb();
-}
-
 void swSQP::computeCost(const unsigned int i,
                         Eigen::MatrixXd& Q, Eigen::VectorXd& q,
                         Eigen::MatrixXd& R, Eigen::VectorXd& r,
                         Eigen::MatrixXd& S)
 {
+    // calculating the quadratic approximation
+    _H[i].triangularView<Eigen::Upper>() = _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWA();
+    _H[i] = _H[i].selfadjointView<Eigen::Upper>();
+
+    _g[i] = - _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWb();
+
+
+    // computing state and control cost matrices from the quadratic approximation
     Q = _Mx[i] * _H[i] * _Mx[i].transpose();
-    q = _Mx[i] * _g[i]; //(_g[i].transpose() * _Mx[i].transpose()).transpose();
+    q = _Mx[i] * _g[i];
 
     if(_ocp->stage(i)->u)
     {
         R = _Mu[i] * _H[i] * _Mu[i].transpose();
-        S = _Mu[i] * _H[i] * _Mx[i].transpose(); //(_Mx[i] * _H[i] * _Mu[i].transpose()).transpose();
-        r = _Mu[i] * _g[i]; //(_g[i].transpose() * _Mu[i].transpose()).transpose();
+        S = _Mu[i] * _H[i] * _Mx[i].transpose();
+        r = _Mu[i] * _g[i];
     }
 }
 
@@ -59,231 +59,243 @@ void swSQP::computeConstraints(const unsigned int i,
 }
 
 
+
+void swSQP::linearize()
+{
+    for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
+    {
+        // --- Dynamics (only for k < N) ---
+        if(k < _ocp->getNumberOfNodes()-1)
+        {
+            computeDynamics(k, _A[k], _B[k], _b[k]);
+            _qp_solver->setStageDynamics(k, _A[k], _B[k], _b[k]);
+        }
+
+        // --- Cost (always) ---
+        computeCost(k, _Q[k], _q[k], _R[k], _r[k], _S[k]);
+        _qp_solver->setFullCost(k, _R[k], _Q[k], _S[k], _r[k], _q[k]);
+
+        // --- Constraints (always) ---
+        computeConstraints(k, _C[k], _D[k], _dl[k], _du[k]);
+        _qp_solver->setConstraint(k, _C[k], _D[k], _dl[k], _du[k]);
+    }
+
+
+}
+
 bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0)
 {
     auto start = std::chrono::high_resolution_clock::now();
 
-    _x0_candidate.resize(x0.size());
-    _u0_candidate.resize(u0.size());
+    _x0_candidate = x0;
+    _u0_candidate = u0;
 
     _x0 = x0;
     _u0 = u0;
 
-    Eigen::VectorXd dx0(_A[0].cols());
-    dx0.setZero();
+    _ocp->update(_x0_candidate, _u0_candidate);
 
-    for(unsigned int iter = 0; iter < _opt.max_iters; ++iter)
+    if (_opt.line_search_strategy!=0)
     {
+        _prev_cost = _ocp->cost();
+        _prev_defect = _ocp->dynamics_defect();
+        _prev_viol =  _ocp->constraint_violation();
+    }
+
+    for (uint i = 0; i < _ocp->getNumberOfNodes() && _opt.line_search_strategy==1 ; i++)
+    {
+        dcost_dw[i] = _ocp->stage(i)->stage_dcost_dw();
+        dviol_dw[i] = _ocp->stage(i)->stage_dviolation_dw();
+        ddefect_dw[i] = _ocp->stage(i)->stage_ddefect_dw();
+    }
+
+    _dx0.setZero();
+
+    for(unsigned int iter = 1; iter <= _opt.max_iters; ++iter)
+    {
+        _stats.iters = iter;
+        _stats.alpha = 1.;
+        _stats.line_search_iters = 1;
         _stats.line_search_accepted = false;
-        _stats.line_search_iters = 0;
-        _stats.alpha = 1;
 
         auto iter_start = std::chrono::high_resolution_clock::now();
 
-        _stats.iters = iter;
+        // relinarize and update qp
+        linearize();
 
-        //0) linearize ocp aorund x0, u0
-        _ocp->update(_x0, _u0);
-
-        _stats.cost = _ocp->cost();
-
-        for(unsigned int k = 0; k <= _ocp->getNumberOfNodes(); ++k)
+        // solve
+        if (!_qp_solver->solve(_dx0))
         {
-            _stats.stages_statistics[k].cost = _ocp->cost(k);
-
-            // --- Dynamics (only for k < N) ---
-            if(k < _ocp->getNumberOfNodes())
-            {
-                computeDynamics(k, _A[k], _B[k], _b[k]);
-
-                _qp_solver->setStageDynamics(k, _A[k], _B[k], _b[k]);
-            }
-
-            // --- Cost (always) ---
-            computeQuadraticApproximation(k, _H[k], _g[k]);
-
-            computeCost(k, _Q[k], _q[k], _R[k], _r[k], _S[k]);
-
-            _qp_solver->setFullCost(k, _R[k], _Q[k], _S[k], _r[k], _q[k]);
-
-            // --- Constraints (always) ---
-            computeConstraints(k, _C[k], _D[k], _dl[k], _du[k]);
-
-            _qp_solver->setConstraint(k, _C[k], _D[k], _dl[k], _du[k]);
-        }
-
-
-        //3) solve
-        bool success = _qp_solver->solve(dx0);
-        if(!success)
+            std::cout<< "nosolve"<< std::endl;
             return false;
-
-        //4) check break criteria on QP solution
-        bool exit = true; //I assume I can exit
-        double sq = 0;
-        for(unsigned int i = 0; i < _qp_solver->getSolution().size(); ++i)
-            sq += (_qp_solver->getSolution()[i].x.transpose() * _qp_solver->getSolution()[i].x)[0];
-        exit = std::sqrt(sq) <= _opt.min_abs_delta_solution;
-
-        if(exit) // if exit remains true I return
-        {
-            auto iter_end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> iter_elapsed = iter_end - iter_start;
-            _stats.iter_time = iter_elapsed.count();
-
-            auto end = std::chrono::high_resolution_clock::now();
-            std::chrono::duration<double> elapsed = end - start;
-            _stats.total_time = elapsed.count();
-
-            if(_opt.verbose)
-                std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
-
-            return true;
         }
-        else
+
+        // first update
+        step(_stats.alpha);
+        
+    
+        while(_opt.line_search_strategy!=0 && _stats.alpha >= _opt.alpha_min)
         {
-            if(_opt.use_line_search)
+            _ocp->update(_x0_candidate, _u0_candidate);
+            if((this->*ls_function)())
             {
-                if(line_search())
-                {
-                    auto iter_end = std::chrono::high_resolution_clock::now();
-                    std::chrono::duration<double> iter_elapsed = iter_end - iter_start;
-                    _stats.iter_time = iter_elapsed.count();
-
-                    if(_opt.verbose)
-                        std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
-
-                    dx0 = _qp_solver->getSolution()[0].x;
-                }
-                else //not improving solution found, return
-                {
-
-                    auto iter_end = std::chrono::high_resolution_clock::now();
-                    std::chrono::duration<double> iter_elapsed = iter_end - iter_start;
-                    _stats.iter_time = iter_elapsed.count();
-
-                    auto end = std::chrono::high_resolution_clock::now();
-                    std::chrono::duration<double> elapsed = end - start;
-                    _stats.total_time = elapsed.count();
-
-                    if(_opt.verbose)
-                        std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
-
-
-                    return true;
-                }
+                _stats.line_search_accepted=true;
+                break;
             }
-            else
-            {
-                auto iter_end = std::chrono::high_resolution_clock::now();
-                std::chrono::duration<double> iter_elapsed = iter_end - iter_start;
-                _stats.iter_time = iter_elapsed.count();
+            _stats.alpha /= 2.;
+            _stats.line_search_iters++;
+            step(_stats.alpha);
 
-                if(_opt.verbose)
-                    std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+            
+        }
+        if (_opt.line_search_strategy==0)
+            _ocp->update(_x0_candidate, _u0_candidate);
 
-                dx0 = _qp_solver->getSolution()[0].x;
-                //4) Newton Step
-                 for(unsigned int k = 0; k < _x0.size(); ++k)
-                 {
-                    if(_ocp->stage(k)->state_space)
-                    {
-                        _x0_candidate[k].resize(_x0[k].size());
-                        _ocp->stage(k)->state_space->integrate(_x0[k], _qp_solver->getSolution()[k].x, _x0_candidate[k]);
-                        _x0[k] = _x0_candidate[k];
+        _x0 = _x0_candidate;
+        _u0 = _u0_candidate;
+        
 
-                    }
-                    else
-                        throw std::runtime_error("_ocp->stage(k)->state_space is not defined for stage " + to_string(k));
+        // check break criteria on QP solution
+        if (break_criteria())
+        {
+            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
+            _stats.iter_time = iter_elapsed.count();
+            break;
+        } 
 
-                 }
-                 for(unsigned int k = 0; k < _u0.size(); ++k)
-                 {
-                     _u0[k] += _qp_solver->getSolution()[k].u;
-                 }
-            }
+        _prev_cost = _ocp->cost();
+        _prev_defect = _ocp->dynamics_defect();
+        _prev_viol = _ocp->constraint_violation();
+
+        if(_opt.verbose)
+        {
+            update_statistics();
+            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
+            _stats.iter_time = iter_elapsed.count();
+            std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
         }
 
     }
 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    _stats.total_time = elapsed.count();
+    // _ocp->update(_x0, _u0);
+
     if(_opt.verbose)
+    {
+        update_statistics();   
+        std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
+        _stats.total_time = elapsed.count();
+
         std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+    }
 
     return true;
 }
 
-bool swSQP::line_search()
+bool swSQP::break_criteria()
 {
-    _x0_candidate.resize(_x0.size());
-    _u0_candidate.resize(_u0.size());
+    double max_dw = -INFINITY;
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes() ; ++i)
+        max_dw = std::max(max_dw, (_x0[i] - _x0_candidate[i]).cwiseAbs().maxCoeff());
+        // #TODO: USE THE MANIFOLD OMINUS
 
-    double alpha = 1.;
-    double initial_merit = _ocp->cost();
+    return max_dw <= _opt.min_abs_delta_solution && _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
 
-    double merit_der = 0.;
-    for(unsigned int i = 0; i <= _ocp->getNumberOfNodes(); ++i)
+}
+
+void swSQP::step(double alpha)
+{
+    for(unsigned int k = 0; k < _x0_candidate.size(); ++k)
     {
-        merit_der += _ocp->stage(i)->der(_qp_solver->getSolution()[i].x, _qp_solver->getSolution()[i].u);
-    }
-
-    _stats.line_search_iters = 1;
-    while(alpha >= _opt.alpha_min)
-    {
-        //4) Newton Step
-        for(unsigned int k = 0; k < _x0.size(); ++k)
+        if(_ocp->stage(k)->state_space)
         {
-            if(_ocp->stage(k)->state_space)
-                {
-                    _x0_candidate[k].resize(_x0[k].size());
-                    _ocp->stage(k)->state_space->integrate(_x0[k], alpha*_qp_solver->getSolution()[k].x, _x0_candidate[k]);
-                }
-            else
-                throw std::runtime_error("_ocp->stage(k)->state_space is not defined for stage " + to_string(k));
-
+            _ocp->stage(k)->state_space->plus(_x0[k], alpha*_qp_solver->getSolution()[k].x, _x0_candidate[k]);
         }
-
-        for(unsigned int k = 0; k < _u0.size(); ++k)
-        {
+        if (k < _u0_candidate.size())
             _u0_candidate[k] = _u0[k] + alpha * _qp_solver->getSolution()[k].u;
-        }
 
-        //0) linearize ocp aorund _x0_candidate, _u0_candidate
-        _ocp->update(_x0_candidate, _u0_candidate);
-
-        double merit = _ocp->cost();
-
-        if(merit < initial_merit + _opt.beta * alpha * merit_der) //Armijo's rule
-        {
-            //take step
-            _x0 = _x0_candidate;
-            _u0 = _u0_candidate;
-
-            _stats.alpha = alpha;
-            _stats.line_search_accepted = true;
-            return true;
-        }
-        else
-        {
-            alpha = alpha/2.;
-        }
-
-        _stats.line_search_iters += 1;
     }
+}
+
+bool swSQP::ls_merit()
+{
+    double merit = _ocp->cost() + _ocp->constraint_violation() + _ocp->dynamics_defect();
+
+    
+    double merit_der = 0.;
+
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
+    {
+        // std::cout<< dcost_dw[i].rows() <<"----"<< dcost_dw[i].cols()<< std::endl;
+        // std::cout<< dviol_dw[i].rows() <<"----"<< dviol_dw[i].cols()<< std::endl;
+        // std::cout<< ddefect_dw[i].rows() <<"----"<< ddefect_dw[i].cols()<< std::endl;
+        // std::cout<< _qp_solver->getSolution()[i].x.rows() <<",,"<< _qp_solver->getSolution()[i].x.cols()<< std::endl;
+        // std::cout<< _Mx[i].rows() <<",,"<< _Mx[i].cols()<< std::endl;
+        // std::cout<< _qp_solver->getSolution()[i].u.rows() <<",,,"<< _qp_solver->getSolution()[i].u.cols()<< std::endl;
+        // std::cout<< _Mu[i].rows() <<",,,"<< _Mu[i].cols()<< std::endl;
+
+        merit_der += (dcost_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
+        merit_der += (dviol_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
+        merit_der += (ddefect_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
+
+        if(i<_ocp->getNumberOfNodes()-1)
+        {
+            merit_der += (dcost_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
+            merit_der += (dviol_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
+            merit_der += (ddefect_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
+        }
+    }
+
+    if(merit < _prev_cost + _prev_viol + _prev_defect + _opt.beta * _stats.alpha * merit_der)
+        return  true;
+
+    return false;
+}
+
+bool swSQP::ls_filter()
+{
+    if (_ocp->cost() <  _prev_cost || _ocp->constraint_violation() < _prev_viol || _ocp->dynamics_defect()< _prev_defect)  
+        return true;
+
     return false;
 }
 
 
-void swSQP::_init()
+void swSQP::update_statistics()
 {
-    for(unsigned int k = 0; k <= _ocp->getNumberOfNodes(); ++k)
+    _stats.cost = _ocp->cost();
+    _stats.constraint_violation = _ocp->constraint_violation();
+    for (uint i = 0; i < _ocp->getNumberOfNodes(); i++)
+    {
+        _stats.stages_statistics[i].cost = _ocp->stage(i)->stage_cost();
+        _stats.stages_statistics[i].constraint_violation = _ocp->stage(i)->stage_constraint_violation();
+    }
+    
+}
+
+
+void swSQP::init()
+{
+    _stats.line_search_accepted = false;
+    _stats.line_search_iters = 0;
+    _stats.alpha = 1;
+
+    dcost_dw.resize(_ocp->getNumberOfNodes());
+    dviol_dw.resize(_ocp->getNumberOfNodes());
+    ddefect_dw.resize(_ocp->getNumberOfNodes());
+
+
+    if(_opt.line_search_strategy == 1)
+        ls_function = &swSQP::ls_merit;
+    if(_opt.line_search_strategy == 2)
+        ls_function = &swSQP::ls_filter;
+
+
+    for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
     {
         _Mx.push_back(_ocp->stage(k)->dx->getM());
 
         // --- Dynamics (only for k < N) ---
-        if(k < _ocp->getNumberOfNodes())
+        if(k < _ocp->getNumberOfNodes()-1)
         {
             _Mu.push_back(_ocp->stage(k)->du->getM());
 
@@ -297,11 +309,11 @@ void swSQP::_init()
 
             _qp_solver->setStageDynamics(k, A, B, b);
         }
+        _dx0.setZero(_A[0].cols()); //initial delta state constraint (_dx0 = 0)
 
         // --- Cost (always) ---
         _H.push_back(Eigen::MatrixXd(_ocp->stage(k)->stack->getStack()[0]->getA().cols(), _ocp->stage(k)->stack->getStack()[0]->getA().cols()));
         Eigen::VectorXd g;
-        computeQuadraticApproximation(k, _H[k], g);
         _g.push_back(g);
 
 
@@ -326,8 +338,9 @@ void swSQP::_init()
         _du.push_back(du);
 
         _qp_solver->setConstraint(k, _C[k], _D[k], _dl[k], _du[k]);
-
-
+   
     }
+    if(_opt.verbose)
+            std::cout<<"Solver inited"<<std::endl;
 }
 

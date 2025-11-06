@@ -1,4 +1,4 @@
-#include <OpenSoT/utils/oc.h>
+#include <OpenSoT/oc/oc.h>
 
 // py_ocp.cpp
 #include <pybind11/pybind11.h>
@@ -10,117 +10,120 @@
 #include <OpenSoT/utils/Affine.h>
 #include <OpenSoT/tasks/Aggregated.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <OpenSoT/utils/oc.h>
-#include <OpenSoT/solvers/swSQP.h>
-#include <OpenSoT/oc/SE3Derivatives.h>
+#include <OpenSoT/oc/Manifolds.h>
+#include <OpenSoT/oc/EulerSE3.h>
+#include <OpenSoT/oc/EulerVector.h>
 #include <OpenSoT/oc/SE3Task.h>
-#include <OpenSoT/oc/DynamicsConstraint.h>
+#include <OpenSoT/oc/TorquesTask.h>
+#include <OpenSoT/oc/TorquesConstraint.h>
 
 namespace py = pybind11;
 
 using OpenSoT::ocp;
 using Stage = OpenSoT::ocp::Stage;
 
-using namespace OpenSoT::solvers;
 
 // Opaque vector types so we can bind them as Python list-like containers
 PYBIND11_MAKE_OPAQUE(std::vector<std::shared_ptr<OpenSoT::AffineHelper>>);
 PYBIND11_MAKE_OPAQUE(std::vector<std::shared_ptr<Stage>>);
 
-std::string print_opt(swSQP::options& opt)
-{
-    std::string str;
-    str = opt.toOSS().str();
-    return str;
-}
 
-struct PyStateSpaceRepresentation : OpenSoT::Space {
+struct PyStateSpaceRepresentation : OpenSoT::Space
+{
     using Space::Space;
 
-    void integrate(const Eigen::VectorXd& x0,
-             const Eigen::VectorXd& dx0,
-             Eigen::VectorXd& x1) override {
+    void plus(const Eigen::VectorXd &x0,
+              const Eigen::VectorXd &dx0,
+              Eigen::VectorXd &x1) override
+    {
         PYBIND11_OVERRIDE_PURE(
-            void,                         // return type
-            Space,     // parent class
-            sum,                          // function name
-            x0, dx0, x1                   // arguments
-            );
+            void,       // return type
+            Space,      // parent class
+            sum,        // function name
+            x0, dx0, x1 // arguments
+        );
     }
 };
 
+void pyopensot_oc(py::module &m)
+{
 
+    py::class_<OpenSoT::oc::EulerSE3, OpenSoT::oc::EulerSE3::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerSE3")
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
 
-void pyopensot_oc(py::module& m) {
+    py::class_<OpenSoT::oc::EulerVector, OpenSoT::oc::EulerVector::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerVector")
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
 
-    py::class_<OpenSoT::oc::SE3Derivatives, OpenSoT::oc::SE3Derivatives::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "SE3Derivatives")
-        .def(py::init<const XBot::ModelInterface&, const AffineHelper&, const AffineHelper&, const AffineHelper&, const AffineHelper&, const AffineHelper&, const double>());
+    py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
+        .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>());
 
-    py::class_<OpenSoT::oc::DynamicsConstraint, OpenSoT::oc::DynamicsConstraint::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "DynamicsConstraint")
-        .def(py::init<XBot::ModelInterface&, const OpenSoT::AffineHelper&, const OpenSoT::AffineHelper&, const double>());
-
+    py::class_<OpenSoT::oc::DynamicsConstraint, OpenSoT::oc::DynamicsConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "DynamicsConstraint")
+        .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
+        .def("getTorqueLimit", &OpenSoT::oc::DynamicsConstraint::getTorqueLimit)
+        .def("setTorqueLimit", &OpenSoT::oc::DynamicsConstraint::setTorqueLimit);
 
     py::class_<OpenSoT::oc::SE3Task, OpenSoT::oc::SE3Task::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "SE3Task")
-        .def(py::init<const std::string&, const XBot::ModelInterface&, const AffineHelper&, const std::string&>())
+        .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
         .def("getError", &OpenSoT::oc::SE3Task::getError)
         .def("setReference", &OpenSoT::oc::SE3Task::setReference)
         .def("getReference", &OpenSoT::oc::SE3Task::getReference)
         .def("getDistalFrame", &OpenSoT::oc::SE3Task::getDistalFrame);
 
-
     py::class_<OpenSoT::Space, OpenSoT::Space::Ptr, PyStateSpaceRepresentation>(m, "Space")
         .def(py::init<unsigned int, unsigned int>(), py::arg("nq"), py::arg("nv"))
-        .def("nq",  &OpenSoT::Space::nq)
-        .def("nv",  &OpenSoT::Space::nv)
-        .def("integrate", &OpenSoT::Space::integrate, py::arg("x0"), py::arg("dx0"), py::arg("x1"));
-
+        .def("nq", &OpenSoT::Space::nq)
+        .def("nv", &OpenSoT::Space::nv)
+        .def("plus", &OpenSoT::Space::plus, py::arg("x0"), py::arg("dx0"), py::arg("x1"));
 
     // ---------------- Derived: VectorSpace ----------------
     py::class_<OpenSoT::VectorSpace, OpenSoT::Space, OpenSoT::VectorSpace::Ptr>(m, "VectorSpace")
         .def(py::init<unsigned int>(), py::arg("dimension"))
-        .def("integrate", [](OpenSoT::VectorSpace& self, const Eigen::VectorXd& x0, const Eigen::VectorXd& dx0) -> Eigen::VectorXd {
+        .def("plus", [](OpenSoT::VectorSpace &self, const Eigen::VectorXd &x0, const Eigen::VectorXd &dx0) -> Eigen::VectorXd
+             {
             Eigen::VectorXd x1(x0.size());
             x1.setZero();
-            self.integrate(x0, dx0, x1);
-            return x1;}, py::arg("x0"), py::arg("dx0"));
+            self.plus(x0, dx0, x1);
+            return x1; }, py::arg("x0"), py::arg("dx0"));
 
     // ---------------- Derived: SE3Space ----------------
     py::class_<OpenSoT::SE3Space, OpenSoT::Space, OpenSoT::SE3Space::Ptr>(m, "SE3Space")
         .def(py::init<>())
-        .def("integrate", [](OpenSoT::SE3Space& self, const Eigen::VectorXd& x0, const Eigen::VectorXd& dx0) -> Eigen::VectorXd {
+        .def("plus", [](OpenSoT::SE3Space &self, const Eigen::VectorXd &x0, const Eigen::VectorXd &dx0) -> Eigen::VectorXd
+             {
             Eigen::VectorXd x1(x0.size());
             x1.setZero();
-            self.integrate(x0, dx0, x1);
-            return x1;}, py::arg("x0"), py::arg("dx0"));
+            self.plus(x0, dx0, x1);
+            return x1; }, py::arg("x0"), py::arg("dx0"));
 
     // ---------------- Composite: CompositeSpace ----------------
     py::class_<OpenSoT::CompositeSpace, OpenSoT::Space, OpenSoT::CompositeSpace::Ptr>(m, "CompositeSpace")
-        .def(py::init<const std::vector<OpenSoT::Space::Ptr>&>(), py::arg("representations"))
+        .def(py::init<const std::vector<OpenSoT::Space::Ptr> &>(), py::arg("representations"))
         .def("getSpaces", &OpenSoT::CompositeSpace::getSpaces)
-        .def("integrate", [](OpenSoT::CompositeSpace& self, const Eigen::VectorXd& x0, const Eigen::VectorXd& dx0) -> Eigen::VectorXd {
+        .def("plus", [](OpenSoT::CompositeSpace &self, const Eigen::VectorXd &x0, const Eigen::VectorXd &dx0) -> Eigen::VectorXd
+             {
                               Eigen::VectorXd x1(x0.size());
                               x1.setZero();
-                              self.integrate(x0, dx0, x1);
-                              return x1;}, py::arg("x0"), py::arg("dx0"));
-
+                              self.plus(x0, dx0, x1);
+                              return x1; }, py::arg("x0"), py::arg("dx0"));
 
     // Expose vector<stage::Ptr> as a Python list-like container (the horizon)
     py::bind_vector<std::vector<std::shared_ptr<Stage>>>(m, "StagePtrVector");
 
     // Bind vector of AffineHelper as Python list
     py::bind_vector<std::vector<std::shared_ptr<OpenSoT::AffineHelper>>>(m, "AffineHelperVector")
-        .def("append", [](std::vector<std::shared_ptr<OpenSoT::AffineHelper>>& v, const std::shared_ptr<OpenSoT::AffineHelper>& val) {
-            v.push_back(val);});
+        .def("append", [](std::vector<std::shared_ptr<OpenSoT::AffineHelper>> &v, const std::shared_ptr<OpenSoT::AffineHelper> &val)
+             { v.push_back(val); });
 
     // Bind stage
     py::class_<Stage, std::shared_ptr<Stage>>(m, "Stage")
         .def(py::init<>())
         .def("isFinalStage", &Stage::isFinalStage)
         .def("update", &Stage::update)
-        .def("cost", &Stage::cost)
+        .def("stage_cost", &Stage::stage_cost)
         .def_readwrite("model", &Stage::model)
         .def_readwrite("variables", &Stage::variables)
         .def_readwrite("x", &Stage::x)
+        .def_readwrite("xdot", &Stage::xdot)
         .def_readwrite("u", &Stage::u)
         .def_readwrite("dx", &Stage::dx)
         .def_readwrite("du", &Stage::du)
@@ -135,41 +138,14 @@ void pyopensot_oc(py::module& m) {
     py::class_<ocp, std::shared_ptr<ocp>>(m, "OCP")
         .def(py::init<>())
         .def("addStage", &ocp::addStage, py::arg("stage"))
-        .def("stage",
-             [](ocp& self, unsigned int i) -> std::shared_ptr<Stage> {
+        .def("stage", [](ocp &self, unsigned int i) -> std::shared_ptr<Stage>
+             {
                  // bounds check via .at() for nicer Python IndexError
-                 return self.getHorizon().at(i);
-             },
-             py::arg("i"),
-             py::return_value_policy::reference_internal)
-        .def("getHorizon",
-             (ocp::horizon& (ocp::*)()) &ocp::getHorizon,
-             py::return_value_policy::reference_internal)
+                 return self.getHorizon().at(i); }, py::arg("i"), py::return_value_policy::reference_internal)
+        .def("getHorizon", (ocp::horizon & (ocp::*)()) & ocp::getHorizon, py::return_value_policy::reference_internal)
         .def("getNumberOfNodes", &ocp::getNumberOfNodes)
 
         .def("cost", py::overload_cast<>(&ocp::cost))
-        .def("cost", py::overload_cast<unsigned int>(&ocp::cost))
 
         .def("update", &ocp::update);
-
-        // Bind swSQP::options
-        py::class_<swSQP::options>(m, "swSQPOptions")
-            .def(py::init<>())
-            .def("print", print_opt)
-            .def_readwrite("verbose", &swSQP::options::verbose)
-            .def_readwrite("max_iters", &swSQP::options::max_iters)
-            .def_readwrite("alpha_min", &swSQP::options::alpha_min)
-            .def_readwrite("beta", &swSQP::options::beta)
-            .def_readwrite("min_abs_delta_solution", &swSQP::options::min_abs_delta_solution)
-            .def_readwrite("use_line_search", &swSQP::options::use_line_search);
-
-
-        // Bind swSQP
-        py::class_<swSQP, swSQP::Ptr>(m, "swSQP")
-            .def(py::init<OpenSoT::ocp::Ptr>(), py::arg("ocp"))
-            .def("solve", &swSQP::solve)
-            .def("getStateSolution", &swSQP::getStateSolution)
-            .def("getControlSolution", &swSQP::getControlSolution)
-            .def("getOptions", (swSQP::options& (swSQP::*)()) &swSQP::getOptions, py::return_value_policy::reference_internal);
-
 }

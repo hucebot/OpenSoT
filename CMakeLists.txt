@@ -144,9 +144,12 @@ set(OPENSOT_TASKS_SOURCES src/tasks/Aggregated.cpp
 
 ##OC
 set(OPENSOT_OC_SOURCES 
-    src/oc/SE3Derivatives.cpp
+    src/oc/EulerSE3.cpp
+    src/oc/EulerVector.cpp
     src/oc/SE3Task.cpp
-    src/oc/DynamicsConstraint.cpp)
+    src/oc/TorquesTask.cpp
+    src/oc/TorquesConstraint.cpp
+    src/oc/oc.cpp)
 
 
 ##SOLVERS
@@ -174,8 +177,7 @@ set(OPENSOT_UTILS_SOURCES src/utils/AutoStack.cpp
     src/utils/AffineUtils.cpp
     src/utils/Indices.cpp
     src/utils/cartesian_utils.cpp
-    src/utils/InverseDynamics.cpp
-    src/utils/oc.cpp)
+    src/utils/InverseDynamics.cpp)
 
 
 if(${PCL_FOUND})
@@ -198,7 +200,7 @@ ADD_LIBRARY(OpenSoT SHARED
 
 set(PRIVATE_TLL ${PRIVATE_TLL} ${eigen_conversions_LIBRARIES})
 if(${OPENSOT_COMPILE_COLLISION})
-    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision moveit_msgs::moveit_msgs__rosidl_generator_cpp tf2_eigen_kdl::tf2_eigen_kdl)
+    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision moveit_msgs::moveit_msgs__rosidl_generator_cpp)
 endif()
 if(${PCL_FOUND})
     set(PRIVATE_TLL ${PRIVATE_TLL} ${QHULL_LIBRARIES} ${PCL_LIBRARIES} tf2_eigen::tf2_eigen )
@@ -216,6 +218,7 @@ TARGET_LINK_LIBRARIES(OpenSoT
     PUBLIC
     xbot2_interface::xbot2_interface
     matlogger2::matlogger2
+    tf2_eigen_kdl::tf2_eigen_kdl
     PRIVATE
     ${PRIVATE_TLL})
 
@@ -293,13 +296,13 @@ if(${proxsuite_FOUND})
     library_install(OpenSotBackEndproxQP 1 0 0)
 endif()
 
-# find_package(GLPK QUIET)
-# if(${GLPK_FOUND})
-#     message("Adding src/solvers/GLPKBackEnd.cpp to compilation")
-#     add_library(OpenSotBackEndGLPK SHARED src/solvers/GLPKBackEnd.cpp)
-#     target_link_libraries(OpenSotBackEndGLPK OpenSoT ${GLPK_LIBRARY})
-#     library_install(OpenSotBackEndGLPK 1 0 0)
-# endif()
+find_package(GLPK QUIET)
+if(${GLPK_FOUND})
+    message("Adding src/solvers/GLPKBackEnd.cpp to compilation")
+    add_library(OpenSotBackEndGLPK SHARED src/solvers/GLPKBackEnd.cpp)
+    target_link_libraries(OpenSotBackEndGLPK OpenSoT ${GLPK_LIBRARY})
+    library_install(OpenSotBackEndGLPK 1 0 0)
+endif()
 
 add_subdirectory(external/eiQuadProg-ext/)
 include_directories(external/eiQuadProg-ext/include)

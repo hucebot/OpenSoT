@@ -1,6 +1,5 @@
 from xbot2_interface import pyxbot2_interface as xbi
 import pyopensot as pysot
-# import pyopensot.oc as
 import numpy as np
 import unittest
 from scipy.spatial.transform import Rotation as R
@@ -11,7 +10,7 @@ np.set_printoptions(2, linewidth=200)
 
 utest = unittest.TestCase()
 
-with open("/home/forest_ws/code/OpenSoT/bindings/python/examples/floating_frame/floating_frame.urdf", "r") as f: # TODO: Change the absolute path
+with open("/home/forest_ws/code/OpenSoT/bindings/python/examples/ocp_examples/floating_frame/floating_frame.urdf", "r") as f:
     urdf_string = f.read()
 
 
@@ -37,6 +36,11 @@ variables = pysot.OptvarHelper(vars)
 q = variables.getVariable("q")
 qdot = variables.getVariable("qdot")
 
+q.getValue(np.concatenate((q_val, qdot_val)))
+qdot.getValue(np.concatenate((q_val, qdot_val)))
+
+print(q.getValue())
+print(qdot.getValue())
 
 dvars = list()
 dvars.append(("dq", model.nv))
@@ -46,10 +50,8 @@ dvariables = pysot.OptvarHelper(dvars)
 dq = dvariables.getVariable("dq")
 dqdot = dvariables.getVariable("dqdot")
 
-
 dt = 0.1
-
-dSE3 = pysot.oc.SE3Derivatives(model, dq, dqdot, dt)
+dSE3 = pysot.oc.EulerSE3(model, dq, dqdot, q, qdot, q, dt)
 
 print(f"dSE3.getA():\n{dSE3.getA()}")
 print(f"dSE3.getA().shape:\n{dSE3.getA().shape}")
@@ -89,8 +91,6 @@ print(f"cartesian_task.getb():\n{cartesian_task.getb()}")
 print(np.linalg.inv(cartesian_task.getA())@cartesian_task.getb())
 
 
-exit()
-
 utest.assertEqual(dSE3_dx.shape[0], dx.getOutputSize())
 utest.assertEqual(dSE3_dx.shape[1], dx.getOutputSize())
 utest.assertEqual(dSE3_du.shape[0], du.getOutputSize())
@@ -105,6 +105,17 @@ q = variables.getVariable("q")
 qdot = variables.getVariable("qdot")
 qddot = variables.getVariable("qddot")
 
+qddot_val = np.array([0., 0., 0., 0., 0., 0.])
+
+x = np.concatenate((q_val, qdot_val, qddot_val))
+
+q.getValue(x)
+qdot.getValue(x)
+qddot.getValue(x)
+
+print(q.getValue())
+print(qdot.getValue())
+print(qddot.getValue())
 
 
 dvars.append(("dqddot", model.nv))
@@ -116,7 +127,7 @@ dqddot = dvariables.getVariable("dqddot")
 
 
 
-dSE3 = pysot.oc.SE3Derivatives(model, dq, dqdot, dt)
+dSE3 = pysot.oc.EulerSE3(model, dq, dqdot, q, qdot, q, dt)
 
 print(f"dSE3.getA():\n{dSE3.getA()}")
 print(f"dSE3.getA().shape:\n{dSE3.getA().shape}")
@@ -181,8 +192,6 @@ dSE3xRn_dx = dSE3xRn.getA()@dx.getM().transpose()
 dSE3xRn_du = dSE3xRn.getA()@du.getM().transpose()
 print(f"dSE3xRn_dx:\n{dSE3xRn_dx}")
 print(f"dSE3xRn_du:\n{dSE3xRn_du}")
-
-
 
 
 

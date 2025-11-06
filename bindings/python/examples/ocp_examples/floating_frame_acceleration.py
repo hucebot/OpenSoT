@@ -4,7 +4,7 @@ from rclpy.node import Node
 from rcl_interfaces.srv import GetParameters
 
 from xbot2_interface import pyxbot2_interface as xbi
-import pyopensot as pysot
+# import pyopensot as pysot
 import numpy as np
 from std_msgs.msg import String 
 from sensor_msgs.msg import JointState
@@ -22,11 +22,11 @@ from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask,
 
 from utils import *
 
-rviz_file_path = "/home/forest_ws/code/OpenSoT/bindings/python/examples/floating_frame/floating_frame.rviz"
+rviz_file_path = "/home/forest_ws/code/OpenSoT/bindings/python/examples/ocp_examples/floating_frame/floating_frame.rviz"
 rviz = subprocess.Popen(['ros2', 'run', 'rviz2', 'rviz2', '-d', f'{rviz_file_path}'], stdout=subprocess.PIPE, shell=False)
 
 rclpy.init()
-rosnode = ros2_node()
+rosnode = floating_frame_node()
 
 model = xbi.ModelInterface2(rosnode.urdf)
 
@@ -103,7 +103,7 @@ for i in range(Ns):
     stage = Stage()
 
     stage.model = xbi.ModelInterface2(rosnode.urdf)
-    stage.state_space = CompositeSpace([pysot.oc.SE3Space(), VectorSpace(6)])
+    stage.state_space = CompositeSpace([SE3Space(), VectorSpace(6)])
 
     stage.x = x
     stage.dx = dx
@@ -131,8 +131,8 @@ ocp.update(x0, u0)
 print(f"ocp.getNumberOfNodes(): {ocp.getNumberOfNodes()}")
 
 for i in range(Ns):
-    dSE3 = pysot.oc.SE3Derivatives(ocp.stage(i).model, dq, dqdot, ocp.stage(i).q, ocp.stage(i).v, ocp.stage(i+1).q, dt)
-    dvel = dynamics_derivative.create(f"df{i}", eul(dqdot, dqddot, ocp.stage(i).v, ocp.stage(i).u, ocp.stage(i+1).v,  dt))
+    dSE3 = pysot.oc.EulerSE3(ocp.stage(i).model, dq, dqdot, ocp.stage(i).q, ocp.stage(i).v, ocp.stage(i+1).q, dt)
+    dvel = pysot.oc.EulerVector(stage.model, dqdot, dqddot, ocp.stage(i).v, ocp.stage(i).u, ocp.stage(i+1).v, dt)
     dd.append(dSE3)
     dd.append(dvel)
     ocp.stage(i).dynamics_derivative = dSE3 + dvel
@@ -148,10 +148,12 @@ for i in range(Ns):
     ocp.stage(i).stack = pysot.AutoStack(minu) # TODO - check why it fails withoutit
 
 
+minvel = min_var.create(f"minvel", ocp.stage(Ns).v, dvariables.getVariable("dqdot"))
+minvel.setWeight(1e3 * np.eye(model.nv))
 
 cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base_link")
 cartesian_task.setWeight(1e3 * np.eye(6))
-ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task)
+ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task + minvel)
 
 
 ocp.update(x0, u0)
@@ -160,11 +162,12 @@ print("ocp updated!")
 
 
 print("Initing solver...")
-solver = swSQP(ocp)
+solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = True
-solver.getOptions().use_line_search = False
+solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
+solver.init()
 print(f"{solver.getOptions().print()}")
 #solver.getOptions().min_abs_delta_solution = 1e-12
 print("...solver inited!")

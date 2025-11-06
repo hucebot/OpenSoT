@@ -15,17 +15,16 @@ from geometry_msgs.msg import PoseStamped, Point
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import PoseStamped, Point, TransformStamped
 from tf2_ros import TransformBroadcaster, StaticTransformBroadcaster
-from pyopensot.tasks.velocity import Cartesian
 from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask, AffineConstraint
 import math
 
 from utils import *
 
-rviz_file_path = "/home/forest_ws/code/OpenSoT/bindings/python/examples/floating_frame/floating_frame.rviz"
+rviz_file_path = "/home/forest_ws/code/OpenSoT/bindings/python/examples/ocp_examples/floating_frame/floating_frame.rviz"
 rviz = subprocess.Popen(['ros2', 'run', 'rviz2', 'rviz2', '-d', f'{rviz_file_path}'], stdout=subprocess.PIPE, shell=False)
 
 rclpy.init()
-rosnode = ros2_node()
+rosnode = floating_frame_node()
 
 model = xbi.ModelInterface2(rosnode.urdf)
 
@@ -117,7 +116,7 @@ ocp.addStage(stage)
 ocp.update(x0, u0)
 
 for i in range(Ns):
-    df = pysot.oc.SE3Derivatives(stage.model, dq, dqdot, ocp.stage(i).x, ocp.stage(i).u, ocp.stage(i+1).x, dt)
+    df = pysot.oc.EulerSE3(stage.model, dq, dqdot, ocp.stage(i).x, ocp.stage(i).u, ocp.stage(i+1).x, dt)
     dd.append(df)
     ocp.stage(i).dynamics_derivative = df
 
@@ -153,13 +152,15 @@ print("ocp updated!")
 
 
 print("Initing solver...")
-solver = pysot.oc.swSQP(ocp)
+solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = True
-solver.getOptions().use_line_search = True
+solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
-print(f"{solver.getOptions().print()}")
 solver.getOptions().min_abs_delta_solution = 1e-6
+solver.init()
+print(f"{solver.getOptions().print()}")
+
 print("...solver inited!")
 
 space = pysot.oc.SE3Space()
@@ -177,9 +178,9 @@ try:
         input()
 
         x = x0[0]
-        for i in range(len(x0)-1):
-            # x = x0[i]
-            x = space.integrate(x, u0[i]*dt)
+        for i in range(len(x0)):
+            x = x0[i]
+            # x = space.integrate(x, u0[i]*dt)
             q_val = x.tolist()
             rosnode.publish(q_val)
             time.sleep(dt)
