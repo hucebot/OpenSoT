@@ -139,6 +139,8 @@ public:
 
     void init();
 
+    const statistics& getStatistics() const {return _stats;}
+
 private:
     
 

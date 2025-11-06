@@ -167,11 +167,11 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _prev_defect = _ocp->dynamics_defect();
         _prev_viol = _ocp->constraint_violation();
 
+        update_statistics();
+        std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
+        _stats.iter_time = iter_elapsed.count();
         if(_opt.verbose)
         {
-            update_statistics();
-            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
-            _stats.iter_time = iter_elapsed.count();
             std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
         }
 
@@ -179,12 +179,11 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
     // _ocp->update(_x0, _u0);
 
+    update_statistics();
+    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
+    _stats.total_time = elapsed.count();
     if(_opt.verbose)
     {
-        update_statistics();   
-        std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
-        _stats.total_time = elapsed.count();
-
         std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
     }
 
