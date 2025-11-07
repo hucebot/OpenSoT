@@ -85,7 +85,7 @@ void swSQP::linearize()
 
 bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0)
 {
-    auto start = std::chrono::high_resolution_clock::now();
+    _stats._start = std::chrono::high_resolution_clock::now();
 
     _x0_candidate = x0;
     _u0_candidate = u0;
@@ -118,9 +118,9 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _stats.line_search_iters = 1;
         _stats.line_search_accepted = false;
 
-        auto iter_start = std::chrono::high_resolution_clock::now();
+        _stats._iter_start = std::chrono::high_resolution_clock::now();
 
-        // relinarize and update qp
+        // relinarize qp
         linearize();
 
         // solve
@@ -158,7 +158,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         // check break criteria on QP solution
         if (convergence_criteria())
         {
-            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
+            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
             _stats.iter_time = iter_elapsed.count();
             break;
         } 
@@ -170,21 +170,14 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         if(_opt.verbose)
         {
             update_statistics();
-            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
-            _stats.iter_time = iter_elapsed.count();
             std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
         }
 
     }
 
-    // _ocp->update(_x0, _u0);
-
     if(_opt.verbose)
     {
         update_statistics();   
-        std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
-        _stats.total_time = elapsed.count();
-
         std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
     }
 
@@ -345,6 +338,12 @@ void swSQP::update_statistics()
         _stats.stages_statistics[i].constraint_violation = _ocp->stage(i)->stage_constraint_violation();
     }
     
+
+    std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
+    _stats.iter_time = iter_elapsed.count();
+    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - _stats._start;
+    _stats.total_time = elapsed.count();
+
 }
 
 

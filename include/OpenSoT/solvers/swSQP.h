@@ -30,9 +30,14 @@ public:
         int iters;
         double cost;
         double constraint_violation;
+        double max_dsolution;
         double alpha;
         int line_search_iters;
         bool line_search_accepted;
+
+        //timing
+        std::chrono::_V2::system_clock::time_point _iter_start;
+        std::chrono::_V2::system_clock::time_point _start;
         double iter_time;
         double total_time = std::numeric_limits<double>::quiet_NaN();
 
@@ -46,6 +51,7 @@ public:
             _oss << "  iter              : " << iters << std::endl;
             _oss << "  cost              : " << cost << std::endl;
             _oss << "  sum-constr-viol   : " << constraint_violation << std::endl;
+            _oss << "  max-delta_state   : " << max_dsolution << std::endl;
             _oss << "  iter time         : " << iter_time << std::endl;
             _oss << "  total time        : " << total_time << std::endl;
             _oss << " === LineSearch Statistics === " << std::endl;
