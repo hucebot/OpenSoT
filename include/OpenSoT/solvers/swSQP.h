@@ -178,6 +178,7 @@ private:
 
     hpipmOC::Ptr _qp_solver;
     OpenSoT::ocp::Ptr _ocp;
+    std::vector<hpipm::OcpQpSolution> _qp_solution;
 
     options _opt;
     statistics _stats;

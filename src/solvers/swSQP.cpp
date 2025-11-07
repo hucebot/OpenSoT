@@ -129,6 +129,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             std::cout<< "nosolve"<< std::endl;
             return false;
         }
+        _qp_solution = _qp_solver->getSolution();
 
         // first update
         step(_stats.alpha);
@@ -189,7 +190,7 @@ bool swSQP::convergence_criteria()
     // 1. Change in decision variables
     double max_dsol = -INFINITY;
     for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
-        max_dsol = std::max(max_dsol, _stats.alpha * _qp_solver->getSolution()[i].x.cwiseAbs().maxCoeff());
+        max_dsol = std::max(max_dsol, _stats.alpha * _qp_solution[i].x.cwiseAbs().maxCoeff());
     
     _stats.max_dsolution =  max_dsol;
     bool step_converged = max_dsol <= _opt.min_abs_delta_solution;
@@ -197,7 +198,7 @@ bool swSQP::convergence_criteria()
     // 2. Constraint violation
     bool feasible = _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
     
-    // 4. KKT residual (optimality condition)
+    // 3. KKT residual (optimality condition)
     double kkt_residual = compute_kkt_residual();
     bool optimal = kkt_residual <= _opt.min_abs_delta_solution;
 
@@ -226,21 +227,21 @@ double swSQP::compute_kkt_residual()
         // Add general constraint multipliers: C^T * (lam_ug - lam_lg)
         if(_C[i].rows() > 0)
         {
-            kkt_x += _C[i].transpose() * (_qp_solver->getSolution()[i].lam_ug - _qp_solver->getSolution()[i].lam_lg);
+            kkt_x += _C[i].transpose() * (_qp_solution[i].lam_ug - _qp_solution[i].lam_lg);
         }
         
         // Add dynamics multipliers (costate equation)
         // Current stage dynamics: -A[i]^T * pi[i]
         if(i < _ocp->getNumberOfNodes()-1)
         {
-            Eigen::VectorXd pi = _qp_solver->getSolution()[i].pi;
+            Eigen::VectorXd pi = _qp_solution[i].pi;
             kkt_x -= _A[i].transpose() * pi;
         }
         
         // Previous stage dynamics: +pi[i-1]
         if(i > 0)
         {
-            Eigen::VectorXd pi_prev = _qp_solver->getSolution()[i-1].pi;
+            Eigen::VectorXd pi_prev = _qp_solution[i-1].pi;
             kkt_x += pi_prev;
         }
         
@@ -256,11 +257,11 @@ double swSQP::compute_kkt_residual()
             if(_D[i].rows() > 0)
             {
                 
-                kkt_u += _D[i].transpose() * (_qp_solver->getSolution()[i].lam_ug - _qp_solver->getSolution()[i].lam_lg);
+                kkt_u += _D[i].transpose() * (_qp_solution[i].lam_ug - _qp_solution[i].lam_lg);
             }
             
             // Add dynamics multipliers: B^T * pi
-            Eigen::VectorXd pi = _qp_solver->getSolution()[i].pi;
+            Eigen::VectorXd pi = _qp_solution[i].pi;
             kkt_u += _B[i].transpose() * pi;
             
             total_kkt_sq += kkt_u.squaredNorm();
@@ -276,10 +277,10 @@ void swSQP::step(double alpha)
     {
         if(_ocp->stage(k)->state_space)
         {
-            _ocp->stage(k)->state_space->plus(_x0[k], alpha*_qp_solver->getSolution()[k].x, _x0_candidate[k]);
+            _ocp->stage(k)->state_space->plus(_x0[k], alpha*_qp_solution[k].x, _x0_candidate[k]);
         }
         if (k < _u0_candidate.size())
-            _u0_candidate[k] = _u0[k] + alpha * _qp_solver->getSolution()[k].u;
+            _u0_candidate[k] = _u0[k] + alpha * _qp_solution[k].u;
 
     }
 }
@@ -296,20 +297,20 @@ bool swSQP::ls_merit()
         // std::cout<< dcost_dw[i].rows() <<"----"<< dcost_dw[i].cols()<< std::endl;
         // std::cout<< dviol_dw[i].rows() <<"----"<< dviol_dw[i].cols()<< std::endl;
         // std::cout<< ddefect_dw[i].rows() <<"----"<< ddefect_dw[i].cols()<< std::endl;
-        // std::cout<< _qp_solver->getSolution()[i].x.rows() <<",,"<< _qp_solver->getSolution()[i].x.cols()<< std::endl;
+        // std::cout<< _qp_solution[i].x.rows() <<",,"<< _qp_solution[i].x.cols()<< std::endl;
         // std::cout<< _Mx[i].rows() <<",,"<< _Mx[i].cols()<< std::endl;
-        // std::cout<< _qp_solver->getSolution()[i].u.rows() <<",,,"<< _qp_solver->getSolution()[i].u.cols()<< std::endl;
+        // std::cout<< _qp_solution[i].u.rows() <<",,,"<< _qp_solution[i].u.cols()<< std::endl;
         // std::cout<< _Mu[i].rows() <<",,,"<< _Mu[i].cols()<< std::endl;
 
-        merit_der += (dcost_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
-        merit_der += (dviol_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
-        merit_der += (ddefect_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
+        merit_der += (dcost_dw[i].transpose() * _Mx[i].transpose() * _qp_solution[i].x)[0];
+        merit_der += (dviol_dw[i].transpose() * _Mx[i].transpose() * _qp_solution[i].x)[0];
+        merit_der += (ddefect_dw[i].transpose() * _Mx[i].transpose() * _qp_solution[i].x)[0];
 
         if(i<_ocp->getNumberOfNodes()-1)
         {
-            merit_der += (dcost_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
-            merit_der += (dviol_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
-            merit_der += (ddefect_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
+            merit_der += (dcost_dw[i].transpose() * _Mu[i].transpose() * _qp_solution[i].u)[0];
+            merit_der += (dviol_dw[i].transpose() * _Mu[i].transpose() * _qp_solution[i].u)[0];
+            merit_der += (ddefect_dw[i].transpose() * _Mu[i].transpose() * _qp_solution[i].u)[0];
         }
     }
 
