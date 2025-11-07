@@ -156,7 +156,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         
 
         // check break criteria on QP solution
-        if (break_criteria())
+        if (convergence_criteria())
         {
             std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
             _stats.iter_time = iter_elapsed.count();
@@ -191,15 +191,90 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
     return true;
 }
 
-bool swSQP::break_criteria()
+bool swSQP::convergence_criteria()
 {
-    double max_dw = -INFINITY;
-    for(unsigned int i = 0; i < _ocp->getNumberOfNodes() ; ++i)
-        max_dw = std::max(max_dw, (_x0[i] - _x0_candidate[i]).cwiseAbs().maxCoeff());
-        // #TODO: USE THE MANIFOLD OMINUS
+    // 1. Change in decision variables
+    double max_dsol = -INFINITY;
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
+        max_dsol = std::max(max_dsol, _stats.alpha * _qp_solver->getSolution()[i].x.cwiseAbs().maxCoeff());
+    
+    _stats.max_dsolution =  max_dsol;
+    bool step_converged = max_dsol <= _opt.min_abs_delta_solution;
+    
+    // 2. Constraint violation
+    bool feasible = _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
+    
+    // 4. KKT residual (optimality condition)
+    double kkt_residual = compute_kkt_residual();
+    bool optimal = kkt_residual <= _opt.min_abs_delta_solution;
 
-    return max_dw <= _opt.min_abs_delta_solution && _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
+    // Combined criteria
+    bool converged = (step_converged && feasible) || (optimal && feasible);
+    
+    // // Optional: Store convergence info for debugging
+    // // if (_opt.verbose) {
+    // std::cout   << "  Max step:           " << max_dsol << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+    //             << "  Constraint viol:    " << _ocp->constraint_violation() << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+    //             << "  KKT residual:       " << kkt_residual << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+    //             << "  Converged:          " << (converged ? "YES" : "NO") << "\n";
+    // // }
+    return converged;
+}
 
+double swSQP::compute_kkt_residual()
+{
+    double total_kkt_sq = 0.0;
+    
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
+    {
+        // ===== STATE KKT GRADIENT =====
+        Eigen::VectorXd kkt_x = _q[i];  // Objective gradient w.r.t. state (already computed!)
+        
+        // Add general constraint multipliers: C^T * (lam_ug - lam_lg)
+        if(_C[i].rows() > 0)
+        {
+            kkt_x += _C[i].transpose() * (_qp_solver->getSolution()[i].lam_ug - _qp_solver->getSolution()[i].lam_lg);
+        }
+        
+        // Add dynamics multipliers (costate equation)
+        // Current stage dynamics: -A[i]^T * pi[i]
+        if(i < _ocp->getNumberOfNodes()-1)
+        {
+            Eigen::VectorXd pi = _qp_solver->getSolution()[i].pi;
+            kkt_x -= _A[i].transpose() * pi;
+        }
+        
+        // Previous stage dynamics: +pi[i-1]
+        if(i > 0)
+        {
+            Eigen::VectorXd pi_prev = _qp_solver->getSolution()[i-1].pi;
+            kkt_x += pi_prev;
+        }
+        
+        total_kkt_sq += kkt_x.squaredNorm();
+        
+        
+        // ===== CONTROL KKT GRADIENT (only for stages with control) =====
+        if(i < _ocp->getNumberOfNodes()-1)
+        {
+            Eigen::VectorXd kkt_u = _r[i];  // Objective gradient w.r.t. control (already computed!)
+            
+            // Add general constraint multipliers: D^T * (lam_ug - lam_lg)
+            if(_D[i].rows() > 0)
+            {
+                
+                kkt_u += _D[i].transpose() * (_qp_solver->getSolution()[i].lam_ug - _qp_solver->getSolution()[i].lam_lg);
+            }
+            
+            // Add dynamics multipliers: B^T * pi
+            Eigen::VectorXd pi = _qp_solver->getSolution()[i].pi;
+            kkt_u += _B[i].transpose() * pi;
+            
+            total_kkt_sq += kkt_u.squaredNorm();
+        }
+    }
+    
+    return std::sqrt(total_kkt_sq);
 }
 
 void swSQP::step(double alpha)

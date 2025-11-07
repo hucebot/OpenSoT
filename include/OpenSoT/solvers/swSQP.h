@@ -154,7 +154,8 @@ private:
     void linearize(); // update linearization/quadritization matrices
     void update_statistics();
     void step(double alpha); //step of the solver
-    bool break_criteria(); // sqp solvers breaking criteria
+    bool convergence_criteria(); // sqp solvers breaking criteria
+    double compute_kkt_residual();
 
     double _prev_cost;  // total cost
     double _prev_defect; // total gap violation
