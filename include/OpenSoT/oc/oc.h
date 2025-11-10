@@ -92,16 +92,15 @@ class ocp{
                 return cost;
             }
 
-            Eigen::VectorXd stage_dcost_dw()
+            const Eigen::VectorXd& stage_dcost_dw()
             {
-
-                Eigen::VectorXd der = Eigen::VectorXd::Zero(dx->getInputSize());
+                _der.setZero(dx->getInputSize());
                 if(stack)
                 {
-                    der = ((-1.0 * stack->getStack()[0]->getA().transpose() * stack->getStack()[0]->getWb()).transpose());
+                    _der = ((-1.0 * stack->getStack()[0]->getA().transpose() * stack->getStack()[0]->getWb()).transpose());
                 }
 
-                return der;
+                return _der;
             }
 
             double stage_constraint_violation()
@@ -109,71 +108,69 @@ class ocp{
                 double inf_norm =0.;
                 if(stack->getBounds()->getAineq().rows() > 0) //there are constraints
                 {
-                    
-                    Eigen::VectorXd lviolations = ((stack->getBounds()->getbLowerBound()).cwiseMax(0.0));
-                    Eigen::VectorXd uviolations = ((-stack->getBounds()->getbUpperBound()).cwiseMax(0.0));
 
-                    inf_norm = std::max(uviolations.maxCoeff(), lviolations.maxCoeff());
+                    _lviolations = ((stack->getBounds()->getbLowerBound()).cwiseMax(0.0));
+                    _uviolations = ((-stack->getBounds()->getbUpperBound()).cwiseMax(0.0));
+
+                    inf_norm = std::max(_uviolations.maxCoeff(), _lviolations.maxCoeff());
                 }
 
                 return inf_norm;
             }
 
-            Eigen::VectorXd stage_dviolation_dw(double beta = 10.0)
+            const Eigen::VectorXd& stage_dviolation_dw(double beta = 10.0)
             {
-                Eigen::VectorXd gradient = Eigen::VectorXd::Zero(dx->getInputSize());
+                _stage_dviolation_dw.setZero(dx->getInputSize());
                 
                 if(stack->getBounds()->getAineq().rows() == 0)
-                    return gradient;
+                    return _stage_dviolation_dw;
                 
-                Eigen::VectorXd lviolations = ((stack->getBounds()->getbLowerBound()).cwiseMax(0.0));
-                Eigen::VectorXd uviolations = ((-stack->getBounds()->getbUpperBound()).cwiseMax(0.0));
+                _lviolations = ((stack->getBounds()->getbLowerBound()).cwiseMax(0.0));
+                _uviolations = ((-stack->getBounds()->getbUpperBound()).cwiseMax(0.0));
                 
                 // Combine all violations
-                std::vector<double> all_violations;
-                std::vector<int> all_indices;
-                std::vector<int> all_types;
+                _all_violations.resize(_lviolations.size() + _uviolations.size());
+                _all_indices.resize(_lviolations.size() + _uviolations.size());
+                _all_types.resize(_lviolations.size() + _uviolations.size());
                 
-                for(int i = 0; i < lviolations.size(); ++i) {
-                    all_violations.push_back(lviolations(i));
-                    all_indices.push_back(i);
-                    all_types.push_back(0);
+                for(int i = 0; i < _lviolations.size(); ++i) {
+                    _all_violations[i] = _lviolations(i);
+                    _all_indices[i] = i;
+                    _all_types[i] = 0;
                 }
                 
-                for(int i = 0; i < uviolations.size(); ++i) {
-                    all_violations.push_back(uviolations(i));
-                    all_indices.push_back(i);
-                    all_types.push_back(1);
+                for(int i = 0; i < _uviolations.size(); ++i) {
+                    _all_violations[_lviolations.size() + i] = _uviolations(i);
+                    _all_indices[_lviolations.size() + i] = i;
+                    _all_types[_lviolations.size() + i] = 1;
                 }
                 
                 // Softmax weights: w_i = exp(beta * v_i) / sum_j(exp(beta * v_j))
-                double max_v = *std::max_element(all_violations.begin(), all_violations.end());
+                double max_v = *std::max_element(_all_violations.begin(), _all_violations.end());
                 
-                std::vector<double> exp_vals(all_violations.size());
+                _all_exp_vals.resize(_all_violations.size());
                 double sum_exp = 0.0;
                 
-                for(size_t i = 0; i < all_violations.size(); ++i) {
-                    exp_vals[i] = std::exp(beta * (all_violations[i] - max_v)); // avoid overflow
-                    sum_exp += exp_vals[i];
+                for(size_t i = 0; i < _all_violations.size(); ++i) {
+                    _all_exp_vals[i] = std::exp(beta * (_all_violations[i] - max_v)); // avoid overflow
+                    sum_exp += _all_exp_vals[i];
                 }
                 
-                const auto& Aineq = stack->getBounds()->getAineq();
-
                 // Compute weighted gradient
-                for(size_t i = 0; i < all_violations.size(); ++i) {
-                    double weight = exp_vals[i] / sum_exp;
+                for(size_t i = 0; i < _all_violations.size(); ++i) {
+                    double weight = _all_exp_vals[i] / sum_exp;
                     
-                    int idx = all_indices[i];
-                    int type = all_types[i];
+                    int idx = _all_indices[i];
+                    int type = _all_types[i];
                     
-                    const auto& constraint_gradient = Aineq.row(idx);
+                    const auto& constraint_gradient = stack->getBounds()->getAineq().row(idx);
                     
                     int sign = (type == 0) ? -1 : 1;
                     
-                    gradient += weight * sign * constraint_gradient;
+                    _stage_dviolation_dw += weight * sign * constraint_gradient;
                     
                 }
-                return gradient;
+                return _stage_dviolation_dw;
             }
 
             double stage_dynamics_defect()
@@ -187,57 +184,54 @@ class ocp{
 
             }
 
-            Eigen::VectorXd stage_ddefect_dw(double beta = 10.0)
+            const Eigen::VectorXd& stage_ddefect_dw(double beta = 10.0)
             {
-                Eigen::VectorXd gradient = Eigen::VectorXd::Zero(dx->getInputSize());
+                _stage_ddefect_dw.setZero(dx->getInputSize());
                 
                 if(!dynamics_derivative || dynamics_derivative->getb().size() == 0)
-                    return gradient;
+                    return _stage_ddefect_dw;
                 
-                Eigen::VectorXd b = dynamics_derivative->getb();
-                Eigen::VectorXd abs_b = b.cwiseAbs();
+                _abs_b = dynamics_derivative->getb().cwiseAbs();
                 
                 // Find the index of maximum absolute violation
                 int max_idx;
-                double max_val = abs_b.maxCoeff(&max_idx);
+                double max_val = _abs_b.maxCoeff(&max_idx);
                 
                 if(max_val == 0.0)
-                    return gradient;
+                    return _stage_ddefect_dw;
                 
                 // For smooth approximation using softmax
-                std::vector<double> violations;
-                std::vector<int> indices;
-                std::vector<int> signs;
+                _violations.resize(_abs_b.size());
+                _indices.resize(_abs_b.size());
+                _signs.resize(_abs_b.size());
                 
-                for(int i = 0; i < abs_b.size(); ++i) {
-                    violations.push_back(abs_b(i));
-                    indices.push_back(i);
-                    signs.push_back((b(i) >= 0) ? 1 : -1);
+                for(int i = 0; i < _abs_b.size(); ++i) {
+                    _violations[i] = _abs_b(i);
+                    _indices[i] = i;
+                    _signs[i] = (dynamics_derivative->getb()(i) >= 0) ? 1 : -1;
                 }
                 
                 // Softmax weights
-                double max_v = *std::max_element(violations.begin(), violations.end());
+                double max_v = *std::max_element(_violations.begin(), _violations.end());
                 
-                std::vector<double> exp_vals(violations.size());
+                _exp_vals.resize(_violations.size());
                 double sum_exp = 0.0;
                 
-                for(size_t i = 0; i < violations.size(); ++i) {
-                    exp_vals[i] = std::exp(beta * (violations[i] - max_v));
-                    sum_exp += exp_vals[i];
+                for(size_t i = 0; i < _violations.size(); ++i) {
+                    _exp_vals[i] = std::exp(beta * (_violations[i] - max_v));
+                    sum_exp += _exp_vals[i];
                 }
-                
-                const auto& A = dynamics_derivative->getA(); // or appropriate matrix
                 
                 // Compute weighted gradient
-                for(size_t i = 0; i < violations.size(); ++i) {
-                    double weight = exp_vals[i] / sum_exp;
-                    int idx = indices[i];
-                    int sign = signs[i];
+                for(size_t i = 0; i < _violations.size(); ++i) {
+                    double weight = _exp_vals[i] / sum_exp;
+                    int idx = _indices[i];
+                    int sign = _signs[i];
                     
-                    gradient += weight * sign * A.row(idx);
+                    _stage_ddefect_dw += weight * sign * dynamics_derivative->getA().row(idx);
                 }
                 
-                return gradient;
+                return _stage_ddefect_dw;
             }
 
             std::shared_ptr<XBot::ModelInterface> model;
@@ -249,6 +243,18 @@ class ocp{
 
             private:
                 Eigen::VectorXd _w0, _dw0;
+
+                Eigen::VectorXd _der;
+
+                Eigen::VectorXd _abs_b, _stage_ddefect_dw;
+                std::vector<double> _violations, _exp_vals;
+                std::vector<int> _indices, _signs;
+
+                Eigen::VectorXd _stage_dviolation_dw;
+                std::vector<double> _all_violations, _all_exp_vals;
+                std::vector<int> _all_indices, _all_types;
+
+                Eigen::VectorXd _lviolations, _uviolations;
         };
 
         typedef std::vector<Stage::Ptr> horizon;
