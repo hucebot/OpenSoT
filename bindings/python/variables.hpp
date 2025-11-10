@@ -79,7 +79,7 @@ class OptvarHelperWrapper
             _optvar = std::make_shared<OptvarHelper>(vv);
         }
 
-        AffineHelper getVariable(const std::string& name) const
+        VariableXd getVariable(const std::string& name) const
         {
             return _optvar->getVariable(name);
         }
@@ -89,7 +89,7 @@ class OptvarHelperWrapper
             return _optvar->getSize();
         }
 
-        std::vector<AffineHelper> getAllVariables() const
+        std::vector<VariableXd> getAllVariables() const
         {
             return _optvar->getAllVariables();
         }
@@ -191,8 +191,6 @@ void pyAffineHelper(py::module& m, const std::string& className) {
         .def_static("Identity", &AffineHelper::Identity)
         .def_static("Zero", &AffineHelper::Zero)
 
-        .def("getId", &AffineHelper::getId)
-
         .attr("__array_priority__") = 1000.0;
 
     py::class_<AffineUtils::AffineTask, std::shared_ptr<AffineUtils::AffineTask>, Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "AffineTask")
@@ -210,6 +208,13 @@ void pyOptvarHelperWrapper(py::module& m, const std::string& className) {
         .def("getVariable", &OptvarHelperWrapper::getVariable)
         .def("getAllVariables", &OptvarHelperWrapper::getAllVariables)
         .def("getSize", &OptvarHelperWrapper::getSize);
+}
+
+void pyVariableXd(py::module& m, const std::string& className) {
+    py::class_<VariableXd, AffineHelper, std::shared_ptr<VariableXd>>(m, className.c_str())
+        .def(py::init<const int, const int, const int>(), py::arg("start_idx"), py::arg("input_size"), py::arg("output_size"))
+        .def("getStartIdx", &VariableXd::getStartIdx)
+        .def_static("pile", &OpenSoT::Variable<Eigen::MatrixXd, Eigen::VectorXd>::pile<Eigen::MatrixXd, Eigen::VectorXd>);
 }
 
 void pySubVariable(py::module& m, const std::string& className) {

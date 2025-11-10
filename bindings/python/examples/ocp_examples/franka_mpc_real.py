@@ -2,7 +2,7 @@ from pyopensot.oc import *
 import rclpy
 from rclpy.node import Node
 from xbot2_interface import pyxbot2_interface as xbi
-from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask, AffineConstraint
+from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask, AffineConstraint, VariableXd
 from pyopensot.tasks.velocity import Postural
 from pyopensot.constraints.velocity import JointLimits
 import pyopensot as pysot
@@ -144,11 +144,11 @@ print(f"dvariables.getSize(): {dvariables.getSize()}")
 
 
 
-x = AffineHelper.pile(q, qdot)
-xdot = AffineHelper.pile(qdot, qddot)
+x = VariableXd.pile(q, qdot)
+xdot = VariableXd.pile(qdot, qddot)
 
-dx = AffineHelper.pile(dq, dqdot)
-dxdot = AffineHelper.pile(dqdot, dqddot)
+dx = VariableXd.pile(dq, dqdot)
+dxdot = VariableXd.pile(dqdot, dqddot)
 
 x0 = list()
 for i in range(Ns+1):

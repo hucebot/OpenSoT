@@ -73,7 +73,6 @@ public:
     void setM(const DerivedM& M)
     {
         _M.noalias() = M;
-        _start_id = -1;
         check_consistency();
     }
 
@@ -87,7 +86,6 @@ public:
     {
         _M.noalias() = M;
         _q.noalias() = q;
-        _start_id = -1;
         check_consistency();
     }
     
@@ -102,7 +100,6 @@ public:
     {
         _M.noalias() = other.getM();
         _q.noalias() = other.getq();
-        _start_id = -1;
         check_consistency();
         return *this;
     }
@@ -120,7 +117,6 @@ public:
     {
         _M.setZero(output_size, input_size);
         _q.setZero(output_size);
-        _start_id = -1;
         check_consistency();
     }
     
@@ -128,7 +124,6 @@ public:
     {
         _M.setZero(_M.rows(), _M.cols());
         _q.setZero(_q.rows());
-        _start_id = -1;
     }
 
     template <typename OtherM, typename OtherQ>
@@ -208,30 +203,6 @@ public:
     }
     
     virtual void update () {}
-
-    /**
-     * @brief getId return the id of the first element of the variable y in vector x
-     * @return id or -1 if all zeros
-     */
-    inline int getId()
-    {
-        if(_start_id == -1)
-        {
-            using Scalar = typename DerivedM::Scalar;
-            int cols = _M.cols();
-            const Scalar eps = std::numeric_limits<Scalar>::epsilon();
-
-            _start_id = 0;
-            for (; _start_id < cols; ++_start_id)
-            {
-                if (std::abs(_M(0, _start_id)) > eps)
-                    return _start_id;
-            }
-            _start_id = -1;
-        }
-
-        return _start_id;
-    }
     
 protected:
 
@@ -249,12 +220,70 @@ protected:
     DerivedQ _q;
 
     Eigen::VectorXd _value;
-
-    int _start_id = -1;
-
 };
 
 typedef AffineHelperBase<Eigen::MatrixXd, Eigen::VectorXd> AffineHelper;
+
+/**
+ * @brief The Variable class models a variable from a vecotr of variables.
+ * In particular:
+ *
+ *  x = Mw
+ *
+ *  where M is a selection matrix.
+ *
+ *  @note: this is valid as soon as setM(), setq(), and set() are not used!
+ *
+ */
+template <typename DerivedM, typename DerivedQ>
+class Variable : public AffineHelperBase<DerivedM, DerivedQ>
+{
+public:
+    Variable(const int start_idx, const int input_size, const int output_size):
+        OpenSoT::AffineHelperBase<DerivedM, DerivedQ>(input_size, output_size)
+    {
+        Eigen::VectorXd q(output_size);
+        q.setZero();
+
+        Eigen::MatrixXd M(output_size, input_size);
+        M.setZero();
+        M.block(0, start_idx, M.rows(), M.rows()) = Eigen::MatrixXd::Identity(M.rows(), M.rows());
+
+        this->set(M, q);
+
+        this->check_consistency();
+
+        _start_idx = start_idx;
+    }
+
+    /**
+     * @brief getStartIdx
+     * @return starting index of variable x in vector w
+     */
+    int getStartIdx() const {return _start_idx; }
+
+    template <typename OtherM, typename OtherQ>
+    static Variable<DerivedM, DerivedQ> pile(const Variable<OtherM, OtherQ>& A, const Variable<OtherM, OtherQ>& B)
+    {
+        if(A.getInputSize() != B.getInputSize())
+            throw std::runtime_error("A.getInputSize() != B.getInputSize()");
+        int input_size = A.getInputSize();
+
+        if(B.getStartIdx() != A.getStartIdx() + A.getOutputSize())
+            throw std::runtime_error("A and B amtrices are not consecutive: B.getStartIdx() != A.getStartIdx() + A.getOutputSize()");
+        int start_idx = A.getStartIdx();
+
+        int output_size = A.getOutputSize() + B.getOutputSize();
+
+        return Variable<DerivedM, DerivedQ>(start_idx, input_size, output_size);
+    }
+
+private:
+    int _start_idx;
+};
+
+typedef Variable<Eigen::MatrixXd, Eigen::VectorXd> VariableXd;
+
 
 
 /**
@@ -271,9 +300,9 @@ public:
     
     OptvarHelper(VariableVector name_size_pairs);
     
-    AffineHelper getVariable(std::string name) const;
+    VariableXd getVariable(std::string name) const;
     
-    std::vector<AffineHelper> getAllVariables() const;
+    std::vector<VariableXd> getAllVariables() const;
     
     int getSize() const;
     

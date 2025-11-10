@@ -177,7 +177,7 @@ private:
     options _opt;
     statistics _stats;
 
-    std::vector<Eigen::MatrixXd> _Mx, _Mu;
+    //std::vector<Eigen::MatrixXd> _Mx, _Mu;
 
     // stores dynamics in the horizon
     std::vector<Eigen::MatrixXd> _A, _B;
@@ -196,7 +196,6 @@ private:
 
     Eigen::VectorXd _dx0; //initial delta state constraint (_dx0 = 0)
     
-
 };
 
 }

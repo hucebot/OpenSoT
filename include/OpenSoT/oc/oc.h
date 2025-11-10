@@ -241,9 +241,9 @@ class ocp{
             }
 
             std::shared_ptr<XBot::ModelInterface> model;
-            std::vector<std::shared_ptr<AffineHelper>> variables;
+            std::vector<std::shared_ptr<VariableXd>> variables;
             tasks::Aggregated::TaskPtr dynamics_derivative;
-            std::shared_ptr<AffineHelper> x, xdot, u, q, v, a, dx, du;
+            std::shared_ptr<VariableXd> x, xdot, u, q, v, a, dx, du;
             AutoStack::Ptr stack;
             Space::Ptr state_space;
 

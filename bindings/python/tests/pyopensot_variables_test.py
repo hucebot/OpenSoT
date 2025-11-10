@@ -1,4 +1,4 @@
-from pyopensot import AffineHelper, OptvarHelper
+from pyopensot import AffineHelper, OptvarHelper, VariableXd
 import numpy as np
 import unittest
 
@@ -85,21 +85,26 @@ print(f"qdot.getValue(): {qdot.getValue()}")
 utest.assertTrue(qdot[2:].getValue()[0] == qdot.getValue()[2])
 utest.assertTrue(qdot[2:].getValue()[1] == qdot.getValue()[3])
 
-### getId test ###
+### getStartIdx test ###
 vars = list()
-vars.append(("x", 4))
+vars.append(("q", 2))
+vars.append(("qdot", 2))
 vars.append(("u", 2))
 vars.append(("l", 1))
 variables = OptvarHelper(vars)
-x = variables.getVariable("x")
+q = variables.getVariable("q")
+qdot = variables.getVariable("qdot")
+x = VariableXd.pile(q, qdot)
 u = variables.getVariable("u")
 l = variables.getVariable("l")
+
+
 print(f"x.getM():\n {x.getM()}")
 print(f"u.getM():\n {u.getM()}")
 print(f"l.getM():\n {l.getM()}")
-print(f"x.getId(): {x.getId()}")
-print(f"u.getId(): {u.getId()}")
-print(f"l.getId(): {l.getId()}")
+print(f"x.getStartIdx(): {x.getStartIdx()}")
+print(f"u.getStartIdx(): {u.getStartIdx()}")
+print(f"l.getStartIdx(): {l.getStartIdx()}")
 
 A = np.array([[1., 2., 3., 4.],
               [5., 6., 7., 8.],
@@ -118,9 +123,6 @@ print(f"B\n: {B}")
 print(f"C\n: {C}")
 
 dx = A@x + B@u + C@l
-print(f"dx:\n {dx}")
-print(f"dx.getId(): {dx.getId()}")
-utest.assertTrue(dx.getId() == 0)
 
 A1 = dx.getM() @ x.getM().T
 B1 = dx.getM() @ u.getM().T
@@ -133,9 +135,9 @@ utest.assertTrue((A1 == A).all())
 utest.assertTrue((B1 == B).all())
 utest.assertTrue((C1 == C).all())
 
-A2 = dx.getM()[0:dx.getM().shape[0], x.getId():x.getId()+x.getM().shape[0]]
-B2 = dx.getM()[0:dx.getM().shape[0], u.getId():u.getId()+u.getM().shape[0]]
-C2 = dx.getM()[0:dx.getM().shape[0], l.getId():l.getId()+l.getM().shape[0]]
+A2 = dx.getM()[0:dx.getM().shape[0], x.getStartIdx():x.getStartIdx()+x.getM().shape[0]]
+B2 = dx.getM()[0:dx.getM().shape[0], u.getStartIdx():u.getStartIdx()+u.getM().shape[0]]
+C2 = dx.getM()[0:dx.getM().shape[0], l.getStartIdx():l.getStartIdx()+l.getM().shape[0]]
 print(f"A2\n: {A2}")
 print(f"B2\n: {B2}")
 print(f"C2\n: {C2}")
@@ -144,13 +146,6 @@ utest.assertTrue((A1 == A2).all())
 utest.assertTrue((B1 == B2).all())
 utest.assertTrue((C1 == C2).all())
 
-subx = x[2:3]
-print(f"subx.getId(): {subx.getId()}")
-utest.assertTrue(subx.getId() == 2)
-
-subdx = x[1:3]
-print(f"subdx.getId(): {subdx.getId()}")
-utest.assertTrue(subdx.getId() == 1)
 
 Q = np.random.rand(4,4)
 R = np.random.rand(2,2)
@@ -170,9 +165,9 @@ utest.assertTrue((Q1 == Q).all())
 utest.assertTrue((R1 == R).all())
 utest.assertTrue((L1 == L).all())
 
-Q2 = H[x.getId():x.getId()+x.getM().shape[0], x.getId():x.getId()+x.getM().shape[0]]
-R2 = H[u.getId():u.getId()+u.getM().shape[0], u.getId():u.getId()+u.getM().shape[0]]
-L2 = H[l.getId():l.getId()+l.getM().shape[0], l.getId():l.getId()+l.getM().shape[0]]
+Q2 = H[x.getStartIdx():x.getStartIdx()+x.getM().shape[0], x.getStartIdx():x.getStartIdx()+x.getM().shape[0]]
+R2 = H[u.getStartIdx():u.getStartIdx()+u.getM().shape[0], u.getStartIdx():u.getStartIdx()+u.getM().shape[0]]
+L2 = H[l.getStartIdx():l.getStartIdx()+l.getM().shape[0], l.getStartIdx():l.getStartIdx()+l.getM().shape[0]]
 print(f"Q2:\n {Q2}")
 print(f"R2:\n {R2}")
 print(f"L2:\n {L2}")
