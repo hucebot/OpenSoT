@@ -48,39 +48,28 @@ class ros2_node(Node):
         self.joint_state_publisher.publish(self.joint_msg)
         self.base_link_broadcaster.sendTransform(self.w_T_b)
 
-roslaunch = subprocess.Popen(['ros2', 'launch', 'hurobots', 'go2_state_publisher.launch.py'], stdout=subprocess.PIPE, shell=False)
+# roslaunch = subprocess.Popen(['ros2', 'launch', 'hurobots', 'go2_state_publisher.launch.py'], stdout=subprocess.PIPE, shell=False)
 
 urdf_string = pathlib.Path(get_package_share_directory('hurobots') + "/description_files/urdf/go2/go2.urdf").read_text()
 
 model = xbi.ModelInterface2(urdf_string)
 
-# q_val = [ 0., 0., 0., 0., 0., 0., 1., # base
-#        -0.1, 0.,  0., #hips
-#         0.432, #knee
-#         -0.317, 0., # ankles
-#         -0.1, 0.,  0., #hips
-#         0.432, #knee
-#         -0.317, 0., #ankles
-#         0., 0., 0., # waist
-#         0.3,  0.25, 0., 1.,  0.15,  0., 0., # arm
-#         0.3, -0.25,  0., 1., 0.15,  0.,  0.] # arm
-
 q_init = [
-    0.005,
+    0.,
     0.72,
     -1.4,
-    -0.005,
+    -0.,
     0.72,
     -1.4,
-    -0.005,
+    -0.,
     0.72,
     -1.4,
-    0.005,
+    0.,
     0.72,
     -1.4,
 ]
 
-q_val = np.concatenate((np.array([0.,0.,0.3262,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -90,7 +79,12 @@ model.setJointVelocity(qdot_val)
 model.update()
 
 
-print(model.getPose("RL_foot"))
+# print(model.getPose("RL_foot"))
+# print(model.getPose("FL_foot"))
+# print(model.getPose("RR_foot"))
+# print(model.getPose("FR_foot"))
+
+contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
 
 rclpy.init()
 ros2node = ros2_node()
@@ -102,10 +96,11 @@ rclpy.spin_once(ros2node, timeout_sec=2.)
 
 
 vars = list()
-# x
 vars.append(("q", model.nq))
 vars.append(("qdot", model.nv))
 vars.append(("qddot", model.nv))
+for frame in contact_frames:
+    vars.append((frame+"_force", 6))
 
 variables = OptvarHelper(vars)
 q = variables.getVariable("q")
@@ -117,6 +112,8 @@ dvars = list()
 dvars.append(("dq", model.nv))
 dvars.append(("dqdot", model.nv))
 dvars.append(("dqddot", model.nv))
+for frame in contact_frames:
+    dvars.append((frame+"_dforce", 6))
 
 dvariables = OptvarHelper(dvars)
 dq = dvariables.getVariable("dq")
@@ -129,6 +126,19 @@ xdot = AffineHelper.pile(qdot, qddot)
 dx = AffineHelper.pile(dq, dqdot)
 dxdot = AffineHelper.pile(dqdot, dqddot)
 
+contact_frames_vars = {}
+contact_frames_dvars = {}
+for frame in contact_frames:
+    contact_frames_vars[frame] = variables.getVariable(frame+"_force")
+    contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
+
+_u = qddot
+for frame in contact_frames:
+    _u = AffineHelper.pile(_u, contact_frames_vars[frame])
+
+_du = dqddot
+for frame in contact_frames:
+    _du = AffineHelper.pile(_du, contact_frames_dvars[frame])
 
 Ns = 20 # number of nodes
 tf = 1. # final time
@@ -136,12 +146,13 @@ dt = tf/Ns
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
 x0 = list()
+u0 = list()
 for i in range(Ns+1):
     x0.append(np.concatenate((q_val, qdot_val)))
-
-u0 = list()
-for i in range(Ns):
-    u0.append(qddot_val)
+    if i<Ns:
+        u0.append(qddot_val)
+        for frame in contact_frames:
+            u0[i] = np.concatenate((u0[i], np.ones(6)))
 
 ocp = pysot.oc.OCP()
 dd = list()
@@ -159,8 +170,8 @@ for i in range(Ns+1):
 
     if i<Ns:
         """ We include both control variables and dvariables """
-        stage.u = qddot
-        stage.du = dqddot
+        stage.u =  _u
+        stage.du = _du
 
     """ We include q and qdot defined for the state variables """
     stage.q = q
@@ -187,13 +198,10 @@ for i in range(Ns):
 
 
 ocp.update(x0, u0)
-
 mintaus = []
 for i in range(Ns):
-
-
     minu = min_var.create(f"minu{i}", ocp.stage(i).u, ocp.stage(i).du)
-    minu.setWeight(1e-9 * np.eye(model.nv))
+    minu.setWeight(1e-9 * np.eye(model.nv + 6 * len(contact_frames)))
     minus.append(minu)
     
 
@@ -202,12 +210,13 @@ for i in range(Ns):
     mintaus.append(mintau)
     ocp.stage(i).stack = pysot.AutoStack(minu + mintau )
 
-    # tau_min
+
     tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
+    for frame in contact_frames:
+        tau_lim.addForce(frame, contact_frames_dvars[frame])
+
     tau_lims = tau_lim.getTorqueLimit()
-    print(tau_lims)
     tau_lims[:6] = [1e-9]*6
-    print(tau_lims)
     tau_lim.setTorqueLimit(tau_lims)
     const.append(tau_lim)
     ocp.stage(i).stack << tau_lim
@@ -224,9 +233,9 @@ ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 1000
+solver.getOptions().max_iters = 5
 solver.getOptions().verbose = True
-solver.getOptions().line_search_strategy = 1
+solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.init()
@@ -268,7 +277,7 @@ except KeyboardInterrupt:
 finally:
     print("Stopping the node.")
     # rviz.kill()
-    roslaunch.kill()
+    # roslaunch.kill()
     ros2node.destroy_node()
 
 if rclpy.ok():
