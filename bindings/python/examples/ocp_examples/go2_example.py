@@ -140,8 +140,8 @@ _du = dqddot
 for frame in contact_frames:
     _du = AffineHelper.pile(_du, contact_frames_dvars[frame])
 
-Ns = 20 # number of nodes
-tf = 1. # final time
+Ns = 60 # number of nodes
+tf = 2. # final time
 dt = tf/Ns 
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
@@ -198,28 +198,56 @@ for i in range(Ns):
 
 
 ocp.update(x0, u0)
-mintaus = []
+
+alpha = 0.05
+
+costs = []
+stack = None
 for i in range(Ns):
+
     minu = min_var.create(f"minu{i}", ocp.stage(i).u, ocp.stage(i).du)
-    minu.setWeight(1e-9 * np.eye(model.nv + 6 * len(contact_frames)))
-    minus.append(minu)
+    minu.setWeight(1e-9 * np.eye(model.nv + 4*6))
+    costs.append(minu)
     
 
     mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
     mintau.setWeight(0 * np.eye(model.nv))
-    mintaus.append(mintau)
-    ocp.stage(i).stack = pysot.AutoStack(minu + mintau )
+    costs.append(mintau)
+    stack = minu + mintau
 
 
+
+    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base")
+    cartesian_task.setWeight(1e0 * np.eye(6))
+    costs.append(cartesian_task)
+
+    base_ref = cartesian_task.getReference()
+    # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
+    # base_ref.translation[1] = base_ref.translation[1] + alpha * np.cos(np.pi * i*dt)
+    base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
+    cartesian_task.setReference(base_ref)
+
+    stack += cartesian_task
+
+
+    # for frame in contact_frames:
+    #     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), frame)
+    #     cartesian_task.setWeight(1e0 * np.eye(6))
+    #     costs.append(cartesian_task)
+    #     stack += cartesian_task%[0, 1, 2]
+
+    ocp.stage(i).stack = pysot.AutoStack(stack)
+
+    # tau_min
     tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
-    for frame in contact_frames:
-        tau_lim.addForce(frame, contact_frames_dvars[frame])
+    # for frame in contact_frames:
+    #     tau_lim.addForce(frame, contact_frames_dvars[frame])
 
     tau_lims = tau_lim.getTorqueLimit()
     tau_lims[:6] = [1e-9]*6
     tau_lim.setTorqueLimit(tau_lims)
     const.append(tau_lim)
-    ocp.stage(i).stack << tau_lim
+    # ocp.stage(i).stack << tau_lim
 
 minvel = min_var.create(f"minvel", ocp.stage(Ns).x[model.nq:], dvariables.getVariable("dqdot"))
 minvel.setWeight(1e0*0 * np.eye(model.nv))
