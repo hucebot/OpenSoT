@@ -90,7 +90,8 @@ model.setJointVelocity(qdot_val)
 model.update()
 
 
-print(model.getPose("RL_foot"))
+contact_frames = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
+
 
 rclpy.init()
 ros2node = ros2_node()
@@ -130,8 +131,8 @@ dx = AffineHelper.pile(dq, dqdot)
 dxdot = AffineHelper.pile(dqdot, dqddot)
 
 
-Ns = 20 # number of nodes
-tf = 1. # final time
+Ns = 60 # number of nodes
+tf = 2. # final time
 dt = tf/Ns 
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
@@ -188,29 +189,63 @@ for i in range(Ns):
 
 ocp.update(x0, u0)
 
-mintaus = []
-for i in range(Ns):
+alpha = 0.05
 
+costs = []
+stack = None
+for i in range(Ns):
 
     minu = min_var.create(f"minu{i}", ocp.stage(i).u, ocp.stage(i).du)
     minu.setWeight(1e-9 * np.eye(model.nv))
-    minus.append(minu)
+    costs.append(minu)
     
 
     mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
     mintau.setWeight(0 * np.eye(model.nv))
-    mintaus.append(mintau)
-    ocp.stage(i).stack = pysot.AutoStack(minu + mintau )
+    costs.append(mintau)
+    stack = minu + mintau
+    # ocp.stage(i).stack = pysot.AutoStack(minu + mintau)
+
+
+    # com = CoM(ocp.stage(i).model, dvariables.getVariable("dqddot"))
+    # com.setLambda(1.)
+    # com_ref, vel_ref, acc_ref = com.getReference()
+    # com0 = com_ref.copy()
+
+    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base")
+    cartesian_task.setWeight(1e0 * np.eye(6))
+    costs.append(cartesian_task)
+    base_ref = cartesian_task.getReference()
+
+
+
+    # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
+    # base_ref.translation[1] = base_ref.translation[1] + alpha * np.cos(np.pi * i*dt)
+    base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
+
+    cartesian_task.setReference(base_ref)
+    costs.append(cartesian_task)
+    stack += cartesian_task
+
+    # base = Cartesian("base", model, "world", "base", variables.getVariable("qddot"))
+    # base.setLambda(1.)
+
+
+    for frame in contact_frames:
+        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), frame)
+        cartesian_task.setWeight(1e0 * np.eye(6))
+        costs.append(cartesian_task)
+        stack += cartesian_task%[0, 1, 2]
+
+    ocp.stage(i).stack = pysot.AutoStack(stack)
 
     # tau_min
     tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
     tau_lims = tau_lim.getTorqueLimit()
-    print(tau_lims)
     tau_lims[:6] = [1e-9]*6
-    print(tau_lims)
     tau_lim.setTorqueLimit(tau_lims)
     const.append(tau_lim)
-    ocp.stage(i).stack << tau_lim
+    # ocp.stage(i).stack << tau_lim
 
 minvel = min_var.create(f"minvel", ocp.stage(Ns).x[model.nq:], dvariables.getVariable("dqdot"))
 minvel.setWeight(1e0*0 * np.eye(model.nv))
@@ -224,7 +259,7 @@ ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 1000
+solver.getOptions().max_iters = 10
 solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
