@@ -191,6 +191,8 @@ void pyAffineHelper(py::module& m, const std::string& className) {
         .def_static("Identity", &AffineHelper::Identity)
         .def_static("Zero", &AffineHelper::Zero)
 
+        .def("copy", &AffineHelper::copy)
+
         .attr("__array_priority__") = 1000.0;
 
     py::class_<AffineUtils::AffineTask, std::shared_ptr<AffineUtils::AffineTask>, Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "AffineTask")
@@ -214,6 +216,7 @@ void pyVariableXd(py::module& m, const std::string& className) {
     py::class_<VariableXd, AffineHelper, std::shared_ptr<VariableXd>>(m, className.c_str())
         .def(py::init<const int, const int, const int>(), py::arg("start_idx"), py::arg("input_size"), py::arg("output_size"))
         .def("getStartIdx", &VariableXd::getStartIdx)
+        .def("copy", &VariableXd::copy)
         .def_static("pile", &OpenSoT::Variable<Eigen::MatrixXd, Eigen::VectorXd>::pile<Eigen::MatrixXd, Eigen::VectorXd>);
 }
 

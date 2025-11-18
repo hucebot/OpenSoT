@@ -201,6 +201,14 @@ public:
     {
         return _value;
     }
+
+    AffineHelperBase copy()
+    {
+        AffineHelperBase copy(_M, _q);
+        if(_value.size() > 0)
+            copy.getValue(_M.transpose() * _value);
+        return copy;
+    }
     
     virtual void update () {}
     
@@ -262,6 +270,14 @@ public:
     {
         this->_value.noalias() = x.segment(_start_idx, this->_M.rows());
         return this->_value;
+    }
+
+    Variable copy()
+    {
+        Variable copy(_start_idx, this->_M.cols(), this->_M.rows());
+        if(this->_value.size() > 0)
+            copy.getValue(this->_M.transpose() * this->_value);
+        return copy;
     }
 
     /**

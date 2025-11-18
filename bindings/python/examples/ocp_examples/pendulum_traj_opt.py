@@ -79,19 +79,19 @@ for i in range(Ns+1):
     stage.state_space = CompositeSpace([VectorSpace(model.nq), VectorSpace(model.nv)])
 
     """ We include both state variables and dvariables """
-    stage.x = x
-    stage.xdot = xdot
-    stage.dx = dx
+    stage.x = x.copy()
+    stage.xdot = xdot.copy()
+    stage.dx = dx.copy()
 
     if i<Ns:
         """ We include both control variables and dvariables """
-        stage.u = qddot
-        stage.du = dqddot
+        stage.u = qddot.copy()
+        stage.du = dqddot.copy()
 
     """ We include q and qdot defined for the state variables """
-    stage.q = q
-    stage.v = qdot
-    stage.a = qddot
+    stage.q = q.copy()
+    stage.v = qdot.copy()
+    stage.a = qddot.copy()
 
     stage.model = xbi.ModelInterface2(rosnode.urdf)
 
@@ -101,7 +101,7 @@ ocp.update(x0, u0)
 
 mintaus = []
 for i in range(Ns):
-    df = EulerVector(stage.model, dx, dxdot, ocp.stage(i).x, ocp.stage(i).xdot, ocp.stage(i+1).x, dt)
+    df = EulerVector(ocp.stage(i).model, ocp.stage(i).dx, dxdot, ocp.stage(i).x, ocp.stage(i).xdot, ocp.stage(i+1).x, dt)
     dd.append(df)
     ocp.stage(i).dynamics_derivative = df
 

@@ -174,3 +174,18 @@ print(f"L2:\n {L2}")
 utest.assertTrue((Q1 == Q2).all())
 utest.assertTrue((R1 == R2).all())
 utest.assertTrue((L1 == L2).all())
+
+x = np.array([1, 2, 3, 4, 5, 6, 7])
+print(f"qdot: {qdot}")
+print(f"qdot.getValue(x): {qdot.getValue(x)}")
+print(f"qdot.getStartIdx(): {qdot.getStartIdx()}")
+
+qdot_copy = qdot.copy()
+print(f"qdot_copy: {qdot_copy}")
+print(f"qdot_copy.getValue(x): {qdot_copy.getValue()}")
+print(f"qdot_copy.getStartIdx(): {qdot_copy.getStartIdx()}")
+
+utest.assertTrue((qdot.getValue(x) == qdot_copy.getValue()).all())
+utest.assertTrue((qdot.getM() == qdot_copy.getM()).all())
+utest.assertTrue((qdot.getq() == qdot_copy.getq()).all())
+utest.assertTrue(qdot.getStartIdx() == qdot_copy.getStartIdx())
