@@ -185,7 +185,6 @@ private:
     options _opt;
     statistics _stats;
 
-    //std::vector<Eigen::MatrixXd> _Mx, _Mu;
 
     // stores dynamics in the horizon
     std::vector<Eigen::MatrixXd> _A, _B;

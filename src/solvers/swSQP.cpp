@@ -12,8 +12,6 @@ swSQP::swSQP(OpenSoT::ocp::Ptr ocp):
 
 void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::MatrixXd& B, Eigen::VectorXd& b)
 {
-    //A = _ocp->stage(i)->dynamics_derivative->getA() * _Mx[i].transpose();
-    //B = _ocp->stage(i)->dynamics_derivative->getA() * _Mu[i].transpose();
     A = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
     B = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
     b = - 1. *_ocp->stage(i)->dynamics_derivative->getb(); //this is negative because it comes from an OpenSoT Task ||Ax - b||!
@@ -38,23 +36,18 @@ void swSQP::computeCost(const unsigned int i,
     _g[i] = - _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWb();
 
     // computing state and control cost matrices from the quadratic approximation
-    //Q = _Mx[i] * _H[i] * _Mx[i].transpose();
     Q = _H[i].block(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getStartIdx(),
                     _ocp->stage(i)->dx->getM().rows(), _ocp->stage(i)->dx->getM().rows());
-    //q = _Mx[i] * _g[i];
     q = _g[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
 
     if(_ocp->stage(i)->u)
     {
-        //R = _Mu[i] * _H[i] * _Mu[i].transpose();
         R = _H[i].block(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getStartIdx(),
                         _ocp->stage(i)->du->getM().rows(), _ocp->stage(i)->du->getM().rows());
 
-        //S = _Mu[i] * _H[i] * _Mx[i].transpose();
         S = _H[i].block(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->dx->getStartIdx(),
                         _ocp->stage(i)->du->getM().rows(), _ocp->stage(i)->dx->getM().rows());
 
-        //r = _Mu[i] * _g[i];
         r = _g[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
     }
 }
@@ -65,10 +58,8 @@ void swSQP::computeConstraints(const unsigned int i,
     //Do not make sense to check bnounds since bounds in the non-linear problem are constraints
     if(_ocp->stage(i)->stack->getBounds()->getAineq().rows() > 0) //there are constraints
     {
-        //C = constraints->getAineq() * _Mx[i].transpose();
         C = _ocp->stage(i)->stack->getBounds()->getAineq().middleCols(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
         if(_ocp->stage(i)->u){
-            //D = constraints->getAineq() * _Mu[i].transpose();
             D = _ocp->stage(i)->stack->getBounds()->getAineq().middleCols(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
         }
 
@@ -269,24 +260,18 @@ bool swSQP::ls_merit()
         // std::cout<< _qp_solver->getSolution()[i].u.rows() <<",,,"<< _qp_solver->getSolution()[i].u.cols()<< std::endl;
         // std::cout<< _Mu[i].rows() <<",,,"<< _Mu[i].cols()<< std::endl;
 
-        //merit_der += (dcost_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
         merit_der += ((dcost_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
 
-        //merit_der += (dviol_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
         merit_der += ((dviol_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
 
-        //merit_der += (ddefect_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
         merit_der += ((ddefect_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
 
         if(i<_ocp->getNumberOfNodes()-1)
         {
-            //merit_der += (dcost_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
             merit_der += ((dcost_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
 
-            //merit_der += (dviol_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
             merit_der += ((dviol_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
 
-            //merit_der += (ddefect_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
             merit_der += ((ddefect_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
         }
     }
@@ -345,12 +330,10 @@ void swSQP::init()
 
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
     {
-        //_Mx.push_back(_ocp->stage(k)->dx->getM());
 
         // --- Dynamics (only for k < N) ---
         if(k < _ocp->getNumberOfNodes()-1)
         {
-            //_Mu.push_back(_ocp->stage(k)->du->getM());
 
             Eigen::MatrixXd A, B;
             Eigen::VectorXd b;
