@@ -139,6 +139,8 @@ solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
+#solver.getOptions().initial_hessian_regularization = 2.22045e-16
+#solver.getQPSolver().getOptions().iter_max = 30
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")

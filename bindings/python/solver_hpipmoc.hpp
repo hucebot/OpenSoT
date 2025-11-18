@@ -75,7 +75,10 @@ void pyHPIPMOC(py::module& m) {
         .def_readwrite("alpha_min", &OpenSoT::solvers::swSQP::options::alpha_min)
         .def_readwrite("beta", &OpenSoT::solvers::swSQP::options::beta)
         .def_readwrite("min_abs_delta_solution", &OpenSoT::solvers::swSQP::options::min_abs_delta_solution)
-        .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy);
+        .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy)
+        .def_readwrite("hessian_scale_factor_up", &OpenSoT::solvers::swSQP::options::hessian_scale_factor_up)
+        .def_readwrite("initial_hessian_regularization", &OpenSoT::solvers::swSQP::options::initial_hessian_regularization)
+        .def_readwrite("max_hessian_regularization", &OpenSoT::solvers::swSQP::options::max_hessian_regularization);
 
     // Bind swSQP::stage_statistics
     py::class_<OpenSoT::solvers::swSQP::stage_statistics>(m, "swSQPStageStatistics")
