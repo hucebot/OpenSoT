@@ -158,6 +158,8 @@ public:
 
     const std::vector<hpipm::OcpQpSolution>& getSolution() const {return _solution;}
 
+    const hpipm::HpipmStatus& solveStatus() const {return _solve_status; }
+
 
 private:
     hpipm::OcpQpIpmSolverSettings _solver_settings;
