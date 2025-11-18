@@ -256,6 +256,14 @@ public:
         _start_idx = start_idx;
     }
 
+    using AffineHelperBase<DerivedM,DerivedQ>::getValue;
+
+    const Eigen::VectorXd& getValue(const Eigen::VectorXd& x) override
+    {
+        this->_value.noalias() = x.segment(_start_idx, this->_M.rows());
+        return this->_value;
+    }
+
     /**
      * @brief getStartIdx
      * @return starting index of variable x in vector w
