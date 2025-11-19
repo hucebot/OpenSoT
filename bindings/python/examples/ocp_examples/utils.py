@@ -19,6 +19,8 @@ from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask,
 import random
 import math
 
+from geometry_msgs.msg import TransformStamped, WrenchStamped
+
 
 def random_quaternion():
     """
@@ -247,3 +249,21 @@ def quaternion_trajectory_numpy(N, axis=[0, 0, 1]):
         quaternions.append(quaternion)
     
     return np.array(quaternions)
+
+
+
+
+class force_node(Node):
+    def __init__(self):
+        super().__init__('force_pub')
+
+        self.force_publishers = {}
+
+
+    def initialize_force_publishers(self, contact_frames):
+        for contact_frame in contact_frames:
+            self.force_publishers[contact_frame] = self.create_publisher(WrenchStamped, contact_frame, 10)
+
+    def publish(self, force_msgs):
+        for contact_frame, force_msg in force_msgs.items():
+            self.force_publishers[contact_frame].publish(force_msg)

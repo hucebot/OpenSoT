@@ -33,7 +33,7 @@ namespace OpenSoT
                                const AffineHelper &dX,
                                const AffineHelper &dU);
 
-            void addForce(const std::string& frame_name, const AffineHelper& force);
+            void addForce(const std::string& frame_name, const std::shared_ptr<AffineHelper> force);
             Eigen::VectorXd getTorqueLimit();
             void setTorqueLimit(Eigen::VectorXd tau);
         

@@ -66,10 +66,10 @@ class ocp{
                 };
 
                 //4 update and evaluate variables
-                for(unsigned int i = 0; i < variables.size(); ++i)
+                for( auto& variable : variables)
                 {
-                    variables[i]->update();
-                    variables[i]->getValue(_w0);
+                    variable.second->update();
+                    variable.second->getValue(_w0);
                 }
 
                 //3 update dynamics_derivative
@@ -241,7 +241,7 @@ class ocp{
             }
 
             std::shared_ptr<XBot::ModelInterface> model;
-            std::vector<std::shared_ptr<AffineHelper>> variables;
+            std::unordered_map<std::string, std::shared_ptr<AffineHelper>> variables;
             tasks::Aggregated::TaskPtr dynamics_derivative;
             std::shared_ptr<AffineHelper> x, xdot, u, q, v, a, dx, du;
             AutoStack::Ptr stack;

@@ -13,7 +13,7 @@ public:
 
     TorquesTask(XBot::ModelInterface& robot, const AffineHelper& dX, const AffineHelper& dU);
 
-    void addForce(const std::string& frame_name, const AffineHelper& force);
+    void addForce(const std::string& frame_name, const std::shared_ptr<AffineHelper> force);
 
 
 private:
@@ -35,7 +35,7 @@ private:
     Eigen::MatrixXd _Fu;
 
     bool _fext_flag;
-    std::map<std::string, AffineHelper> _frame_forces_vars;
+    std::map<std::string, std::shared_ptr<AffineHelper>> _frame_forces_vars;
     std::map<std::string, Eigen::Vector6d> _frame_forces;
 
     virtual void _update();

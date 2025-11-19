@@ -149,7 +149,8 @@ set(OPENSOT_OC_SOURCES
     src/oc/SE3Task.cpp
     src/oc/TorquesTask.cpp
     src/oc/TorquesConstraint.cpp
-    src/oc/oc.cpp)
+    src/oc/oc.cpp
+    src/oc/Contact.cpp)
 
 
 ##SOLVERS

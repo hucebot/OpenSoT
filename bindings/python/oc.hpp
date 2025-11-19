@@ -16,6 +16,7 @@
 #include <OpenSoT/oc/SE3Task.h>
 #include <OpenSoT/oc/TorquesTask.h>
 #include <OpenSoT/oc/TorquesConstraint.h>
+#include <OpenSoT/oc/Contact.h>
 
 namespace py = pybind11;
 
@@ -57,6 +58,13 @@ void pyopensot_oc(py::module &m)
     py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
         .def("addForce", &OpenSoT::oc::TorquesTask::addForce);
+
+    py::class_<OpenSoT::oc::ContactTask, OpenSoT::oc::ContactTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "ContactTask")
+        .def(py::init<XBot::ModelInterface &, const std::string&, const AffineHelper &, const AffineHelper &>());
+
+    py::class_<OpenSoT::oc::ContactConstraint, OpenSoT::oc::ContactConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "ContactConstraint")
+        .def(py::init<XBot::ModelInterface &, const std::string&, const AffineHelper &, const AffineHelper &>());
+
 
     py::class_<OpenSoT::oc::DynamicsConstraint, OpenSoT::oc::DynamicsConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "DynamicsConstraint")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
