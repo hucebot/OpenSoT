@@ -75,7 +75,30 @@ void pyHPIPMOC(py::module& m) {
         .def_readwrite("alpha_min", &OpenSoT::solvers::swSQP::options::alpha_min)
         .def_readwrite("beta", &OpenSoT::solvers::swSQP::options::beta)
         .def_readwrite("min_abs_delta_solution", &OpenSoT::solvers::swSQP::options::min_abs_delta_solution)
-        .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy);
+        .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy)
+        .def_readwrite("hessian_scale_factor_up", &OpenSoT::solvers::swSQP::options::hessian_scale_factor_up)
+        .def_readwrite("initial_hessian_regularization", &OpenSoT::solvers::swSQP::options::initial_hessian_regularization)
+        .def_readwrite("max_hessian_regularization", &OpenSoT::solvers::swSQP::options::max_hessian_regularization);
+
+    // Bind swSQP::stage_statistics
+    py::class_<OpenSoT::solvers::swSQP::stage_statistics>(m, "swSQPStageStatistics")
+        .def(py::init<>())
+        .def_readonly("cost", &OpenSoT::solvers::swSQP::stage_statistics::cost)
+        .def_readonly("constraint_violation", &OpenSoT::solvers::swSQP::stage_statistics::constraint_violation);
+
+    // Bind swSQP::statistics
+    py::class_<OpenSoT::solvers::swSQP::statistics>(m, "swSQPStatistics")
+        .def(py::init<const unsigned int>())
+        .def_readonly("cost", &OpenSoT::solvers::swSQP::statistics::cost)
+        .def_readonly("constraint_violation", &OpenSoT::solvers::swSQP::statistics::constraint_violation)
+        .def_readonly("iters", &OpenSoT::solvers::swSQP::statistics::iters)
+        .def_readonly("alpha", &OpenSoT::solvers::swSQP::statistics::alpha)
+        .def_readonly("line_search_iters", &OpenSoT::solvers::swSQP::statistics::line_search_iters)
+        .def_readonly("line_search_accepted", &OpenSoT::solvers::swSQP::statistics::line_search_accepted)
+        .def_readonly("iter_time", &OpenSoT::solvers::swSQP::statistics::iter_time)
+        .def_readonly("total_time", &OpenSoT::solvers::swSQP::statistics::total_time)
+        .def_readonly("stages_statistics", &OpenSoT::solvers::swSQP::statistics::stages_statistics)
+        .def("toString", [](OpenSoT::solvers::swSQP::statistics &self) -> std::string { return self.toOSS().str();});
 
     // Bind swSQP
     py::class_<OpenSoT::solvers::swSQP, OpenSoT::solvers::swSQP::Ptr>(m, "swSQP")
@@ -85,6 +108,7 @@ void pyHPIPMOC(py::module& m) {
         .def("getStateSolution", &OpenSoT::solvers::swSQP::getStateSolution)
         .def("getControlSolution", &OpenSoT::solvers::swSQP::getControlSolution)
         .def("getOptions", (OpenSoT::solvers::swSQP::options & (OpenSoT::solvers::swSQP::*)()) & OpenSoT::solvers::swSQP::getOptions, py::return_value_policy::reference_internal)
-        .def("getQPSolver", &OpenSoT::solvers::swSQP::getQPSolver);
+        .def("getQPSolver", &OpenSoT::solvers::swSQP::getQPSolver)
+        .def("getStatistics", &OpenSoT::solvers::swSQP::getStatistics, py::return_value_policy::reference_internal);
 
 }

@@ -192,9 +192,22 @@ public:
         return _value;
     }
 
+    /**
+     * @brief getValue return the cached value of the variable.
+     * IMPORTANT: this has to be called after getValue(...) has been called!
+     * @return cached value
+     */
     const Eigen::VectorXd& getValue() const
     {
         return _value;
+    }
+
+    AffineHelperBase copy()
+    {
+        AffineHelperBase copy(_M, _q);
+        if(_value.size() > 0)
+            copy.getValue(_M.transpose() * _value);
+        return copy;
     }
     
     virtual void update () {}
@@ -215,10 +228,86 @@ protected:
     DerivedQ _q;
 
     Eigen::VectorXd _value;
-
 };
 
 typedef AffineHelperBase<Eigen::MatrixXd, Eigen::VectorXd> AffineHelper;
+
+/**
+ * @brief The Variable class models a variable from a vecotr of variables.
+ * In particular:
+ *
+ *  x = Mw
+ *
+ *  where M is a selection matrix.
+ *
+ *  @note: this is valid as soon as setM(), setq(), and set() are not used!
+ *
+ */
+template <typename DerivedM, typename DerivedQ>
+class Variable : public AffineHelperBase<DerivedM, DerivedQ>
+{
+public:
+    Variable(const int start_idx, const int input_size, const int output_size):
+        OpenSoT::AffineHelperBase<DerivedM, DerivedQ>(input_size, output_size)
+    {
+        Eigen::VectorXd q(output_size);
+        q.setZero();
+
+        Eigen::MatrixXd M(output_size, input_size);
+        M.setZero();
+        M.block(0, start_idx, M.rows(), M.rows()) = Eigen::MatrixXd::Identity(M.rows(), M.rows());
+
+        this->set(M, q);
+
+        this->check_consistency();
+
+        _start_idx = start_idx;
+    }
+
+    using AffineHelperBase<DerivedM,DerivedQ>::getValue;
+
+    const Eigen::VectorXd& getValue(const Eigen::VectorXd& x) override
+    {
+        this->_value.noalias() = x.segment(_start_idx, this->_M.rows());
+        return this->_value;
+    }
+
+    Variable copy()
+    {
+        Variable copy(_start_idx, this->_M.cols(), this->_M.rows());
+        if(this->_value.size() > 0)
+            copy.getValue(this->_M.transpose() * this->_value);
+        return copy;
+    }
+
+    /**
+     * @brief getStartIdx
+     * @return starting index of variable x in vector w
+     */
+    int getStartIdx() const {return _start_idx; }
+
+    template <typename OtherM, typename OtherQ>
+    static Variable<DerivedM, DerivedQ> pile(const Variable<OtherM, OtherQ>& A, const Variable<OtherM, OtherQ>& B)
+    {
+        if(A.getInputSize() != B.getInputSize())
+            throw std::runtime_error("A.getInputSize() != B.getInputSize()");
+        int input_size = A.getInputSize();
+
+        if(B.getStartIdx() != A.getStartIdx() + A.getOutputSize())
+            throw std::runtime_error("A and B amtrices are not consecutive: B.getStartIdx() != A.getStartIdx() + A.getOutputSize()");
+        int start_idx = A.getStartIdx();
+
+        int output_size = A.getOutputSize() + B.getOutputSize();
+
+        return Variable<DerivedM, DerivedQ>(start_idx, input_size, output_size);
+    }
+
+private:
+    int _start_idx;
+};
+
+typedef Variable<Eigen::MatrixXd, Eigen::VectorXd> VariableXd;
+
 
 
 /**
@@ -235,9 +324,9 @@ public:
     
     OptvarHelper(VariableVector name_size_pairs);
     
-    AffineHelper getVariable(std::string name) const;
+    VariableXd getVariable(std::string name) const;
     
-    std::vector<AffineHelper> getAllVariables() const;
+    std::vector<VariableXd> getAllVariables() const;
     
     int getSize() const;
     

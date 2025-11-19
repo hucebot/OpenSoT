@@ -97,6 +97,9 @@ public:
             alpha_min = 0.125;
             beta = 1e-4;
             line_search_strategy = 0;
+            initial_hessian_regularization = std::numeric_limits<double>::epsilon();
+            hessian_scale_factor_up = 10.;
+            max_hessian_regularization = 1.;
         }
 
         //termination criteria
@@ -107,6 +110,11 @@ public:
         double alpha_min;
         uint line_search_strategy;
         double beta; // multiply merit derivative in Armijo's condition in line search
+
+        /// Hessian Regularization
+        double initial_hessian_regularization;
+        double hessian_scale_factor_up;
+        double max_hessian_regularization;
 
         bool verbose;
 
@@ -144,6 +152,8 @@ public:
     hpipmOC::Ptr getQPSolver() { return _qp_solver; }
 
     void init();
+
+    const statistics& getStatistics() const {return _stats;}
 
 private:
     
@@ -183,7 +193,6 @@ private:
     options _opt;
     statistics _stats;
 
-    std::vector<Eigen::MatrixXd> _Mx, _Mu;
 
     // stores dynamics in the horizon
     std::vector<Eigen::MatrixXd> _A, _B;
@@ -201,8 +210,9 @@ private:
     std::vector<Eigen::VectorXd> _x0_candidate, _u0_candidate;
 
     Eigen::VectorXd _dx0; //initial delta state constraint (_dx0 = 0)
-    
 
+    double _sigma; //Hessian regularization
+    
 };
 
 }
