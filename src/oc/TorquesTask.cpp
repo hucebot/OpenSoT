@@ -26,9 +26,6 @@ TorquesTask::TorquesTask(XBot::ModelInterface &robot,
 
 void TorquesTask::_update()
 {
-    // _robot.computeInverseDynamicsDerivative(_dtau_dq, _dtau_dv, _dtau_da);
-
-
     _dtau_dq.setZero();
     _dtau_dv.setZero();
     _dtau_da.setZero();
@@ -40,17 +37,24 @@ void TorquesTask::_update()
     {
         _frame_forces[frame_name].head(3) = force_var->getValue();
         _frame_forces[frame_name].tail(3) << 0., 0., 0.;
+        _dtau_dfext[frame_name].setZero();
     }
     _robot.computeInverseDynamicsDerivative(_dtau_dq, _dtau_dv, _dtau_da, _dtau_dfext, _frame_forces);
     
     int i = 0;
     for (const auto& [frame_name, force_var] : _frame_forces_vars)
-    {
-        _Fu.block(0, _robot.getNv() + force_var->getOutputSize()*i , _robot.getNv(), force_var->getOutputSize()) = -_dtau_dfext[frame_name].topRows(3).transpose();
+    {   
+        auto f_idx = force_var->getStartIdx() - _dX.getOutputSize();
+        if(_robot.isFloatingBase())
+            f_idx = f_idx-1;
+
+        _Fu.block(0, f_idx, _robot.getNv(), force_var->getOutputSize()) = -_dtau_dfext[frame_name].topRows(3).transpose();
         i++;
     }
 
-
+    if(_robot.isFloatingBase())
+        _dtau_dq.block(0,0,_robot.getNv(),6) = _dtau_dq.block(0,0, _robot.getNv(),6) * J_l6_inv(Log6((XYZQUATtoSE3(_robot.getJointPosition().segment(0,7)))));
+    
     _Fx.block(0, 0, _robot.getNv(), _robot.getNv()) = _dtau_dq;
     _Fx.block(0, _robot.getNv(), _robot.getNv(), _robot.getNv()) = _dtau_dv;
 
@@ -62,7 +66,7 @@ void TorquesTask::_update()
     _b = -_dTAU.getq();
 }
 
-void TorquesTask::addForce(const std::string& frame_name, const std::shared_ptr<AffineHelper> force)
+void TorquesTask::addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force)
 {
     _frame_forces_vars[frame_name] = force;
     _dtau_dfext[frame_name] = Eigen::MatrixXd::Zero(6, _robot.getNv());

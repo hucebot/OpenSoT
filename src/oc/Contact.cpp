@@ -52,7 +52,7 @@ namespace OpenSoT::oc {
     ContactConstraint::ContactConstraint(XBot::ModelInterface &robot,
                                         const std::string& frame_name,
                                         const AffineHelper &dX,
-                                        const AffineHelper &dU) :   Constraint("ContactConstraint", 6),
+                                        const AffineHelper &dU) :   Constraint("ContactConstraint", dX.getInputSize()),
                                                                     _robot(robot),
                                                                     _task(robot, frame_name, dX, dU)
     {

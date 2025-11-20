@@ -1,6 +1,6 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, Task
+from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, Task, VariableXd
 import pyopensot as pysot
 from pyopensot.oc import *
 from rclpy.node import Node
@@ -18,6 +18,9 @@ from tf2_ros import TransformBroadcaster
 from ttictoc import tic, toc
 import time
 from utils import *
+
+np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=1)
+
 
 class ros2_node(Node):
     def __init__(self):
@@ -124,11 +127,11 @@ dq = dvariables.getVariable("dq")
 dqdot = dvariables.getVariable("dqdot")
 dqddot = dvariables.getVariable("dqddot")
 
-x = AffineHelper.pile(q, qdot)
-xdot = AffineHelper.pile(qdot, qddot)
+x = VariableXd.pile(q, qdot)
+xdot = VariableXd.pile(qdot, qddot)
 
-dx = AffineHelper.pile(dq, dqdot)
-dxdot = AffineHelper.pile(dqdot, dqddot)
+dx = VariableXd.pile(dq, dqdot)
+dxdot = VariableXd.pile(dqdot, dqddot)
 
 contact_frames_vars = {}
 contact_frames_dvars = {}
@@ -136,13 +139,22 @@ for frame in contact_frames:
     contact_frames_vars[frame] = variables.getVariable(frame+"_force")
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
+
+#print(f"dqdot idx: {dqdot.getStartIdx()}  size: {dqdot.getOutputSize()}")
+#print(f"contact_frames_vars[RL_foot] idx: {contact_frames_vars["RL_foot"].getStartIdx()}   size: {contact_frames_vars["RL_foot"].getOutputSize()}")
+#print(f"contact_frames_dvars[RL_foot] idx: {contact_frames_dvars["RL_foot"].getStartIdx()}   size: {contact_frames_dvars["RL_foot"].getOutputSize()}")
+
+# exit()
+
+
+
 _u = qddot
 for frame in contact_frames:
-    _u = AffineHelper.pile(_u, contact_frames_vars[frame])
+    _u = VariableXd.pile(_u, contact_frames_vars[frame])
 
 _du = dqddot
 for frame in contact_frames:
-    _du = AffineHelper.pile(_du, contact_frames_dvars[frame])
+    _du = VariableXd.pile(_du, contact_frames_dvars[frame])
 
 Ns = 30 # number of nodes
 tf = 2. # final time
@@ -172,21 +184,21 @@ for i in range(Ns):
     stage.state_space = CompositeSpace([SE3Space(), VectorSpace(model.nq-7), VectorSpace(model.nv)])
 
     """ We include both state variables and dvariables """
-    stage.x = x
-    stage.xdot = xdot
-    stage.dx = dx
+    stage.x = x.copy()
+    stage.xdot = xdot.copy()
+    stage.dx = dx.copy()
 
     if i<Ns-1:
         """ We include both control variables and dvariables """
-        stage.u =  _u
-        stage.du = _du
+        stage.u =  _u.copy()
+        stage.du = _du.copy()
 
-        stage.variables = contact_frames_vars
+        stage.variables = contact_frames_vars.copy()
 
     """ We include q and qdot defined for the state variables """
-    stage.q = q
-    stage.v = qdot
-    stage.a = qddot
+    stage.q = q.copy()
+    stage.v = qdot.copy()
+    stage.a = qddot.copy()
 
     
 
@@ -211,7 +223,7 @@ for i in range(Ns-1):
 
 ocp.update(x0, u0)
 
-alpha = 0.01
+alpha = 0.05
 
 costs = []
 mintaus = []
@@ -222,36 +234,34 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(1e-9 * np.eye(model.nv + 4*3))
         costs.append(minqddot)
-
-        minf = min_var.create(f"minf{i}", ocp.stage(i).u, ocp.stage(i).du)
-        minf.setWeight(1e-6 * np.eye(model.nv + 4*3))
-        costs.append(minf)
         
 
         mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in contact_frames:
             mintau.addForce(frame, contact_frames_vars[frame])
-        mintau.setWeight(1e3 * np.eye(model.nv))
+        mintau.setWeight(1e-6 * np.eye(model.nv))
         mintaus.append(mintau)
 
-        stack = minqddot
+        stack = 1e4*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
 
 
 
     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1e-9 * np.eye(6))
+    cartesian_task.setWeight(1e6 * np.eye(6))
     costs.append(cartesian_task)
 
-    base_ref = cartesian_task.getReference().copy()
-    # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
-    # base_ref.translation[1] = base_ref.translation[1] + alpha * np.cos(np.pi * i*dt)
-    # base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
-    # cartesian_task.setReference(base_ref)
+    if i == Ns-1:
+        base_ref = cartesian_task.getReference().copy()
+        base_ref.translation[2] -= 0.1
+        # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
+    #base_ref.translation[1] = base_ref.translation[1] + alpha * np.sin(np.pi * i*dt*0.5)
+        # base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
+        cartesian_task.setReference(base_ref)
 
-    stack += cartesian_task
+        stack += cartesian_task
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9 *  np.eye(model.nv))
+    minvel.setWeight(1e-3 *  np.eye(model.nv))
     costs.append(minvel)
 
     # postural = Postural(ocp.stage(i).model)
@@ -266,10 +276,10 @@ for i in range(Ns):
         # if i<Ns-1:
         #     contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
         #     costs.append(contact_task)
-        #     stack += contact_task
+        #     stack += contact_task%[0,1,2]
 
         cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
-        cartesian_task.setWeight(1e0 * np.eye(6))
+        cartesian_task.setWeight(1e-6 * np.eye(6))
         costs.append(cartesian_task)
         stack += cartesian_task%[0, 1, 2]
 
@@ -280,7 +290,7 @@ for i in range(Ns):
         for frame in contact_frames:
             contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
             costs.append(contact_task)
-            ocp.stage(i).stack <<  contact_task
+            ocp.stage(i).stack <<  contact_task%[0,1,2]
 
         # tau_min
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
@@ -291,7 +301,7 @@ for i in range(Ns):
         tau_lims[:6] = [1e-9]*6
         tau_lim.setTorqueLimit(tau_lims)
         const.append(tau_lim)
-        ocp.stage(i).stack << tau_lim
+        ocp.stage(i).stack << tau_lim#%[0,1,2,3,4,5]
     
 
 ocp.update(x0, u0)
@@ -301,8 +311,10 @@ solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 100
 solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1e-3
+solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getOptions().hessian_scale_factor_up = 1000
+#solver.getQPSolver().getOptions().iter_max = 1000
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")
@@ -314,6 +326,10 @@ success = solver.solve(x0, u0)
 
 x0 = solver.getStateSolution()
 u0 = solver.getControlSolution()
+
+for i in range(len(x0)-1):
+    # print(f"x0: {x0}")
+    print(f"u0[{i}]:\t {u0[i]}")
 
 force_msgs = {}
 for contact_frame in contact_frames:
@@ -328,11 +344,11 @@ try:
         input()
 
         x = x0[0]
-        for i in range(len(x0)):
+        for i in range(len(x0)-1):
             x = x0[i]
             q_val = x.tolist()[:model.nq]
-            if i<len(u0):
-                print(-mintaus[i].getb()[:6])
+            #if i<len(u0):
+            #    print(-mintaus[i].getb()[:6])
                 #print(const[i].getbLowerBound()[:6])
                 #print(const[i].getbUpperBound()[:6])
             ros2node.publish(q_val)

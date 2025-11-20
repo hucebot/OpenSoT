@@ -168,6 +168,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         {
             _ocp->update(_x0, _u0); //update at previous linearization point
             _sigma *= _opt.hessian_scale_factor_up; //rise regularization
+            std::cout<<"_sigma: "<<_sigma<<std::endl;
 
             if(_sigma > _opt.max_hessian_regularization)
             {
@@ -237,13 +238,13 @@ bool swSQP::convergence_criteria()
     // Combined criteria
     bool converged = (step_converged && feasible) || (optimal && feasible);
     
-    // // Optional: Store convergence info for debugging
-    // // if (_opt.verbose) {
-    // std::cout   << "  Max step:           " << max_dsol << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-    //             << "  Constraint viol:    " << _ocp->constraint_violation() << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-    //             << "  KKT residual:       " << kkt_residual << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-    //             << "  Converged:          " << (converged ? "YES" : "NO") << "\n";
-    // // }
+    // Optional: Store convergence info for debugging
+    if (_opt.verbose) {
+    std::cout   << "  Max step:           " << max_dsol << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  Constraint viol:    " << _ocp->constraint_violation() << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  KKT residual:       " << kkt_residual << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  Converged:          " << (converged ? "YES" : "NO") << "\n";
+    }
     return converged;
 }
 

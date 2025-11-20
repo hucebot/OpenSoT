@@ -4,7 +4,7 @@ using namespace OpenSoT::oc;
 
 DynamicsConstraint::DynamicsConstraint(XBot::ModelInterface &robot,
                                        const AffineHelper &dX,
-                                       const AffineHelper &dU) : Constraint("DynamicsConstraint", robot.getNv()),
+                                       const AffineHelper &dU) : Constraint("DynamicsConstraint", dX.getInputSize()),
                                                                  _robot(robot),
                                                                  _dU(dU),
                                                                  _dX(dX),
@@ -26,7 +26,7 @@ void DynamicsConstraint::_update()
     _bUpperBound = _torquelim + _task.getb();  // + bcause of the deffinition inside the task
 }
 
-void DynamicsConstraint::addForce(const std::string& frame_name, const std::shared_ptr<AffineHelper> force)
+void DynamicsConstraint::addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force)
 {
     _task.addForce(frame_name, force);
 }
