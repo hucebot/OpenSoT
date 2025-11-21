@@ -4,6 +4,7 @@
 #include <OpenSoT/Task.h>
 #include <OpenSoT/utils/Affine.h>
 #include <xbot2_interface/xbotinterface2.h>
+#include <OpenSoT/utils/LieGroupsUtils.h>
 // #include 
 
 

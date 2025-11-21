@@ -189,8 +189,8 @@ public:
 
             _x[i].resize(space->nv());
             _x[i].setZero();
-            space->minus(x.segment(x0id, space->nq()), x1.segment(x1id, space->nv()), _x[i]);
-            dx.segment(x0id, space->nv()) = _x[i];
+            space->minus(x.segment(x0id, space->nq()), x1.segment(x0id, space->nq()), _x[i]);
+            dx.segment(x1id, space->nv()) = _x[i];
 
             i+=1;
         }

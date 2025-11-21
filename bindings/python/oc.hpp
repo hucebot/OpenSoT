@@ -114,7 +114,13 @@ void pyopensot_oc(py::module &m)
                               Eigen::VectorXd x1(x0.size());
                               x1.setZero();
                               self.plus(x0, dx0, x1);
-                              return x1; }, py::arg("x0"), py::arg("dx0"));
+                              return x1; }, py::arg("x0"), py::arg("dx0"))
+        .def("minus", [](OpenSoT::CompositeSpace &self, const Eigen::VectorXd &x, const Eigen::VectorXd &x1) -> Eigen::VectorXd
+             {
+                              Eigen::VectorXd dx(self.nv());
+                              dx.setZero();
+                              self.minus(x, x1, dx);
+                              return dx; }, py::arg("x"), py::arg("x1"));
 
     // Expose vector<stage::Ptr> as a Python list-like container (the horizon)
     py::bind_vector<std::vector<std::shared_ptr<Stage>>>(m, "StagePtrVector");

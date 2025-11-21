@@ -7,6 +7,7 @@
 
 #include <OpenSoT/oc/SE3Task.h>
 #include <Eigen/Dense>
+#include <OpenSoT/utils/LieGroupsUtils.h>
 
 #include <gtest/gtest.h>
 #include <chrono>
@@ -101,6 +102,11 @@ Eigen::VectorXd generateRandomConfig(const Eigen::VectorXd& qmin, const Eigen::V
     return q;
 }
 
+void plus(const Eigen::VectorXd& x, const Eigen::VectorXd& v, Eigen::VectorXd& x1)
+{
+        x1 = OpenSoT::SE3toXYZQUAT(OpenSoT::XYZQUATtoSE3(x) * OpenSoT::Exp6(v));
+}
+
 TEST_F(testSE3Task, testJacobianFloatingFrame)
 {
     std::string path_to_urdf = OPENSOT_TEST_PATH;
@@ -145,8 +151,39 @@ TEST_F(testSE3Task, testJacobianFloatingFrame)
 
         ASSERT_EQ(J_pin.rows(), SE3T->getA().rows()) << "Jacobian row counts differ";
         ASSERT_EQ(J_pin.cols(), SE3T->getA().cols()) << "Jacobian column counts differ";
+        
+        std::cout<<"q: \n"<<q.transpose()<<std::endl;
+        std::cout<<"J_pin: \n"<<J_pin<<std::endl;
+        std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
 
+        // double eps = 1e-6;
+        // auto dq = Eigen::VectorXd(_robot->getNv());
+        // auto _q = Eigen::VectorXd(_robot->getNq());
+        // auto Jdiff = Eigen::MatrixXd(SE3T->getA().rows(), SE3T->getA().cols());
+        // Jdiff.setZero();
+        // for(unsigned int i = 0; i < _robot->getNv(); ++i)
+        // {
+        //     dq.setZero();
+        //     dq[i] = eps;
+        //     plus(q, dq, _q);
 
+        //     _robot->setJointPosition(_q);
+        //     _robot->update();
+        //     SE3T->update();
+
+        //     auto bplus = SE3T->getb();
+
+        //     plus(q, -dq, _q);
+        //     _robot->setJointPosition(_q);
+        //     _robot->update();
+        //     SE3T->update();
+
+        //     auto bminuns = SE3T->getb();
+
+        //     Jdiff.col(i) = (bplus - bminuns)/(2.*eps);
+        // }
+        // std::cout<<"Jdiff: \n"<<Jdiff<<std::endl;
+        
         // Use approximate equality for floating point comparison
         double tolerance = 1e-10;
         ASSERT_TRUE(J_pin.isApprox(SE3T->getA(), tolerance)) 
@@ -218,6 +255,91 @@ TEST_F(testSE3Task, testJacobianManipulatorEndEffector)
         q = generateRandomConfig(qmin, qmax);
     }
 }
+
+
+
+
+Eigen::VectorXd FFgenerateRandomConfig(const Eigen::VectorXd& qmin, const Eigen::VectorXd& qmax)
+{
+    Eigen::VectorXd q(qmin.size());
+    q.setZero();
+    for(unsigned int i = 0; i < qmin.size(); ++i)
+    {
+        q[i] = randomDouble(qmin[i], qmax[i]);
+    }
+    q.segment(0,7) = generateRandomPose(-2,2);
+
+    return q;
+}
+
+TEST_F(testSE3Task, testJacobianHumanoidBase)
+{
+    std::string path_to_urdf = OPENSOT_TEST_PATH;
+    path_to_urdf += "/robots/coman/coman.urdf";
+    std::string frame_name = "base_link";
+
+
+    pinocchio::Model model;
+    pinocchio::urdf::buildModel(path_to_urdf, model);
+    pinocchio::Data data(model);
+
+    XBot::ModelInterface::Ptr _robot = XBot::ModelInterface::getModel(ReadFile(path_to_urdf), OPENSOT_TEST_MODEL_TYPE);
+    
+    Eigen::VectorXd q = pinocchio::neutral(model);
+
+    _robot->setJointPosition(q);
+    _robot->update();
+
+    std::vector<std::pair<std::string, int>> var_list;
+    
+    var_list.emplace_back("dq", _robot->getNv());
+    
+    OpenSoT::OptvarHelper var(var_list);
+
+    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name));
+    SE3T->update();
+
+    Eigen::MatrixXd J_pin(6, model.nv);
+    pinocchio::FrameIndex frame_id = model.getFrameId(frame_name);
+    Eigen::VectorXd qmin, qmax;
+    _robot->getJointLimits(qmin, qmax);
+    for(unsigned int i = 0; i < 1000; ++i)
+    {
+
+        pinocchio::forwardKinematics(model, data, q);
+        pinocchio::updateFramePlacements(model, data);
+        pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+
+        _robot->setJointPosition(q);
+        _robot->update();
+
+        SE3T->update();
+
+
+        ASSERT_EQ(J_pin.rows(), SE3T->getA().rows()) << "Jacobian row counts differ";
+        ASSERT_EQ(J_pin.cols(), SE3T->getA().cols()) << "Jacobian column counts differ";
+
+
+        // Use approximate equality for floating point comparison
+        double tolerance = 1e-10;
+        ASSERT_TRUE(J_pin.isApprox(SE3T->getA(), tolerance)) 
+            << "Jacobians differ beyond tolerance " << tolerance
+            << "\nPinocchio Jacobian:\n" << J_pin
+            << "\nOpenSoT Jacobian:\n" << SE3T->getA()
+            << "\nDifference:\n" << (J_pin - SE3T->getA());
+
+        q = FFgenerateRandomConfig(qmin, qmax);
+    }
+}
+
+
+
+
+
+
+
+
+
 
 }
 

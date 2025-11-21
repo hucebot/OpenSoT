@@ -1,5 +1,4 @@
 #include <OpenSoT/oc/SE3Task.h>
-#include <OpenSoT/utils/LieGroupsUtils.h>
 
 
 using namespace OpenSoT::oc;
@@ -30,18 +29,22 @@ void SE3Task::_update()
      * NOTE: we pass the translation from local to world because inside the getJacobian(frame, p, J)
      * first rotate p in world and then apply the skew.
      **/
-    _robot.getJacobian(_distal_frame, _d_T_w.translation(), _J);
+    _robot.getJacobian(_distal_frame, _d_T_w.translation(), _J); // equivalent to call pinocchio::Jacobian() in WORLD (meaning: the point is in WORLD, velocities are expressed in WORLD)
     
     /** 
-     * We now compute the Adjoint to rotate to LOCAL
+     * We now compute the Adjoint to rotate to LOCAL, equivalent to call pinocchio::Jacobian() in LOCAL (meaning: the point is in WORLD, velocities are expressed in LOCAL) 
     **/
     _Adj.setZero();
     _Adj.block<3,3>(0,0) = _d_T_w.linear();
     _Adj.block<3,3>(0,3) = _Adj.block<3,3>(0,0) * hat(_d_T_w.inverse().translation()).transpose();
     _Adj.block<3,3>(3,3) = _Adj.block<3,3>(0,0);
 
-    _J = _Adj * _J;
+    //_robot.getJacobian(_distal_frame, _J); // equivalent to call pinocchio::Jacobian() in LOCAL_WORLD_ALIGNED (meaning: the point is in the LOCAL and the velocities are expressed in WORLD)
+
     _w = Log6(_d_T_w* _ref);
+    //_J = J_l6(_w) * _Adj * _J;
+    _J = _Adj * _J;
+    
 
     _task = _J*_dx - _w;
     
