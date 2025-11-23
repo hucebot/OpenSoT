@@ -58,6 +58,16 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
             return _J;
         }
 
+        const Eigen::Affine3d& getSE3Error() const
+        {
+            return _error;
+        }
+
+        const Eigen::Vector6d& getse3Error() const
+        {
+            return _w;
+        }
+
     private:
         inline void adjoint(const Eigen::Affine3d& T, Eigen::Matrix6d& Adj) {
             Adj.setZero();
@@ -80,6 +90,8 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
         Eigen::MatrixXd _J;
         Eigen::MatrixXd __A;
         Eigen::Matrix6d _Adj;
+
+        Eigen::Affine3d _error;
 
         Eigen::Vector6d _w;
 

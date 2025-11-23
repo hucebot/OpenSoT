@@ -201,7 +201,7 @@ static Eigen::Matrix6d J_l6(const Eigen::Vector6d & tau) {
     return J;
 }
 
-// Left Jacobian Inverse for SE(3)
+// Left Jacobian (Inverse for SE(3), this is equivalent to call pinocchio::JLog6(T))
 static Eigen::Matrix6d J_l6_inv(const Eigen::Vector6d & tau) {
     Eigen::Matrix6d J = Eigen::Matrix6d::Zero();
     

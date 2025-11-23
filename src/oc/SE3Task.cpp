@@ -51,24 +51,20 @@ void SE3Task::_update()
         _J = _Adj * _J;
     }
 
-    // _w = Log6(_ref.inverse() * _d_T_w.inverse());
-
-    // adjoint(_ref.inverse() * _d_T_w.inverse(), _Adj);
-    // __A =  J_l6(_w).inverse() * _Adj * _J; // This is the derivative of _w when using LOCAL!
-
-    _w = Log6(_d_T_w * _ref);
+    _error = _d_T_w * _ref;
+    _w = Log6(_error);
 
     if(_reference_frame == ReferenceFrame::LOCAL)
     {
-        __A =  J_l6_inv(_w) * _J; // This should be the derivative of _w when using LOCAL...
+        __A =  -J_l6_inv(_w) * _J; // This should be the derivative of _w when using LOCAL...
     }
     else
     {
         adjoint(_d_T_w, _Adj);
-        __A =  J_l6_inv(_w) * _Adj * _J; // This should be the derivative of _w when using WORLD...
+        __A =  -J_l6_inv(_w) * _Adj * _J; // This should be the derivative of _w when using WORLD...
     }
 
-    _task = __A*_dx - _w;
+    _task = __A*_dx + _w;
     
     _A = _task.getM();
     _b = -_task.getq();

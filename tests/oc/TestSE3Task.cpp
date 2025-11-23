@@ -120,10 +120,6 @@ Eigen::VectorXd generateRandomConfig(const Eigen::VectorXd& qmin, const Eigen::V
     return q;
 }
 
-void plus(const Eigen::VectorXd& x, const Eigen::VectorXd& v, Eigen::VectorXd& x1)
-{
-        x1 = OpenSoT::SE3toXYZQUAT(OpenSoT::XYZQUATtoSE3(x) * OpenSoT::Exp6(v));
-}
 
 Eigen::MatrixXd computeFiniteDifferenceJacobian(XBot::ModelInterface::Ptr _robot, OpenSoT::oc::SE3Task::Ptr SE3T,
                                                 const Eigen::VectorXd& q,  const double eps=1e-6)
@@ -136,7 +132,7 @@ Eigen::MatrixXd computeFiniteDifferenceJacobian(XBot::ModelInterface::Ptr _robot
     {
          dq.setZero();
          dq[i] = eps;
-         plus(q, dq, _q);
+         _q = _robot->sum(q, dq);
 
          _robot->setJointPosition(_q);
          _robot->update();
@@ -144,7 +140,7 @@ Eigen::MatrixXd computeFiniteDifferenceJacobian(XBot::ModelInterface::Ptr _robot
 
          auto bplus = SE3T->getb();
 
-         plus(q, -dq, _q);
+         _q = _robot->sum(q, -dq);
          _robot->setJointPosition(_q);
          _robot->update();
          SE3T->update();
@@ -155,6 +151,15 @@ Eigen::MatrixXd computeFiniteDifferenceJacobian(XBot::ModelInterface::Ptr _robot
      }
 
     return Jdiff;
+}
+
+inline void adjoint(const Eigen::Affine3d& T, Eigen::Matrix6d& Adj) {
+    Adj.setZero();
+
+    Adj.setZero();
+    Adj.topLeftCorner<3,3>() = T.linear();
+    Adj.topRightCorner<3,3>() = OpenSoT::hat(T.translation()) * T.linear();
+    Adj.bottomRightCorner<3,3>() =  T.linear();
 }
 
 TEST_P(testSE3Task, testJacobianFloatingFrame)
@@ -223,16 +228,38 @@ TEST_P(testSE3Task, testJacobianFloatingFrame)
             << "\nOpenSoT Jacobian:\n" << SE3T->getFrameJacobian()
             << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
 
-        auto Jdiff = computeFiniteDifferenceJacobian(_robot, SE3T, q, 1e-6);
-        std::cout<<"Jdiff: \n"<<-Jdiff<<std::endl;
         std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
 
-        // tolerance = 1e-3;
-        // ASSERT_TRUE(SE3T->getA().isApprox(-Jdiff, tolerance))
-        //     << "Jacobians differ beyond tolerance " << tolerance
-        //     << "\nFinite Difference Jacobian:\n" << -Jdiff
-        //     << "\nOpenSoT getA:\n" << SE3T->getA()
-        //     << "\nDifference:\n" << (-Jdiff - SE3T->getA());
+        Eigen::Matrix6d Jlog6;
+        pinocchio::SE3Tpl<double, 0> M;
+        M.translation() = SE3T->getSE3Error().inverse().translation();
+        M.rotation() = SE3T->getSE3Error().inverse().linear();
+        pinocchio::Jlog6(M, Jlog6);
+        Eigen::MatrixXd Jp;
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            Jp = -Jlog6 * SE3T->getFrameJacobian();
+        else
+        {
+            pinocchio::SE3& M_world_frame = data.oMf[frame_id];
+            Eigen::Affine3d T;
+            T.translation() = M_world_frame.translation();
+            T.linear() = M_world_frame.rotation();
+            Eigen::Matrix6d Adj;
+            adjoint(T.inverse(), Adj);
+            Jp = -Jlog6 * Adj * SE3T->getFrameJacobian();;
+        }
+        std::cout<<"Jp: \n"<<Jp<<std::endl;
+
+        tolerance = 1e-6;
+        ASSERT_TRUE(SE3T->getA().isApprox(Jp, tolerance))
+            << "Jacobians differ beyond tolerance " << tolerance
+            << "\nJacobian computed using Pinocchio:\n" << Jp
+            << "\nOpenSoT getA:\n" << SE3T->getA()
+            << "\nDifference:\n" << (Jp - SE3T->getA());
+
+        auto Jdiff = computeFiniteDifferenceJacobian(_robot, SE3T, q, 1e-6);
+        std::cout<<"Jdiff: \n"<<Jdiff<<std::endl;
+
 
         q = generateRandomPose(-3., 3.);
     }
@@ -271,8 +298,10 @@ TEST_P(testSE3Task, testJacobianManipulatorEndEffector)
     pinocchio::FrameIndex frame_id = model.getFrameId(frame_name);
     Eigen::VectorXd qmin, qmax;
     _robot->getJointLimits(qmin, qmax);
+    Eigen::Affine3d Tref;
     for(unsigned int i = 0; i < 1000; ++i)
     {
+        Tref = generateRandomAffine3d(-2., 2.);
 
         pinocchio::forwardKinematics(model, data, q);
         pinocchio::updateFramePlacements(model, data);
@@ -284,6 +313,7 @@ TEST_P(testSE3Task, testJacobianManipulatorEndEffector)
         _robot->setJointPosition(q);
         _robot->update();
 
+        SE3T->setReference(Tref);
         SE3T->update();
 
 
@@ -298,6 +328,39 @@ TEST_P(testSE3Task, testJacobianManipulatorEndEffector)
             << "\nPinocchio Jacobian:\n" << J_pin
             << "\nOpenSoT Jacobian:\n" << SE3T->getFrameJacobian()
             << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
+
+        std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
+
+        Eigen::Matrix6d Jlog6;
+        pinocchio::SE3Tpl<double, 0> M;
+        M.translation() = SE3T->getSE3Error().inverse().translation();
+        M.rotation() = SE3T->getSE3Error().inverse().linear();
+        pinocchio::Jlog6(M, Jlog6);
+        Eigen::MatrixXd Jp;
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            Jp = -Jlog6 * SE3T->getFrameJacobian();
+        else
+        {
+            pinocchio::SE3& M_world_frame = data.oMf[frame_id];
+            Eigen::Affine3d T;
+            T.translation() = M_world_frame.translation();
+            T.linear() = M_world_frame.rotation();
+            Eigen::Matrix6d Adj;
+            adjoint(T.inverse(), Adj);
+            Jp = -Jlog6 * Adj * SE3T->getFrameJacobian();;
+        }
+        std::cout<<"Jp: \n"<<Jp<<std::endl;
+
+        tolerance = 1e-6;
+        ASSERT_TRUE(SE3T->getA().isApprox(Jp, tolerance))
+            << "Jacobians differ beyond tolerance " << tolerance
+            << "\nJacobian computed using Pinocchio:\n" << Jp
+            << "\nOpenSoT getA:\n" << SE3T->getA()
+            << "\nDifference:\n" << (Jp - SE3T->getA());
+
+        auto Jdiff = computeFiniteDifferenceJacobian(_robot, SE3T, q, 1e-6);
+        std::cout<<"Jdiff: \n"<<Jdiff<<std::endl;
+
 
         q = generateRandomConfig(qmin, qmax);
     }
@@ -352,8 +415,10 @@ TEST_P(testSE3Task, testJacobianHumanoidBase)
     pinocchio::FrameIndex frame_id = model.getFrameId(frame_name);
     Eigen::VectorXd qmin, qmax;
     _robot->getJointLimits(qmin, qmax);
+    Eigen::Affine3d Tref;
     for(unsigned int i = 0; i < 1000; ++i)
     {
+        Tref = generateRandomAffine3d(-2., 2.);
 
         pinocchio::forwardKinematics(model, data, q);
         pinocchio::updateFramePlacements(model, data);
@@ -365,6 +430,7 @@ TEST_P(testSE3Task, testJacobianHumanoidBase)
         _robot->setJointPosition(q);
         _robot->update();
 
+        SE3T->setReference(Tref);
         SE3T->update();
 
 
@@ -379,6 +445,38 @@ TEST_P(testSE3Task, testJacobianHumanoidBase)
             << "\nPinocchio Jacobian.T:\n" << J_pin.transpose()
             << "\nOpenSoT Jacobian.T:\n" << SE3T->getFrameJacobian().transpose()
             << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
+
+        std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
+
+        Eigen::Matrix6d Jlog6;
+        pinocchio::SE3Tpl<double, 0> M;
+        M.translation() = SE3T->getSE3Error().inverse().translation();
+        M.rotation() = SE3T->getSE3Error().inverse().linear();
+        pinocchio::Jlog6(M, Jlog6);
+        Eigen::MatrixXd Jp;
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            Jp = -Jlog6 * SE3T->getFrameJacobian();
+        else
+        {
+            pinocchio::SE3& M_world_frame = data.oMf[frame_id];
+            Eigen::Affine3d T;
+            T.translation() = M_world_frame.translation();
+            T.linear() = M_world_frame.rotation();
+            Eigen::Matrix6d Adj;
+            adjoint(T.inverse(), Adj);
+            Jp = -Jlog6 * Adj * SE3T->getFrameJacobian();;
+        }
+        std::cout<<"Jp: \n"<<Jp<<std::endl;
+
+        tolerance = 1e-6;
+        ASSERT_TRUE(SE3T->getA().isApprox(Jp, tolerance))
+            << "Jacobians differ beyond tolerance " << tolerance
+            << "\nJacobian computed using Pinocchio:\n" << Jp
+            << "\nOpenSoT getA:\n" << SE3T->getA()
+            << "\nDifference:\n" << (Jp - SE3T->getA());
+
+        auto Jdiff = computeFiniteDifferenceJacobian(_robot, SE3T, q, 1e-6);
+        std::cout<<"Jdiff: \n"<<Jdiff<<std::endl;
 
         q = FFgenerateRandomConfig(qmin, qmax);
     }
