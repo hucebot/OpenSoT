@@ -16,7 +16,12 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
     public:
         typedef std::shared_ptr<SE3Task> Ptr;
 
-        SE3Task(const std::string& id, const XBot::ModelInterface& robot, const AffineHelper& dx, const std::string& distal_frame);
+        enum class ReferenceFrame{
+            LOCAL,
+            WORLD
+        };
+
+        SE3Task(const std::string& id, const XBot::ModelInterface& robot, const AffineHelper& dx, const std::string& distal_frame, const ReferenceFrame reference_frame=ReferenceFrame::LOCAL);
 
         /*
         @param T: reference in world frame
@@ -38,8 +43,31 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
 
         const Eigen::Vector6d& getError();
 
+        const ReferenceFrame& getReferenceFrame() const
+        {
+            return _reference_frame;
+        }
+
+        void setReferenceFrame(const ReferenceFrame& reference_frame)
+        {
+            _reference_frame = reference_frame;
+        }
+
+        const Eigen::MatrixXd& getFrameJacobian() const
+        {
+            return _J;
+        }
 
     private:
+        inline void adjoint(const Eigen::Affine3d& T, Eigen::Matrix6d& Adj) {
+            Adj.setZero();
+
+            Adj.setZero();
+            Adj.topLeftCorner<3,3>() = T.linear();
+            Adj.topRightCorner<3,3>() = OpenSoT::hat(T.translation()) * T.linear();
+            Adj.bottomRightCorner<3,3>() =  T.linear();
+        }
+
         const XBot::ModelInterface& _robot;
         AffineHelper _dx;
         AffineHelper _task;
@@ -50,9 +78,12 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
         Eigen::Affine3d _d_T_w;
 
         Eigen::MatrixXd _J;
+        Eigen::MatrixXd __A;
         Eigen::Matrix6d _Adj;
 
         Eigen::Vector6d _w;
+
+        ReferenceFrame _reference_frame;
 
         virtual void _update();
 

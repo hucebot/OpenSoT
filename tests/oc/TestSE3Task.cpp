@@ -24,7 +24,8 @@ std::string ReadFile(std::string path)
 
 namespace {
 
-class testSE3Task: public ::testing::Test
+class testSE3Task: public ::testing::Test,
+                   public ::testing::WithParamInterface<OpenSoT::oc::SE3Task::ReferenceFrame>
 {
     protected:
         testSE3Task()
@@ -71,6 +72,23 @@ Eigen::Quaterniond randomQuaternion() {
     return Eigen::Quaterniond(w, x, y, z).normalized();
 }
 
+Eigen::Affine3d generateRandomAffine3d(double min, double max) {
+    Eigen::Affine3d T = Eigen::Affine3d::Identity();
+
+    // Random translation
+    Eigen::Vector3d p;
+    for (int i = 0; i < 3; ++i) {
+        p[i] = randomDouble(min, max);
+    }
+    T.translation() = p;
+
+    // Random rotation (same quaternion generator you use)
+    Eigen::Quaterniond q = randomQuaternion();
+    T.linear() = q.toRotationMatrix();
+
+    return T;
+}
+
 Eigen::VectorXd generateRandomPose(double min, double max) {
     Eigen::VectorXd pose(7);
     pose.setZero();
@@ -107,8 +125,42 @@ void plus(const Eigen::VectorXd& x, const Eigen::VectorXd& v, Eigen::VectorXd& x
         x1 = OpenSoT::SE3toXYZQUAT(OpenSoT::XYZQUATtoSE3(x) * OpenSoT::Exp6(v));
 }
 
-TEST_F(testSE3Task, testJacobianFloatingFrame)
+Eigen::MatrixXd computeFiniteDifferenceJacobian(XBot::ModelInterface::Ptr _robot, OpenSoT::oc::SE3Task::Ptr SE3T,
+                                                const Eigen::VectorXd& q,  const double eps=1e-6)
 {
+    auto dq = Eigen::VectorXd(_robot->getNv());
+    auto _q = Eigen::VectorXd(_robot->getNq());
+    auto Jdiff = Eigen::MatrixXd(6, _robot->getNv());
+    Jdiff.setZero();
+    for(unsigned int i = 0; i < _robot->getNv(); ++i)
+    {
+         dq.setZero();
+         dq[i] = eps;
+         plus(q, dq, _q);
+
+         _robot->setJointPosition(_q);
+         _robot->update();
+         SE3T->update();
+
+         auto bplus = SE3T->getb();
+
+         plus(q, -dq, _q);
+         _robot->setJointPosition(_q);
+         _robot->update();
+         SE3T->update();
+
+         auto bminus = SE3T->getb();
+
+         Jdiff.col(i) = (bplus - bminus)/(2.*eps);
+     }
+
+    return Jdiff;
+}
+
+TEST_P(testSE3Task, testJacobianFloatingFrame)
+{
+    OpenSoT::oc::SE3Task::ReferenceFrame reference_frame = GetParam();
+
     std::string path_to_urdf = OPENSOT_TEST_PATH;
     path_to_urdf += "/robots/floating_frame/floating_frame.urdf";
     std::string frame_name = "base_link";
@@ -131,21 +183,27 @@ TEST_F(testSE3Task, testJacobianFloatingFrame)
     
     OpenSoT::OptvarHelper var(var_list);
 
-    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name));
+    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name, reference_frame));
     SE3T->update();
 
     Eigen::MatrixXd J_pin(6, model.nv);
     pinocchio::FrameIndex frame_id = model.getFrameId(frame_name);
+    Eigen::Affine3d Tref;
     for(unsigned int i = 0; i < 1000; ++i)
     {
+        Tref = generateRandomAffine3d(-2., 2.);
 
         pinocchio::forwardKinematics(model, data, q);
         pinocchio::updateFramePlacements(model, data);
-        pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        else
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::WORLD, J_pin);
 
         _robot->setJointPosition(q);
         _robot->update();
 
+        SE3T->setReference(Tref);
         SE3T->update();
 
 
@@ -153,51 +211,37 @@ TEST_F(testSE3Task, testJacobianFloatingFrame)
         ASSERT_EQ(J_pin.cols(), SE3T->getA().cols()) << "Jacobian column counts differ";
         
         std::cout<<"q: \n"<<q.transpose()<<std::endl;
+        std::cout<<"Tref: \n"<<Tref.matrix()<<std::endl;
         std::cout<<"J_pin: \n"<<J_pin<<std::endl;
-        std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
+        std::cout<<"SE3T->getFrameJacobian(): \n"<<SE3T->getFrameJacobian()<<std::endl;
 
-        // double eps = 1e-6;
-        // auto dq = Eigen::VectorXd(_robot->getNv());
-        // auto _q = Eigen::VectorXd(_robot->getNq());
-        // auto Jdiff = Eigen::MatrixXd(SE3T->getA().rows(), SE3T->getA().cols());
-        // Jdiff.setZero();
-        // for(unsigned int i = 0; i < _robot->getNv(); ++i)
-        // {
-        //     dq.setZero();
-        //     dq[i] = eps;
-        //     plus(q, dq, _q);
-
-        //     _robot->setJointPosition(_q);
-        //     _robot->update();
-        //     SE3T->update();
-
-        //     auto bplus = SE3T->getb();
-
-        //     plus(q, -dq, _q);
-        //     _robot->setJointPosition(_q);
-        //     _robot->update();
-        //     SE3T->update();
-
-        //     auto bminuns = SE3T->getb();
-
-        //     Jdiff.col(i) = (bplus - bminuns)/(2.*eps);
-        // }
-        // std::cout<<"Jdiff: \n"<<Jdiff<<std::endl;
-        
         // Use approximate equality for floating point comparison
-        double tolerance = 1e-10;
-        ASSERT_TRUE(J_pin.isApprox(SE3T->getA(), tolerance)) 
+        double tolerance = 1e-12;
+        ASSERT_TRUE(J_pin.isApprox(SE3T->getFrameJacobian(), tolerance))
             << "Jacobians differ beyond tolerance " << tolerance
             << "\nPinocchio Jacobian:\n" << J_pin
-            << "\nOpenSoT Jacobian:\n" << SE3T->getA()
-            << "\nDifference:\n" << (J_pin - SE3T->getA());
+            << "\nOpenSoT Jacobian:\n" << SE3T->getFrameJacobian()
+            << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
+
+        auto Jdiff = computeFiniteDifferenceJacobian(_robot, SE3T, q, 1e-6);
+        std::cout<<"Jdiff: \n"<<-Jdiff<<std::endl;
+        std::cout<<"SE3T->getA(): \n"<<SE3T->getA()<<std::endl;
+
+        // tolerance = 1e-3;
+        // ASSERT_TRUE(SE3T->getA().isApprox(-Jdiff, tolerance))
+        //     << "Jacobians differ beyond tolerance " << tolerance
+        //     << "\nFinite Difference Jacobian:\n" << -Jdiff
+        //     << "\nOpenSoT getA:\n" << SE3T->getA()
+        //     << "\nDifference:\n" << (-Jdiff - SE3T->getA());
 
         q = generateRandomPose(-3., 3.);
     }
 }
 
-TEST_F(testSE3Task, testJacobianManipulatorEndEffector)
+TEST_P(testSE3Task, testJacobianManipulatorEndEffector)
 {
+    OpenSoT::oc::SE3Task::ReferenceFrame reference_frame = GetParam();
+
     std::string path_to_urdf = OPENSOT_TEST_PATH;
     path_to_urdf += "/robots/panda/panda.urdf";
     std::string frame_name = "fp3_link8";
@@ -220,7 +264,7 @@ TEST_F(testSE3Task, testJacobianManipulatorEndEffector)
     
     OpenSoT::OptvarHelper var(var_list);
 
-    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name));
+    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name, reference_frame));
     SE3T->update();
 
     Eigen::MatrixXd J_pin(6, model.nv);
@@ -232,7 +276,10 @@ TEST_F(testSE3Task, testJacobianManipulatorEndEffector)
 
         pinocchio::forwardKinematics(model, data, q);
         pinocchio::updateFramePlacements(model, data);
-        pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        else
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::WORLD, J_pin);
 
         _robot->setJointPosition(q);
         _robot->update();
@@ -245,12 +292,12 @@ TEST_F(testSE3Task, testJacobianManipulatorEndEffector)
 
 
         // Use approximate equality for floating point comparison
-        double tolerance = 1e-10;
-        ASSERT_TRUE(J_pin.isApprox(SE3T->getA(), tolerance)) 
+        double tolerance = 1e-12;
+        ASSERT_TRUE(J_pin.isApprox(SE3T->getFrameJacobian(), tolerance))
             << "Jacobians differ beyond tolerance " << tolerance
             << "\nPinocchio Jacobian:\n" << J_pin
-            << "\nOpenSoT Jacobian:\n" << SE3T->getA()
-            << "\nDifference:\n" << (J_pin - SE3T->getA());
+            << "\nOpenSoT Jacobian:\n" << SE3T->getFrameJacobian()
+            << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
 
         q = generateRandomConfig(qmin, qmax);
     }
@@ -272,11 +319,13 @@ Eigen::VectorXd FFgenerateRandomConfig(const Eigen::VectorXd& qmin, const Eigen:
     return q;
 }
 
-TEST_F(testSE3Task, testJacobianHumanoidBase)
+TEST_P(testSE3Task, testJacobianHumanoidBase)
 {
+    OpenSoT::oc::SE3Task::ReferenceFrame reference_frame = GetParam();
+
     std::string path_to_urdf = OPENSOT_TEST_PATH;
     path_to_urdf += "/robots/coman/coman.urdf";
-    std::string frame_name = "base_link";
+    std::string frame_name = "l_sole";
 
 
     pinocchio::Model model;
@@ -296,7 +345,7 @@ TEST_F(testSE3Task, testJacobianHumanoidBase)
     
     OpenSoT::OptvarHelper var(var_list);
 
-    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name));
+    OpenSoT::oc::SE3Task::Ptr SE3T = std::make_shared<OpenSoT::oc::SE3Task>(OpenSoT::oc::SE3Task("SE3T", *_robot, var.getVariable("dq"), frame_name, reference_frame));
     SE3T->update();
 
     Eigen::MatrixXd J_pin(6, model.nv);
@@ -308,7 +357,10 @@ TEST_F(testSE3Task, testJacobianHumanoidBase)
 
         pinocchio::forwardKinematics(model, data, q);
         pinocchio::updateFramePlacements(model, data);
-        pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        if(reference_frame == OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL)
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::LOCAL, J_pin);
+        else
+            pinocchio::computeFrameJacobian(model, data, q, frame_id, pinocchio::WORLD, J_pin);
 
         _robot->setJointPosition(q);
         _robot->update();
@@ -322,11 +374,11 @@ TEST_F(testSE3Task, testJacobianHumanoidBase)
 
         // Use approximate equality for floating point comparison
         double tolerance = 1e-10;
-        ASSERT_TRUE(J_pin.isApprox(SE3T->getA(), tolerance)) 
+        ASSERT_TRUE(J_pin.isApprox(SE3T->getFrameJacobian(), tolerance))
             << "Jacobians differ beyond tolerance " << tolerance
-            << "\nPinocchio Jacobian:\n" << J_pin
-            << "\nOpenSoT Jacobian:\n" << SE3T->getA()
-            << "\nDifference:\n" << (J_pin - SE3T->getA());
+            << "\nPinocchio Jacobian.T:\n" << J_pin.transpose()
+            << "\nOpenSoT Jacobian.T:\n" << SE3T->getFrameJacobian().transpose()
+            << "\nDifference:\n" << (J_pin - SE3T->getFrameJacobian());
 
         q = FFgenerateRandomConfig(qmin, qmax);
     }
@@ -334,11 +386,9 @@ TEST_F(testSE3Task, testJacobianHumanoidBase)
 
 
 
-
-
-
-
-
+INSTANTIATE_TEST_CASE_P(tryDifferentReferenceFrames,
+                        testSE3Task,
+                        ::testing::Values(OpenSoT::oc::SE3Task::ReferenceFrame::LOCAL, OpenSoT::oc::SE3Task::ReferenceFrame::WORLD));
 
 
 }
