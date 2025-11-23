@@ -54,14 +54,13 @@ void SE3Task::_update()
     _error = _d_T_w * _ref;
     _w = Log6(_error);
 
+    J_l6_inv(_w, _J_l6_inv);
     if(_reference_frame == ReferenceFrame::LOCAL)
-    {
-        __A =  -J_l6_inv(_w) * _J; // This should be the derivative of _w when using LOCAL...
-    }
+        __A =  -_J_l6_inv * _J; // This should be the derivative of _w when using LOCAL...
     else
     {
         adjoint(_d_T_w, _Adj);
-        __A =  -J_l6_inv(_w) * _Adj * _J; // This should be the derivative of _w when using WORLD...
+        __A =  -_J_l6_inv * _Adj * _J; // This should be the derivative of _w when using WORLD...
     }
 
     _task = __A*_dx + _w;

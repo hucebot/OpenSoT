@@ -97,6 +97,8 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
 
         ReferenceFrame _reference_frame;
 
+        Eigen::Matrix6d _J_l6_inv;
+
         virtual void _update();
 
 };
