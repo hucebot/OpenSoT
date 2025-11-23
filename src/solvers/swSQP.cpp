@@ -122,6 +122,9 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
     _dx0.setZero();
 
+    // relinarize qp
+    linearize();
+
     for(unsigned int iter = 1; iter <= _opt.max_iters; ++iter)
     {
         _stats.iters = iter;
@@ -130,9 +133,6 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _stats.line_search_accepted = false;
 
         _stats._iter_start = std::chrono::high_resolution_clock::now();
-
-        // relinarize qp
-        linearize();
 
         // solve
         if (!_qp_solver->solve(_dx0))
@@ -170,6 +170,9 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             _sigma *= _opt.hessian_scale_factor_up; //rise regularization
             std::cout<<"_sigma: "<<_sigma<<std::endl;
 
+            // relinarize qp
+            linearize();
+
             if(_sigma > _opt.max_hessian_regularization)
             {
                 std::cout<< "line search failed"<< std::endl; //to better define!
@@ -183,6 +186,8 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             _x0 = _x0_candidate;
             _u0 = _u0_candidate;
 
+            // relinarize qp
+            linearize();
 
             // check break criteria on QP solution
             if (convergence_criteria())
@@ -256,7 +261,7 @@ double swSQP::compute_kkt_residual()
     {
         // ===== STATE KKT GRADIENT =====
         Eigen::VectorXd kkt_x = _q[i];  // Objective gradient w.r.t. state (already computed!)
-        
+
         // Add general constraint multipliers: C^T * (lam_ug - lam_lg)
         if(_C[i].rows() > 0)
         {
@@ -285,7 +290,7 @@ double swSQP::compute_kkt_residual()
         if(i < _ocp->getNumberOfNodes()-1)
         {
             Eigen::VectorXd kkt_u = _r[i];  // Objective gradient w.r.t. control (already computed!)
-            
+
             // Add general constraint multipliers: D^T * (lam_ug - lam_lg)
             if(_D[i].rows() > 0)
             {
