@@ -18,6 +18,9 @@ _reference_frame(reference_frame)
     _J.setZero();
     __A = _J;
 
+    _A.setZero(6, _dx.getInputSize());
+    _b.setZero(6);
+
     update();
 }
 
@@ -63,10 +66,13 @@ void SE3Task::_update()
         __A =  -_J_l6_inv * _Adj * _J; // This should be the derivative of _w when using WORLD...
     }
 
-    _task = __A*_dx + _w;
+    //_task = __A*_dx + _w;
+
+    _A.leftCols(_dx.getOutputSize()) = __A;
+    _b = -_w;
     
-    _A = _task.getM();
-    _b = -_task.getq();
+    //_A = _task.getM();
+    //_b = -_task.getq();
 }
 
  

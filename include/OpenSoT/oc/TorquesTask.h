@@ -31,7 +31,7 @@ private:
     Eigen::MatrixXd _dtau_da;
     std::map<std::string, Eigen::MatrixXd> _dtau_dfext;
 
-    AffineHelper _dTAU;
+    //AffineHelper _dTAU;
     Eigen::MatrixXd _Fx;
     Eigen::MatrixXd _Fu;
 

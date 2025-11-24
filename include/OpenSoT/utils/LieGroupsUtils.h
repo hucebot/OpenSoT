@@ -126,13 +126,11 @@ inline Eigen::Matrix3d J_l_inv(const Eigen::Vector3d& theta) {
     return JL_inv;
 }
 
-inline Eigen::Affine3d Exp6(const Eigen::Vector6d & tau){
-
-    Eigen::Affine3d M = Eigen::Affine3d::Identity();
+inline void Exp6(const Eigen::Vector6d & tau, Eigen::Affine3d& M){
+    M.setIdentity();
 
     M.linear() = Exp3(tau.tail(3));
     M.translation() = J_l(tau.tail(3)) * tau.head(3);
-    return M;
 }
 
 inline Eigen::Vector6d Log6(const Eigen::Affine3d& T){
@@ -186,8 +184,8 @@ inline Eigen::Matrix3d computeQ(const Eigen::Vector6d & tau) {
 }
 
 // Left Jacobian for SE(3)
-static Eigen::Matrix6d J_l6(const Eigen::Vector6d & tau) {
-    Eigen::Matrix6d J = Eigen::Matrix6d::Zero();
+static void J_l6(const Eigen::Vector6d & tau, Eigen::Matrix6d& J) {
+    J.setZero();
     
     // Upper left block: J_l(θ)
     J.block<3,3>(0,0) = J_l(tau.tail(3));
@@ -197,8 +195,6 @@ static Eigen::Matrix6d J_l6(const Eigen::Vector6d & tau) {
     
     // Lower right block: J_l(θ)
     J.block<3,3>(3,3) = J.block<3,3>(0,0);
-    
-    return J;
 }
 
 // Left Jacobian (Inverse for SE(3), this is equivalent to call pinocchio::JLog6(T))

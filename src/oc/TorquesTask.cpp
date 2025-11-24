@@ -21,6 +21,9 @@ TorquesTask::TorquesTask(XBot::ModelInterface &robot,
 
     _fext_flag = false;
 
+    _A.setZero(_robot.getNv(), _dX.getInputSize());
+    _b.setZero(_robot.getNv());
+
     update();
 }
 
@@ -58,10 +61,15 @@ void TorquesTask::_update()
 
     _Fu.block(0, 0, _robot.getNv(), _robot.getNv()) = _dtau_da;
 
-    _dTAU = _Fx * _dX + _Fu * _dU + _robot.computeInverseDynamics(_frame_forces);
+    //_dTAU = _Fx * _dX + _Fu * _dU + _robot.computeInverseDynamics(_frame_forces);
 
-    _A = _dTAU.getM();
-    _b = -_dTAU.getq();
+
+    _A.leftCols(_dX.getOutputSize()) = _Fx;
+    _A.rightCols(_dU.getOutputSize()) = _Fu;
+    _b = -1. * _robot.computeInverseDynamics(_frame_forces);
+
+    //_A = _dTAU.getM();
+    //_b = -_dTAU.getq();
 }
 
 void TorquesTask::addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force)

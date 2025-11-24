@@ -80,7 +80,7 @@ class SE3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
 
         const XBot::ModelInterface& _robot;
         AffineHelper _dx;
-        AffineHelper _task;
+        //AffineHelper _task;
 
         std::string _distal_frame;
 

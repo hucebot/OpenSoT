@@ -23,7 +23,7 @@ namespace OpenSoT::oc {
         Eigen::MatrixXd _dvc_dq;
         Eigen::MatrixXd _dvc_dv;
 
-        AffineHelper _dcontact;
+        //AffineHelper _dcontact;
         Eigen::MatrixXd _Fx;
         Eigen::MatrixXd _Fu;
 

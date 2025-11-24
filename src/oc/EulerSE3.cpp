@@ -27,6 +27,9 @@ EulerSE3::EulerSE3(const XBot::ModelInterface& robot,
 
     _W.setIdentity(dX.getOutputSize(), dX.getOutputSize());
 
+    _b.setZero(dX.getOutputSize());
+    _A.setZero(dX.getOutputSize(), dX.getInputSize());
+
     update();
 }
 
@@ -44,10 +47,19 @@ void EulerSE3::_update()
     _Fx.block<3,3>(3,3) = _RbT;
     _Fx.block<3,3>(0,3) = -_RbT * _t_skew;
 
-    _Fu = J_l6(-_xi) * _dt;
 
-    _dXnext = _Fx * _dX + _Fu * _dU + Log6((XYZQUATtoSE3(_Xk.getValue()) * Exp6(_Uk.getValue()*_dt)).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
+    J_l6(-_xi, _J_l6);
+    _Fu = _J_l6 * _dt;
 
-    _A = _dXnext.getM();
-    _b = -_dXnext.getq();
+
+    Exp6(_Uk.getValue()*_dt, _Exp6);
+
+    //_dXnext = _Fx * _dX + _Fu * _dU + Log6((XYZQUATtoSE3(_Xk.getValue()) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
+
+    //_A = _dXnext.getM();
+    //_b = -_dXnext.getq();
+
+    _A.leftCols(6) = _Fx;
+    _A.middleCols(_robot.getNv(), 6) = _Fu;
+    _b = -1. * Log6((XYZQUATtoSE3(_Xk.getValue()) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
 }

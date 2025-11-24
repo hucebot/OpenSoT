@@ -22,6 +22,10 @@ namespace OpenSoT::oc {
         _dvc_dq.resize(6, robot.getNv());
         _dvc_dv.resize(6, robot.getNv());
 
+
+        _A.setZero(6, _dX.getInputSize());
+        _b.resize(6);
+
         update();
     }
 
@@ -41,10 +45,13 @@ namespace OpenSoT::oc {
         _Fx.block(0, _robot.getNv(), 6, _robot.getNv()) = _dvc_dv;
 
 
-        _dcontact = _Fx * _dX + _Fu * _dU + _robot.getFrameVelocityLocal(_frame_name);
+        //_dcontact = _Fx * _dX + _Fu * _dU + _robot.getFrameVelocityLocal(_frame_name);
 
-        _A = _dcontact.getM();
-        _b = -_dcontact.getq();
+        //_A = _dcontact.getM();
+        //_b = -_dcontact.getq();
+        _A.leftCols(_dX.getOutputSize()) = _Fx;
+        _A.rightCols(_dU.getOutputSize()) = _Fu;
+        _b = -1. * _robot.getFrameVelocityLocal(_frame_name);
     }
 
 
