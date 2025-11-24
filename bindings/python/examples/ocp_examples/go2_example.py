@@ -223,7 +223,7 @@ for i in range(Ns-1):
 
 ocp.update(x0, u0)
 
-alpha = 0.05
+alpha = 0.1
 
 costs = []
 mintaus = []
@@ -236,52 +236,48 @@ for i in range(Ns):
         costs.append(minqddot)
         
 
-        mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
-        for frame in contact_frames:
-            mintau.addForce(frame, contact_frames_vars[frame])
-        mintau.setWeight(1e-6 * np.eye(model.nv))
-        mintaus.append(mintau)
+        # mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
+        # for frame in contact_frames:
+        #     mintau.addForce(frame, contact_frames_vars[frame])
+        # mintau.setWeight(1e-6 * np.eye(model.nv))
+        # mintaus.append(mintau)
 
-        stack = 1e4*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
+        stack = 1e6*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
 
 
 
     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1e6 * np.eye(6))
+    cartesian_task.setWeight(1e-0 * np.eye(6))
     costs.append(cartesian_task)
 
     if i == Ns-1:
         base_ref = cartesian_task.getReference().copy()
-        base_ref.translation[2] -= 0.1
+        base_ref.translation[1] += 0.1
+        # base_ref.translation[2] -= 0.1
+
         # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
-    #base_ref.translation[1] = base_ref.translation[1] + alpha * np.sin(np.pi * i*dt*0.5)
+        # base_ref.translation[1] = base_ref.translation[1] + alpha * np.sin(np.pi * i*dt)
         # base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
         cartesian_task.setReference(base_ref)
 
         stack += cartesian_task
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-3 *  np.eye(model.nv))
+    minvel.setWeight(1e-9 *  np.eye(model.nv))
     costs.append(minvel)
 
     # postural = Postural(ocp.stage(i).model)
     # postural.setWeight(1e3 * np.eye(model.nv))
     # postural.setReference(q_val.copy())
-    stack += minvel
+    # stack += minvel
 
 
     
-    for frame in contact_frames:
-        
-        # if i<Ns-1:
-        #     contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-        #     costs.append(contact_task)
-        #     stack += contact_task%[0,1,2]
-
-        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
-        cartesian_task.setWeight(1e-6 * np.eye(6))
-        costs.append(cartesian_task)
-        stack += cartesian_task%[0, 1, 2]
+    # for frame in contact_frames:
+    #     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
+    #     cartesian_task.setWeight(1e-6 * np.eye(6))
+    #     costs.append(cartesian_task)
+    #     stack += cartesian_task%[2]
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
 
@@ -291,6 +287,11 @@ for i in range(Ns):
             contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
             costs.append(contact_task)
             ocp.stage(i).stack <<  contact_task%[0,1,2]
+
+            # friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            # const.append(friction_const)
+            # ocp.stage(i).stack <<  friction_const
+
 
         # tau_min
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
@@ -314,7 +315,7 @@ solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1000
-#solver.getQPSolver().getOptions().iter_max = 1000
+# solver.getQPSolver().getOptions().iter_max = 1000
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")

@@ -150,7 +150,8 @@ set(OPENSOT_OC_SOURCES
     src/oc/TorquesTask.cpp
     src/oc/TorquesConstraint.cpp
     src/oc/oc.cpp
-    src/oc/Contact.cpp)
+    src/oc/Contact.cpp
+    src/oc/FrictionConeConstraint.cpp)
 
 
 ##SOLVERS

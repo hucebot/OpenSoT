@@ -52,8 +52,6 @@ void TorquesTask::_update()
         i++;
     }
 
-    // if(_robot.isFloatingBase())
-    //     _dtau_dq.block(0,0,_robot.getNv(),6) = _dtau_dq.block(0,0, _robot.getNv(),6) * J_l6_inv(Log6((XYZQUATtoSE3(_robot.getJointPosition().segment(0,7)))));
     
     _Fx.block(0, 0, _robot.getNv(), _robot.getNv()) = _dtau_dq;
     _Fx.block(0, _robot.getNv(), _robot.getNv(), _robot.getNv()) = _dtau_dv;
