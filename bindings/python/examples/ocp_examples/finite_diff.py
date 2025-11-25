@@ -164,6 +164,7 @@ for i in range(Ns-1):
 
 ocp.update(x0, u0)
 
+frame = "RL_foot"
 
 costs = []
 stack = None
@@ -177,10 +178,14 @@ for i in range(Ns-1):
     # stack = mintau
 
 
-    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1. * np.eye(6))
-    costs.append(cartesian_task)
-    stack = cartesian_task
+    # cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    # cartesian_task.setWeight(1. * np.eye(6))
+    # costs.append(cartesian_task)
+    # stack = cartesian_task
+
+    contact_task = ContactTask(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
+    costs.append(contact_task)
+    stack = contact_task
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
@@ -197,7 +202,7 @@ q_zero = np.zeros(model.nq + model.nv)
 q_zero[6] = 1.
 
 q_val = np.concatenate((q_base,q_init))
-qdot_val = np.zeros(model.nv)
+qdot_val = np.random.rand(model.nv)
 qddot_val = np.zeros(model.nv)
 
 f0 = np.array([0.,0., 0.])
@@ -285,9 +290,9 @@ for i in range(N):
     JacDiff[:, i: i+1] = ((valp - valm) / (2.0 * eps)).reshape((-1, 1))
 
 
-print(Jac[:,:20])
+print(Jac)
 print("-"*100)
-print(JacDiff[:,:20])
+print(JacDiff)
 
 # print(Jac.T[-12:,:])
 # print("-"*100)

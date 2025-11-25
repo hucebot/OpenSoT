@@ -227,8 +227,18 @@ alpha = 0.1
 
 costs = []
 mintaus = []
-stack = None
+
 for i in range(Ns):
+    stack = None
+
+    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
+    minvel.setWeight(1e-9 *  np.eye(model.nv))
+    costs.append(minvel)
+
+    # postural = Postural(ocp.stage(i).model)
+    # postural.setWeight(1e3 * np.eye(model.nv))
+    # postural.setReference(q_val.copy())
+    stack = minvel
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
@@ -242,18 +252,18 @@ for i in range(Ns):
         # mintau.setWeight(1e-6 * np.eye(model.nv))
         # mintaus.append(mintau)
 
-        stack = 1e6*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
+        stack += 1e3*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
 
 
-
-    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1e-0 * np.eye(6))
-    costs.append(cartesian_task)
 
     if i == Ns-1:
+        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+        cartesian_task.setWeight(1e-3 * np.eye(6))
+        costs.append(cartesian_task)
+
         base_ref = cartesian_task.getReference().copy()
-        base_ref.translation[1] += 0.1
-        # base_ref.translation[2] -= 0.1
+        # base_ref.translation[1] += 0.3
+        base_ref.translation[2] -= 0.2
 
         # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
         # base_ref.translation[1] = base_ref.translation[1] + alpha * np.sin(np.pi * i*dt)
@@ -262,14 +272,7 @@ for i in range(Ns):
 
         stack += cartesian_task
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9 *  np.eye(model.nv))
-    costs.append(minvel)
 
-    # postural = Postural(ocp.stage(i).model)
-    # postural.setWeight(1e3 * np.eye(model.nv))
-    # postural.setReference(q_val.copy())
-    # stack += minvel
 
 
     
@@ -277,7 +280,7 @@ for i in range(Ns):
     #     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
     #     cartesian_task.setWeight(1e-6 * np.eye(6))
     #     costs.append(cartesian_task)
-    #     stack += cartesian_task%[2]
+    #     stack += cartesian_task
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
 
@@ -288,9 +291,9 @@ for i in range(Ns):
             costs.append(contact_task)
             ocp.stage(i).stack <<  contact_task%[0,1,2]
 
-            # friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-            # const.append(friction_const)
-            # ocp.stage(i).stack <<  friction_const
+            friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            const.append(friction_const)
+            # ocp.stage(i).stack <<  friction_const%[0]
 
 
         # tau_min
@@ -309,13 +312,13 @@ ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 100
+solver.getOptions().max_iters = 30
 solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1e-2
+solver.getOptions().beta = 1e-4
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1000
-# solver.getQPSolver().getOptions().iter_max = 1000
+solver.getQPSolver().getOptions().iter_max = 1000
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")

@@ -138,7 +138,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         if (!_qp_solver->solve(_dx0))
         {
             std::cout<< "qp nosolve: "<<_qp_solver->solveStatus()<<std::endl;
-            return false;
+            // return false;
         }
         _qp_solution = _qp_solver->getSolution();
 

@@ -16,13 +16,14 @@ namespace OpenSoT::oc {
 
         std::string _distal_frame;
         std::shared_ptr<VariableXd> _force_var;
-        Eigen::Affine3d _d_T_w;
+        Eigen::Affine3d _wTd;
 
         Eigen::MatrixXd _J;
         Eigen::MatrixXd __A;
         Eigen::Matrix6d _Adj;
 
-        
+        double _mu;
+        double _inf;
 
         Eigen::Affine3d _error;
 
