@@ -157,7 +157,7 @@ for frame in contact_frames:
     _du = VariableXd.pile(_du, contact_frames_dvars[frame])
 
 Ns = 30 # number of nodes
-tf = 2. # final time
+tf = 3. # final time
 dt = tf/Ns 
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
@@ -219,68 +219,46 @@ for i in range(Ns-1):
     dd.append(dvel)
     ocp.stage(i).dynamics_derivative = dbase + dpos + dvel
 
-
-
 ocp.update(x0, u0)
 
-alpha = 0.1
+
 
 costs = []
 mintaus = []
-
 for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
     minvel.setWeight(1e-9 *  np.eye(model.nv))
     costs.append(minvel)
-
-    # postural = Postural(ocp.stage(i).model)
-    # postural.setWeight(1e3 * np.eye(model.nv))
-    # postural.setReference(q_val.copy())
     stack = minvel
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(1e-9 * np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        
-
-        # mintau = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
-        # for frame in contact_frames:
-        #     mintau.addForce(frame, contact_frames_vars[frame])
-        # mintau.setWeight(1e-6 * np.eye(model.nv))
-        # mintaus.append(mintau)
-
-        stack += 1e3*minqddot[0:model.nv] + minqddot[model.nv:] #+ mintau
+        stack += 1e3*minqddot[0:model.nv] + minqddot[model.nv:]
 
 
-
+# Base
     if i == Ns-1:
         cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_task.setWeight(1e-3 * np.eye(6))
         costs.append(cartesian_task)
-
         base_ref = cartesian_task.getReference().copy()
         # base_ref.translation[1] += 0.3
-        base_ref.translation[2] -= 0.2
-
-        # base_ref.translation[0] = com0[0] + alpha * np.sin(np.pi * i*dt)
-        # base_ref.translation[1] = base_ref.translation[1] + alpha * np.sin(np.pi * i*dt)
-        # base_ref.translation[2] = base_ref.translation[2] + alpha * np.sin(np.pi * i*dt)
+        base_ref.translation[2] -= 0.15
+        base_ref.linear = Rz(np.pi/8)
         cartesian_task.setReference(base_ref)
-
         stack += cartesian_task
 
-
-
-
+# Contacts
     
-    # for frame in contact_frames:
-    #     cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
-    #     cartesian_task.setWeight(1e-6 * np.eye(6))
-    #     costs.append(cartesian_task)
-    #     stack += cartesian_task
+    for frame in contact_frames:
+        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
+        cartesian_task.setWeight(1e-6 * np.eye(6))
+        costs.append(cartesian_task)
+        stack += cartesian_task%[0,1,2]
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
 
@@ -293,10 +271,10 @@ for i in range(Ns):
 
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
             const.append(friction_const)
-            # ocp.stage(i).stack <<  friction_const%[0]
+            ocp.stage(i).stack <<  friction_const
 
 
-        # tau_min
+# Dynamics 
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in contact_frames:
             tau_lim.addForce(frame, contact_frames_vars[frame])
@@ -305,20 +283,20 @@ for i in range(Ns):
         tau_lims[:6] = [1e-9]*6
         tau_lim.setTorqueLimit(tau_lims)
         const.append(tau_lim)
-        ocp.stage(i).stack << tau_lim#%[0,1,2,3,4,5]
+        ocp.stage(i).stack << tau_lim
     
 
 ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 30
+solver.getOptions().max_iters = 100
 solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-4
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1000
-solver.getQPSolver().getOptions().iter_max = 1000
+solver.getQPSolver().getOptions().iter_max = 100
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")
@@ -331,9 +309,9 @@ success = solver.solve(x0, u0)
 x0 = solver.getStateSolution()
 u0 = solver.getControlSolution()
 
-for i in range(len(x0)-1):
-    # print(f"x0: {x0}")
-    print(f"u0[{i}]:\t {u0[i]}")
+# for i in range(len(x0)-1):
+#     # print(f"x0: {x0}")
+#     print(f"u0[{i}]:\t {u0[i]}")
 
 force_msgs = {}
 for contact_frame in contact_frames:

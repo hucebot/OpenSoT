@@ -193,15 +193,14 @@ for i in range(Ns-1):
 
     # Constraints
 
-    friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-    const.append(friction_const)
-    # print(friction_const.getbLowerBound())
-    # print(friction_const.getbUpperBound())
-    # print(friction_const.getAineq())
-    # exit()
-    # input()
+    # friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+    # const.append(friction_const)
+    # ocp.stage(i).stack << friction_const
 
-    ocp.stage(i).stack << friction_const
+    contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
+    p_cc = contact_constraint%[0,1,2]
+    const.append(p_cc)
+    ocp.stage(i).stack <<  p_cc
 
 
     

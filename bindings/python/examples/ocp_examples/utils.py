@@ -267,3 +267,18 @@ class force_node(Node):
     def publish(self, force_msgs):
         for contact_frame, force_msg in force_msgs.items():
             self.force_publishers[contact_frame].publish(force_msg)
+
+
+
+def Rz(theta):
+    """
+    Create a 3x3 rotation matrix for a rotation about the z-axis by angle theta (radians).
+    """
+    c = math.cos(theta)
+    s = math.sin(theta)
+
+    return [
+        [c, -s, 0],
+        [s,  c, 0],
+        [0,  0, 1]
+    ]
