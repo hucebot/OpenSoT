@@ -20,7 +20,7 @@ import time
 from utils import *
 
 
-np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=2)
+np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=2, sign=' ')
 
 
 urdf_string = pathlib.Path(get_package_share_directory('hurobots') + "/description_files/urdf/go2/go2.urdf").read_text()
@@ -167,6 +167,7 @@ ocp.update(x0, u0)
 frame = "RL_foot"
 
 costs = []
+const = []
 stack = None
 for i in range(Ns-1):
 
@@ -187,8 +188,23 @@ for i in range(Ns-1):
     costs.append(contact_task)
     stack = contact_task
 
-
     ocp.stage(i).stack = pysot.AutoStack(stack)
+
+
+    # Constraints
+
+    friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+    const.append(friction_const)
+    # print(friction_const.getbLowerBound())
+    # print(friction_const.getbUpperBound())
+    # print(friction_const.getAineq())
+    # exit()
+    # input()
+
+    ocp.stage(i).stack << friction_const
+
+
+    
 
 
 
@@ -228,13 +244,13 @@ STAGE = 1
 eps   = 1e-6
 
 
-Jac = costs[STAGE].getA().copy()
-val = costs[STAGE].getb()
+# Jac = costs[STAGE].getA().copy()
+Jac = const[STAGE].getAineq().copy()
+# val = costs[STAGE].getb()
 
 
 
 print(Jac.shape)
-print(ocp.stage(STAGE).model.nv)
 print(dx.getInputSize())
 
 M = Jac.shape[0]
@@ -244,7 +260,7 @@ JacDiff = np.zeros((M, N))
 print(JacDiff.shape)
 
 # print(Jac)
-print(val)
+# print(val)
 
 
 
@@ -270,7 +286,8 @@ for i in range(N):
         du[i- dx.size] += eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valp =  - costs[STAGE].getb().copy()
+    # valp =  - costs[STAGE].getb().copy()
+    valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
     du = np.zeros(x_space.nv())
@@ -281,7 +298,8 @@ for i in range(N):
         du[i- dx.size] -= eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valm = - costs[STAGE].getb().copy()
+    # valm = - costs[STAGE].getb().copy()
+    valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
     # print(valm)

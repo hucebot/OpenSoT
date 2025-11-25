@@ -47,21 +47,21 @@ namespace OpenSoT::oc {
             f_idx = f_idx-1;
 
         Eigen::MatrixXd dwf_dq = -_wTd.linear() * hat(_force_var->getValue()) * _J.bottomRows(3);
-        
+
         _Aineq.block(0, 0, 1, _robot.getNv()) = dwf_dq.row(2);
-        _Aineq.block(0, f_idx, 1, _force_var->getOutputSize()) = _wTd.linear().col(2).transpose();
+        _Aineq.block(0, f_idx, 1, _force_var->getOutputSize()) = _wTd.linear().row(2);
 
         _Aineq.block(1, 0, 1, _robot.getNv()) = _mu * dwf_dq.row(2) - dwf_dq.row(0);
-        _Aineq.block(1, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().col(2) - _wTd.linear().col(0)).transpose();
+        _Aineq.block(1, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().row(2) - _wTd.linear().row(0));
 
         _Aineq.block(2, 0, 1, _robot.getNv()) = _mu * dwf_dq.row(2) + dwf_dq.row(0);
-        _Aineq.block(2, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().col(2) + _wTd.linear().col(0)).transpose();
+        _Aineq.block(2, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().row(2) + _wTd.linear().row(0));
 
         _Aineq.block(3, 0, 1, _robot.getNv()) = _mu * dwf_dq.row(2) - dwf_dq.row(1);
-        _Aineq.block(3, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().col(2) - _wTd.linear().col(1)).transpose();
+        _Aineq.block(3, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().row(2) - _wTd.linear().row(1));
 
         _Aineq.block(4, 0, 1, _robot.getNv()) = _mu * dwf_dq.row(2) + dwf_dq.row(1);
-        _Aineq.block(4, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().col(2) + _wTd.linear().col(1)).transpose();
+        _Aineq.block(4, f_idx, 1, _force_var->getOutputSize()) =  (_mu * _wTd.linear().row(2) + _wTd.linear().row(1));
         
 
         _bLowerBound(0) = - _w_force(2);
