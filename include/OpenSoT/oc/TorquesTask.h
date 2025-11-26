@@ -15,7 +15,8 @@ public:
     TorquesTask(XBot::ModelInterface& robot, const AffineHelper& dX, const AffineHelper& dU);
 
     void addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force);
-
+    
+    void removeForce(const std::string& frame_name);
 
 private:
     XBot::ModelInterface& _robot;

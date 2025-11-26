@@ -77,3 +77,7 @@ void TorquesTask::addForce(const std::string& frame_name, const std::shared_ptr<
     _frame_forces_vars[frame_name] = force;
     _dtau_dfext[frame_name] = Eigen::MatrixXd::Zero(6, _robot.getNv());
 }
+
+void TorquesTask::removeForce(const std::string& frame_name){
+    _frame_forces_vars.erase(frame_name);
+}

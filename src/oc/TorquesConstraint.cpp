@@ -26,9 +26,12 @@ void DynamicsConstraint::_update()
     _bUpperBound = _torquelim + _task.getb();  // + bcause of the deffinition inside the task
 }
 
-void DynamicsConstraint::addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force)
-{
+void DynamicsConstraint::addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force){
     _task.addForce(frame_name, force);
+}
+
+void DynamicsConstraint::removeForce(const std::string& frame_name){
+    _task.removeForce(frame_name);
 }
 
 
