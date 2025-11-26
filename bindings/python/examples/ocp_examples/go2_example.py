@@ -297,6 +297,12 @@ solver.getOptions().beta = 1e-4
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1000
 solver.getQPSolver().getOptions().iter_max = 100
+
+solver.getQPSolver().getOptions().tol_ineq = 1e-6
+solver.getQPSolver().getOptions().tol_eq = 1e-6
+solver.getQPSolver().getOptions().tol_stat = 1e-6
+solver.getQPSolver().getOptions().tol_comp = 1e-6
+
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")
@@ -371,6 +377,3 @@ finally:
 
 if rclpy.ok():
     rclpy.shutdown()
-
-
-

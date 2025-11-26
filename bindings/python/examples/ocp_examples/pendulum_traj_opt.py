@@ -139,8 +139,14 @@ solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getQPSolver().getOptions().warm_start = False
+#solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 #solver.getOptions().initial_hessian_regularization = 2.22045e-16
 #solver.getQPSolver().getOptions().iter_max = 30
+solver.getQPSolver().getOptions().tol_ineq = 1e-6
+solver.getQPSolver().getOptions().tol_eq = 1e-6
+solver.getQPSolver().getOptions().tol_stat = 1e-6
+solver.getQPSolver().getOptions().tol_comp = 1e-6
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")
