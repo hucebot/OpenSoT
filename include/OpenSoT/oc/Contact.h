@@ -9,34 +9,8 @@
 
 namespace OpenSoT::oc {
 
-    class ContactTask : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd> {
-    public:
-        typedef std::shared_ptr<ContactTask> Ptr;
 
-        ContactTask(XBot::ModelInterface& robot, const std::string& frame_name, const AffineHelper& dX, const AffineHelper& dU);
-
-    private:
-        XBot::ModelInterface& _robot;
-        AffineHelper _dU;
-        AffineHelper _dX;
-
-        Eigen::MatrixXd _dvc_dq;
-        Eigen::MatrixXd _dvc_dv;
-
-        //AffineHelper _dcontact;
-        Eigen::MatrixXd _Fx;
-        Eigen::MatrixXd _Fu;
-
-        const std::string _frame_name;
-
-        virtual void _update();
-        
-    };
-
-
-
-
-    class ContactConstraint : public Constraint<Eigen::MatrixXd, Eigen::VectorXd>
+class ContactConstraint : public Constraint<Eigen::MatrixXd, Eigen::VectorXd>
     {
     public:
         typedef std::shared_ptr<ContactConstraint> Ptr;
@@ -44,7 +18,22 @@ namespace OpenSoT::oc {
     private:
         XBot::ModelInterface& _robot;
 
-        ContactTask _task;
+        AffineHelper _dU;
+        AffineHelper _dX;
+
+        const std::string _frame_name;
+        Eigen::Affine3d _wTd;
+
+        Eigen::MatrixXd _dvc_dq;
+        Eigen::MatrixXd _dvc_dv;
+
+        Eigen::MatrixXd _J;
+        Eigen::Matrix6d _Adj;
+        Eigen::VectorXd _b;
+
+        Eigen::VectorXd _active;
+        double _ground_height;
+    
 
         void _update();
     
@@ -53,6 +42,9 @@ namespace OpenSoT::oc {
                             const std::string& frame_name,
                             const AffineHelper &dX,
                             const AffineHelper &dU);
+
+        void activate(double ground_height);
+        void deactivate();
 
 
     };
