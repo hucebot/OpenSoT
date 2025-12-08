@@ -282,3 +282,53 @@ def Rz(theta):
         [s,  c, 0],
         [0,  0, 1]
     ]
+
+
+def quat_to_rotmat(q):
+    
+    w = q[3]
+    x = q[0]
+    y = q[1]
+    z = q[2]
+
+    R = np.array([
+        [1 - 2*(y*y + z*z),   2*(x*y - w*z),     2*(x*z + w*y)],
+        [2*(x*y + w*z),       1 - 2*(x*x + z*z), 2*(y*z - w*x)],
+        [2*(x*z - w*y),       2*(y*z + w*x),     1 - 2*(x*x + y*y)]
+    ])
+    return R
+
+
+
+def hat(v):
+    vx, vy, vz = v[0],v[1],v[2]
+
+    return np.array([
+        [0,   -vz,  vy],
+        [vz,   0,  -vx],
+        [-vy, vx,   0]
+    ])
+
+
+
+
+class ContactScheduler:
+    def __init__(self, dt=0.01, contact_frame_dict=None):
+        self.DT = dt
+        self.total_nodes = 0
+        self.contact_phases = []
+        self.contact_sequence_fnames = []
+
+        self.contact_frame_dict = contact_frame_dict
+
+    def add_phase(self, phase, duration_sec):
+        steps = int(duration_sec / self.DT)
+        self.total_nodes += steps
+        self.contact_phases.extend([phase] * steps)
+
+        for _ in range(steps):
+            frame_names = []
+            for key in phase:
+                frame_names.extend(self.contact_frame_dict.get(key, []))
+
+            self.contact_sequence_fnames.append(frame_names)

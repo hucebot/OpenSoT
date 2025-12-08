@@ -4,7 +4,8 @@ from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, T
 import pyopensot as pysot
 from pyopensot.oc import *
 from rclpy.node import Node
-from pyopensot.tasks.acceleration import Cartesian, CoM, Postural, AngularMomentum
+# from pyopensot.tasks.acceleration import Cartesian, CoM, Postural, AngularMomentum
+from pyopensot.tasks.velocity import Cartesian
 
 import rclpy
 from ament_index_python.packages import get_package_share_directory
@@ -20,7 +21,7 @@ import time
 from utils import *
 
 
-np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=2, sign=' ')
+np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=1, sign=' ')
 
 
 urdf_string = pathlib.Path(get_package_share_directory('hurobots') + "/description_files/urdf/go2/go2.urdf").read_text()
@@ -179,26 +180,32 @@ for i in range(Ns-1):
     # stack = mintau
 
 
-    # cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    # cartesian_task.setWeight(1. * np.eye(6))
-    # costs.append(cartesian_task)
-    # stack = cartesian_task
+    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    cartesian_task.setWeight(1.*0. * np.eye(6))
+    costs.append(cartesian_task)
+    stack = cartesian_task
 
-    contact_task = ContactTask(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-    costs.append(contact_task)
-    stack = contact_task
+
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
 
 
     # Constraints
 
+
+    # tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
+    # for frame in contact_frames:
+    #     tau_lim.addForce(frame, contact_frames_vars[frame])
+    # const.append(tau_lim)
+    # ocp.stage(i).stack << tau_lim
+
     # friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
     # const.append(friction_const)
     # ocp.stage(i).stack << friction_const
 
     contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-    p_cc = contact_constraint%[0,1,2]
+    p_cc = contact_constraint
+    contact_constraint.activate(0.)
     const.append(p_cc)
     ocp.stage(i).stack <<  p_cc
 
@@ -207,20 +214,22 @@ for i in range(Ns-1):
 
 
 
-q_base = random_pose(-2.,2.)
-# q_base = np.array([0.,0.,0.,0.,0.,0.5,.5])
+# q_base = random_pose(-2.,2.)
+# q_base = np.array([0.,0.,0.,0.,0.,0.,1.])
 
 
-print(q_base)
+# print(q_base)
 
 q_zero = np.zeros(model.nq + model.nv)
 q_zero[6] = 1.
-
-q_val = np.concatenate((q_base,q_init))
+# q_val = np.concatenate((q_base,np.random.rand(model.nv)))
 qdot_val = np.random.rand(model.nv)
-qddot_val = np.zeros(model.nv)
+# qdot_val = np.ones(model.nv)
+qddot_val = np.random.rand(model.nv)
 
-f0 = np.array([0.,0., 0.])
+print(model.nv)
+
+f0 = np.random.rand(3)
 
 x0 = list()
 u0 = list()
@@ -244,9 +253,11 @@ eps   = 1e-6
 
 
 # Jac = costs[STAGE].getA().copy()
+# Jac = dbase.getA().copy()
 Jac = const[STAGE].getAineq().copy()
 # val = costs[STAGE].getb()
-
+print(const[STAGE].getbLowerBound())
+print(const[STAGE].getbUpperBound())
 
 
 print(Jac.shape)
@@ -262,6 +273,8 @@ print(JacDiff.shape)
 # print(val)
 
 
+# print(np.linalg.matrix_rank(Jac))
+# input()
 
 
 
@@ -286,6 +299,7 @@ for i in range(N):
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
     # valp =  - costs[STAGE].getb().copy()
+    # valp = dbase.getb().copy()
     valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
@@ -298,6 +312,7 @@ for i in range(N):
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
     # valm = - costs[STAGE].getb().copy()
+    # valm = dbase.getb().copy()
     valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
@@ -314,6 +329,12 @@ print(JacDiff)
 # print(Jac.T[-12:,:])
 # print("-"*100)
 # print(JacDiff.T[-12:,:])
+
+for i in range(Jac.shape[0]):
+    for j in range(Jac.shape[1]):
+        if np.abs(Jac[i,j]-JacDiff[i,j])>1e-3:
+            print(i,j,Jac[i,j],JacDiff[i,j])
+
 
 
 

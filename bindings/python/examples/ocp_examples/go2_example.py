@@ -1,10 +1,11 @@
 import numpy as np
 from scipy.spatial.transform import Rotation as R
-from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, Task, VariableXd
+from pyopensot import OptvarHelper, VariableXd
 import pyopensot as pysot
 from pyopensot.oc import *
 from rclpy.node import Node
-from pyopensot.tasks.acceleration import Cartesian, CoM, Postural, AngularMomentum
+from pyopensot.constraints.velocity import JointLimits
+from pyopensot.tasks.velocity import Postural
 
 import rclpy
 from ament_index_python.packages import get_package_share_directory
@@ -72,6 +73,22 @@ q_init = [
     -1.4,
 ]
 
+q_weights = np.ones(model.nv)
+
+w_shoulder = 1e3
+q_weights[:6] = q_weights[:6]*0
+q_weights[6]  = w_shoulder * q_weights[6]
+q_weights[9]  = w_shoulder * q_weights[9]
+q_weights[12] = w_shoulder * q_weights[13]
+q_weights[15] = w_shoulder * q_weights[15]
+
+# w_elbow = 1e-3
+# q_weights[8]  = w_elbow * q_weights[8]
+# q_weights[11]  = w_elbow * q_weights[11]
+# q_weights[14]  = w_elbow * q_weights[14]
+# q_weights[17]  = w_elbow * q_weights[17]
+
+
 q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
@@ -86,6 +103,7 @@ model.update()
 # print(model.getPose("FL_foot"))
 # print(model.getPose("RR_foot"))
 # print(model.getPose("FR_foot"))
+# input()
 
 contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
 
@@ -140,12 +158,38 @@ for frame in contact_frames:
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
 
-#print(f"dqdot idx: {dqdot.getStartIdx()}  size: {dqdot.getOutputSize()}")
-#print(f"contact_frames_vars[RL_foot] idx: {contact_frames_vars["RL_foot"].getStartIdx()}   size: {contact_frames_vars["RL_foot"].getOutputSize()}")
-#print(f"contact_frames_dvars[RL_foot] idx: {contact_frames_dvars["RL_foot"].getStartIdx()}   size: {contact_frames_dvars["RL_foot"].getOutputSize()}")
 
-# exit()
+DT = 0.05
 
+# CONTACT SCHEDULING
+contacts_dict = {
+    "rl_foot": ["RL_foot"],
+    "rr_foot": ["RR_foot"],
+    "fl_foot": ["FL_foot"],
+    "fr_foot": ["FR_foot"],
+}
+
+contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
+
+contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
+# # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
+# contact_scheduler.add_phase([], .2)
+# contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot"], .5)
+
+for i in range(6):
+    contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
+    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+    contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
+    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
+
+frame_contact_seq = contact_scheduler.contact_sequence_fnames
+
+
+
+Ns = contact_scheduler.total_nodes
+tf = Ns * DT
+print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
 
 
 _u = qddot
@@ -156,14 +200,9 @@ _du = dqddot
 for frame in contact_frames:
     _du = VariableXd.pile(_du, contact_frames_dvars[frame])
 
-Ns = 30 # number of nodes
-tf = 3. # final time
-dt = tf/Ns 
-print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
 mass = model.getMass()
-print(mass)
-f0 = np.array([0.,0., 0.])#mass*9.81/4.])
+f0 = np.array([0.,0.,0.])#mass*9.81/4.])
 
 x0 = list()
 u0 = list()
@@ -211,9 +250,10 @@ ocp.update(x0, u0)
 
 
 for i in range(Ns-1):
-    dbase = pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], dt)
-    dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], dt)
-    dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, dt)
+    print(i)
+    dbase =   pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], DT)
+    dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], DT)
+    dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, DT)
     dd.append(dbase)
     dd.append(dpos)
     dd.append(dvel)
@@ -222,68 +262,80 @@ for i in range(Ns-1):
 ocp.update(x0, u0)
 
 
-
 costs = []
 mintaus = []
+qlims = list()
 for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9 *  np.eye(model.nv))
+    minvel.setWeight(1e-9  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
-        minqddot.setWeight(1e-9 * np.eye(model.nv + 4*3))
+        minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e3*minqddot[0:model.nv] + minqddot[model.nv:]
+        stack += 1e-9 * minqddot[0:model.nv]
+        stack += 1e-9 * minqddot[model.nv:]
 
 
 # Base
-    if i == Ns-1:
+    if i <= Ns-1:
         cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_task.setWeight(1e-3 * np.eye(6))
         costs.append(cartesian_task)
         base_ref = cartesian_task.getReference().copy()
         # base_ref.translation[1] += 0.3
-        base_ref.translation[2] -= 0.15
-        base_ref.linear = Rz(np.pi/8)
+        # base_ref.translation[0] -= 0.1
+        # base_ref.translation[2] -= 0.05
+        # base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task
+        # stack += cartesian_task%[3,4,5]
 
-# Contacts
-    
-    for frame in contact_frames:
-        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
-        cartesian_task.setWeight(1e-6 * np.eye(6))
-        costs.append(cartesian_task)
-        stack += cartesian_task%[0,1,2]
+
+# Contac
+    postural = Postural(ocp.stage(i).model)
+    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setReference(q_val.copy())
+    minus.append(postural)
+    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
+    
+
+
+#Joint Limits
+    qmin, qmax = model.getJointLimits()
+    qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
+    qlims.append(qlims_i)
+    ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
+
 
     if i < Ns-1:
-
-        for frame in contact_frames:
-            contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-            costs.append(contact_task)
-            ocp.stage(i).stack <<  contact_task%[0,1,2]
-
-            friction_const = FrictionConeConstraint(ocp.stage(i).model, frame,contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-            const.append(friction_const)
-            ocp.stage(i).stack <<  friction_const
-
-
 # Dynamics 
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
-        for frame in contact_frames:
+        for frame in frame_contact_seq[i]:
             tau_lim.addForce(frame, contact_frames_vars[frame])
-
         tau_lims = tau_lim.getTorqueLimit()
         tau_lims[:6] = [1e-9]*6
         tau_lim.setTorqueLimit(tau_lims)
         const.append(tau_lim)
-        ocp.stage(i).stack << tau_lim
+        ocp.stage(i).stack = ocp.stage(i).stack << tau_lim
+
+
+        for frame in frame_contact_seq[i]:
+            friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            const.append(friction_const)
+            ocp.stage(i).stack = ocp.stage(i).stack << friction_const
+
+        for frame in contact_frames:
+            contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
+            costs.append(contact_task)
+            if frame in frame_contact_seq[i]:
+                contact_task.activate(0.)
+            ocp.stage(i).stack = ocp.stage(i).stack << contact_task
     
 
 ocp.update(x0, u0)
@@ -293,15 +345,16 @@ solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 100
 solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1e-4
-solver.getOptions().min_abs_delta_solution = 1e-3
-solver.getOptions().hessian_scale_factor_up = 1000
+solver.getOptions().beta = 1E-4
+solver.getOptions().min_abs_delta_solution = 1e-2
+solver.getOptions().hessian_scale_factor_up = 1e6
+
 solver.getQPSolver().getOptions().iter_max = 100
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-6
-solver.getQPSolver().getOptions().tol_eq = 1e-6
-solver.getQPSolver().getOptions().tol_stat = 1e-6
-solver.getQPSolver().getOptions().tol_comp = 1e-6
+solver.getQPSolver().getOptions().tol_ineq = 1e-2
+solver.getQPSolver().getOptions().tol_eq = 1e-2
+solver.getQPSolver().getOptions().tol_stat = 1e-2
+solver.getQPSolver().getOptions().tol_comp = 1e-2
 
 solver.init()
 print(f"{solver.getOptions().print()}")
@@ -330,16 +383,15 @@ try:
     t= 0.
     while rclpy.ok():
         input()
-
         x = x0[0]
         for i in range(len(x0)-1):
             x = x0[i]
             q_val = x.tolist()[:model.nq]
-            #if i<len(u0):
-            #    print(-mintaus[i].getb()[:6])
-                #print(const[i].getbLowerBound()[:6])
-                #print(const[i].getbUpperBound()[:6])
             ros2node.publish(q_val)
+            model.setJointPosition(q_val)
+            model.setJointVelocity(qdot_val)
+            model.update()
+            # print(model.getPose("RL_foot").translation[2])
 
             if i<len(u0):
                 j=0
@@ -349,6 +401,7 @@ try:
                     # f_local = T.linear.transpose() @ variables.getVariable(contact_frame).getValue(x)
                     f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
                     #f_local = T.linear.transpose() @ f_local
+
                     force_msgs[contact_frame].wrench.force.x = f_local[0]
                     force_msgs[contact_frame].wrench.force.y = f_local[1]
                     force_msgs[contact_frame].wrench.force.z = f_local[2]
@@ -357,7 +410,7 @@ try:
                 forcesnode.publish(force_msgs)
 
 
-            time.sleep(dt)
+            time.sleep(DT)
 
         ros2node.publish(q_val)
 
