@@ -5,9 +5,9 @@ using namespace OpenSoT::oc;
 EulerSE3::EulerSE3(const XBot::ModelInterface& robot,
                                const AffineHelper& dX,
                                const AffineHelper& dU,
-                               const AffineHelper& Xk,
-                               const AffineHelper& Uk,
-                               const AffineHelper& Xk_1,
+                               std::shared_ptr<AffineHelper> Xk,
+                               std::shared_ptr<AffineHelper> Uk,
+                               std::shared_ptr<AffineHelper> Xk_1,
                                const double dt):
     Task< Eigen::MatrixXd, Eigen::VectorXd> ("EulerSE3", dX.getInputSize()),
     _robot(robot),
@@ -51,15 +51,21 @@ void EulerSE3::_update()
     J_l6(-_xi, _J_l6);
     _Fu = _J_l6 * _dt;
 
+    _Uk->update();
+    _Xk->update();
+    _Xk_1->update();
 
-    Exp6(_Uk.getValue()*_dt, _Exp6);
 
-    //_dXnext = _Fx * _dX + _Fu * _dU + Log6((XYZQUATtoSE3(_Xk.getValue()) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
+    Exp6(_Uk->getValue().segment<6>(0)*_dt, _Exp6);
 
-    //_A = _dXnext.getM();
-    //_b = -_dXnext.getq();
 
     _A.leftCols(6) = _Fx;
     _A.middleCols(_robot.getNv(), 6) = _Fu;
-    _b = -1. * Log6((XYZQUATtoSE3(_Xk.getValue()) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
+    _b = -1. * Log6((XYZQUATtoSE3(_Xk->getValue().segment<7>(0)) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0)));
+
+    // std::cout<<"_Xk->getValue()"<<_Xk->getValue()<<std::endl;
+    // std::cout<<"_Uk->getValue()"<<_Uk->getValue()<<std::endl;
+    // std::cout<<"_Xk_1->getValue()"<<_Xk_1->getValue()<<std::endl;
+    // std::cout<<"_b= "<<_b<<std::endl;
+    _b = 0*_b;
 }

@@ -14,7 +14,7 @@ void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::Mat
 {
     A = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
     B = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
-    b = - 1. *_ocp->stage(i)->dynamics_derivative->getb(); //this is negative because it comes from an OpenSoT Task ||Ax - b||!
+    b = _ocp->stage(i)->dynamics_derivative->getb();
 }
 
 void swSQP::computeCost(const unsigned int i,

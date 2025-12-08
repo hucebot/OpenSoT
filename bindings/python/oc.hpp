@@ -51,10 +51,10 @@ void pyopensot_oc(py::module &m)
 {
 
     py::class_<OpenSoT::oc::EulerSE3, OpenSoT::oc::EulerSE3::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerSE3")
-        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, const double>());
 
     py::class_<OpenSoT::oc::EulerVector, OpenSoT::oc::EulerVector::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerVector")
-        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, const double>());
 
     py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
