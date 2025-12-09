@@ -139,6 +139,7 @@ void pyopensot_oc(py::module &m)
         .def(py::init<>())
         .def("isFinalStage", &Stage::isFinalStage)
         .def("update", &Stage::update)
+        .def("updateDVariables", &Stage::updateDVariables)
         .def("stage_cost", &Stage::stage_cost)
         .def_readwrite("model", &Stage::model)
         .def_readwrite("variables", &Stage::variables)
@@ -167,5 +168,6 @@ void pyopensot_oc(py::module &m)
 
         .def("cost", py::overload_cast<>(&ocp::cost))
 
-        .def("update", &ocp::update);
+        .def("update", &ocp::update)
+        .def("updateVariables", &ocp::updateVariables);
 }

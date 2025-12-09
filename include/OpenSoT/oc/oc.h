@@ -33,6 +33,17 @@ class ocp{
                 return true;
             }
 
+            void updateDVariables(const Eigen::VectorXd& dx0, const Eigen::VectorXd& du0)
+            {
+                _dw0.resize(dx->getInputSize());
+                _dw0.setZero();
+                _dw0.head(dx0.size()) = dx0;
+                _dw0.tail(du0.size()) = du0;
+
+                dx->getValue(_dw0);
+                du->getValue(_dw0);
+            }
+
             void update(const Eigen::VectorXd& x0, const Eigen::VectorXd& u0)
             {
                 _w0.resize(x->getInputSize());
@@ -273,6 +284,7 @@ class ocp{
         void addStage(Stage::Ptr stage);
 
         void update(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0);
+        void updateVariables(const std::vector<Eigen::VectorXd>& dx0, const std::vector<Eigen::VectorXd>& du0);
 
         Stage::Ptr stage(const unsigned int i){return _stages[i];}
         horizon& getHorizon(){return _stages;}

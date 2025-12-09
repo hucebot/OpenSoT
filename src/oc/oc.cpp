@@ -34,6 +34,18 @@ void ocp::update(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen
     _stages[_stages.size()-1]->update(x0[_stages.size()-1], Eigen::VectorXd(0));
 }
 
+void ocp::updateVariables(const std::vector<Eigen::VectorXd>& dx0, const std::vector<Eigen::VectorXd>& du0)
+{
+    if(dx0.size() != (du0.size() + 1))
+        throw std::runtime_error("dx0.size() != (du0.size() + 1)");
+
+    for(unsigned int i = 0; i < du0.size(); ++i)
+    {
+        _stages[i]->updateDVariables(dx0[i], du0[i]);
+    }
+    _stages[_stages.size()-1]->updateDVariables(dx0[_stages.size()-1], Eigen::VectorXd(0));
+}
+
 
 double ocp::cost()
 {
