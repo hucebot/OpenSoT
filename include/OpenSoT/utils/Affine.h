@@ -68,6 +68,7 @@ public:
     }
     AffineHelperBase(const DerivedM& M, const DerivedQ& q): _M(M), _q(q) {
         check_consistency();
+        _value.setZero(M.rows());
     }
 
     void setM(const DerivedM& M)
@@ -117,6 +118,7 @@ public:
     {
         _M.setZero(output_size, input_size);
         _q.setZero(output_size);
+        _value.setZero(output_size);
         check_consistency();
     }
     
@@ -258,6 +260,8 @@ public:
         M.block(0, start_idx, M.rows(), M.rows()) = Eigen::MatrixXd::Identity(M.rows(), M.rows());
 
         this->set(M, q);
+
+        this->_value.setZero(output_size);
 
         this->check_consistency();
 
