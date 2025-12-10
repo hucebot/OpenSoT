@@ -52,9 +52,9 @@ class ros2_node(Node):
         self.joint_state_publisher.publish(self.joint_msg)
         self.base_link_broadcaster.sendTransform(self.w_T_b)
 
-roslaunch = subprocess.Popen(['ros2', 'launch', 'hurobots', 'go2_state_publisher.launch.py'], stdout=subprocess.PIPE, shell=False)
+roslaunch = subprocess.Popen(['ros2', 'launch', 'huro', 'go2_rviz.launch.py'], stdout=subprocess.PIPE, shell=False)
 
-urdf_string = pathlib.Path(get_package_share_directory('hurobots') + "/description_files/urdf/go2/go2.urdf").read_text()
+urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
 
 model = xbi.ModelInterface2(urdf_string)
 

@@ -14,24 +14,30 @@ void ocp::addStage(Stage::Ptr stage)
 
 unsigned int ocp::getNumberOfNodes()
 {
-    //for(unsigned int Ns = 0; Ns < _stages.size(); ++Ns)
-    //{
-    //    if(_stages[Ns]->isFinalStage())
-    //        return Ns;
-    //}
     return _stages.size();
 }
 
+
+/**
+ * @note: this way to update does not make possible to write the dynamics constraint in terms of 'i-1' but only in terms of 'i+1'.
+ * Ideally we would like that is not important the way is written. to do this we should decouple in the Stage the update of the variables with the update of the problem.
+ */
 void ocp::update(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0)
 {
     if(x0.size() != (u0.size() + 1))
         throw std::runtime_error("x0.size() != (u0.size() + 1)");
 
-    for(unsigned int i = 0; i < u0.size(); ++i)
+    for (int i = static_cast<int>(_stages.size()) - 1; i >= 0; --i)
     {
-        _stages[i]->update(x0[i], u0[i]);
+        if (i == static_cast<int>(_stages.size()) - 1)
+        {
+            _stages[i]->update(x0[i], Eigen::VectorXd(0));
+        }
+        else
+        {
+            _stages[i]->update(x0[i], u0[i]);
+        }
     }
-    _stages[_stages.size()-1]->update(x0[_stages.size()-1], Eigen::VectorXd(0));
 }
 
 void ocp::updateDVariables(const std::vector<Eigen::VectorXd>& dx0, const std::vector<Eigen::VectorXd>& du0)

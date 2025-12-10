@@ -61,11 +61,5 @@ void EulerSE3::_update()
 
     _A.leftCols(6) = _Fx;
     _A.middleCols(_robot.getNv(), 6) = _Fu;
-    _b = -1. * Log6((XYZQUATtoSE3(_Xk->getValue().segment<7>(0)) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0)));
-
-    // std::cout<<"_Xk->getValue()"<<_Xk->getValue()<<std::endl;
-    // std::cout<<"_Uk->getValue()"<<_Uk->getValue()<<std::endl;
-    // std::cout<<"_Xk_1->getValue()"<<_Xk_1->getValue()<<std::endl;
-    // std::cout<<"_b= "<<_b<<std::endl;
-    _b = 0*_b;
+    _b = Log6((XYZQUATtoSE3(_Xk->getValue().segment<7>(0)) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0)));
 }

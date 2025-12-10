@@ -32,10 +32,5 @@ EulerVector::EulerVector(const XBot::ModelInterface& robot,
 
 void EulerVector::_update()
 {  
-    // std::cout<<"_Xk->getValue()"<<_Xk->getValue()<<std::endl;
-    // std::cout<<"_Uk->getValue()"<<_Uk->getValue()<<std::endl;
-    // std::cout<<"_Xk_1->getValue()"<<_Xk_1->getValue()<<std::endl;
-    _b = -_dt*(_Xk_1->getValue() - (_Xk->getValue() + _Uk->getValue()*_dt));
-    // std::cout<<"_b= "<<_b<<std::endl;
-    _b = 0*_b;
+    _b = (_Xk->getValue() + _Uk->getValue()*_dt) - _Xk_1->getValue();
 }
