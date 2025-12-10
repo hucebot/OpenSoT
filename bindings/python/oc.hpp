@@ -168,5 +168,5 @@ void pyopensot_oc(py::module &m)
         .def("cost", py::overload_cast<>(&ocp::cost))
 
         .def("update", &ocp::update)
-        .def("updateVariables", &ocp::updateVariables);
+        .def("updateDVariables", &ocp::updateDVariables);
 }

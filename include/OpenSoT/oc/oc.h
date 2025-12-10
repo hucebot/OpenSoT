@@ -284,7 +284,7 @@ class ocp{
         void addStage(Stage::Ptr stage);
 
         void update(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0);
-        void updateVariables(const std::vector<Eigen::VectorXd>& dx0, const std::vector<Eigen::VectorXd>& du0);
+        void updateDVariables(const std::vector<Eigen::VectorXd>& dx0, const std::vector<Eigen::VectorXd>& du0);
 
         Stage::Ptr stage(const unsigned int i){return _stages[i];}
         horizon& getHorizon(){return _stages;}
