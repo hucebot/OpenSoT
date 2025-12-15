@@ -16,6 +16,8 @@
 #include <OpenSoT/oc/SE3Task.h>
 #include <OpenSoT/oc/TorquesTask.h>
 #include <OpenSoT/oc/TorquesConstraint.h>
+#include <OpenSoT/oc/Contact.h>
+#include <OpenSoT/oc/FrictionConeConstraint.h>
 
 namespace py = pybind11;
 
@@ -49,16 +51,27 @@ void pyopensot_oc(py::module &m)
 {
 
     py::class_<OpenSoT::oc::EulerSE3, OpenSoT::oc::EulerSE3::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerSE3")
-        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, const double>());
 
     py::class_<OpenSoT::oc::EulerVector, OpenSoT::oc::EulerVector::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerVector")
-        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const AffineHelper &, const double>());
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, const double>());
 
     py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
-        .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>());
+        .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
+        .def("addForce", &OpenSoT::oc::TorquesTask::addForce);
+
+    py::class_<OpenSoT::oc::ContactConstraint, OpenSoT::oc::ContactConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "ContactConstraint")
+        .def(py::init<XBot::ModelInterface &, const std::string&, const AffineHelper &, const AffineHelper &>())
+        .def("activate", &OpenSoT::oc::ContactConstraint::activate)
+        .def("deactivate", &OpenSoT::oc::ContactConstraint::deactivate);
+
+    py::class_<OpenSoT::oc::FrictionConeConstraint, OpenSoT::oc::FrictionConeConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "FrictionConeConstraint")
+        .def(py::init<XBot::ModelInterface &, const std::string&,std::shared_ptr<VariableXd>, const AffineHelper &, const AffineHelper &>());
+
 
     py::class_<OpenSoT::oc::DynamicsConstraint, OpenSoT::oc::DynamicsConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "DynamicsConstraint")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
+        .def("addForce", &OpenSoT::oc::DynamicsConstraint::addForce)
         .def("getTorqueLimit", &OpenSoT::oc::DynamicsConstraint::getTorqueLimit)
         .def("setTorqueLimit", &OpenSoT::oc::DynamicsConstraint::setTorqueLimit);
 
@@ -104,7 +117,13 @@ void pyopensot_oc(py::module &m)
                               Eigen::VectorXd x1(x0.size());
                               x1.setZero();
                               self.plus(x0, dx0, x1);
-                              return x1; }, py::arg("x0"), py::arg("dx0"));
+                              return x1; }, py::arg("x0"), py::arg("dx0"))
+        .def("minus", [](OpenSoT::CompositeSpace &self, const Eigen::VectorXd &x, const Eigen::VectorXd &x1) -> Eigen::VectorXd
+             {
+                              Eigen::VectorXd dx(self.nv());
+                              dx.setZero();
+                              self.minus(x, x1, dx);
+                              return dx; }, py::arg("x"), py::arg("x1"));
 
     // Expose vector<stage::Ptr> as a Python list-like container (the horizon)
     py::bind_vector<std::vector<std::shared_ptr<Stage>>>(m, "StagePtrVector");
@@ -119,6 +138,7 @@ void pyopensot_oc(py::module &m)
         .def(py::init<>())
         .def("isFinalStage", &Stage::isFinalStage)
         .def("update", &Stage::update)
+        .def("updateDVariables", &Stage::updateDVariables)
         .def("stage_cost", &Stage::stage_cost)
         .def_readwrite("model", &Stage::model)
         .def_readwrite("variables", &Stage::variables)
@@ -147,5 +167,6 @@ void pyopensot_oc(py::module &m)
 
         .def("cost", py::overload_cast<>(&ocp::cost))
 
-        .def("update", &ocp::update);
+        .def("update", &ocp::update)
+        .def("updateDVariables", &ocp::updateDVariables);
 }

@@ -5,9 +5,9 @@ using namespace OpenSoT::oc;
 EulerSE3::EulerSE3(const XBot::ModelInterface& robot,
                                const AffineHelper& dX,
                                const AffineHelper& dU,
-                               const AffineHelper& Xk,
-                               const AffineHelper& Uk,
-                               const AffineHelper& Xk_1,
+                               std::shared_ptr<AffineHelper> Xk,
+                               std::shared_ptr<AffineHelper> Uk,
+                               std::shared_ptr<AffineHelper> Xk_1,
                                const double dt):
     Task< Eigen::MatrixXd, Eigen::VectorXd> ("EulerSE3", dX.getInputSize()),
     _robot(robot),
@@ -27,27 +27,29 @@ EulerSE3::EulerSE3(const XBot::ModelInterface& robot,
 
     _W.setIdentity(dX.getOutputSize(), dX.getOutputSize());
 
+    _b.setZero(dX.getOutputSize());
+    _A.setZero(dX.getOutputSize(), dX.getInputSize());
+
     update();
 }
 
 void EulerSE3::_update()
 {  
-    _robot.getJointVelocity(_qdot);
+    _Uk->update();
+    _Xk->update();
+    _Xk_1->update();
 
-    _xi = _qdot.segment<6>(0) * _dt;
+    Eigen::Affine3d xk   = XYZQUATtoSE3(_Xk->getValue().segment<7>(0));
+    Eigen::VectorXd uk   = _Uk->getValue().segment<6>(0);
+    Eigen::Affine3d xk_1 = XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0));
+    Exp6(uk*_dt, _Exp6);
+    Eigen::Affine3d diff =  xk_1.inverse() * xk * _Exp6;
 
-    _RbT = Exp3(_xi.tail(3)).transpose();    
-    _t_skew = hat(_xi.head(3));
+    _Fx = J_r6_inv(Log6(diff)) * JMaMb_Ma(xk, _Exp6);
+    _Fu = J_r6_inv(Log6(diff)) * JMaMb_Mb(xk, _Exp6) * JExp6(_Exp6) * _dt;
 
-    _Fx.setZero();
-    _Fx.block<3,3>(0,0) = _RbT;
-    _Fx.block<3,3>(3,3) = _RbT;
-    _Fx.block<3,3>(0,3) = -_RbT * _t_skew;
+    _A.leftCols(6) = _Fx;
+    _A.middleCols(_robot.getNv(), 6) = _Fu;
 
-    _Fu = J_l6(-_xi) * _dt;
-
-    _dXnext = _Fx * _dX + _Fu * _dU + Log6((XYZQUATtoSE3(_Xk.getValue()) * Exp6(_Uk.getValue()*_dt)).inverse() * XYZQUATtoSE3(_Xk_1.getValue()));
-
-    _A = _dXnext.getM();
-    _b = -_dXnext.getq();
+    _b = Log6(diff);
 }

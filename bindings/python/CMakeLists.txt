@@ -24,7 +24,8 @@ if(${pybind11_FOUND})
                                     constraints/acceleration.hpp
                                     constraints/force.hpp
                                     variables/torque.hpp
-                                    oc.hpp)
+                                    oc.hpp
+                                    liegroupsutils.hpp)
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${Eigen3_INCLUDE_DIR})
 
@@ -51,12 +52,41 @@ if(${pybind11_FOUND})
         target_link_libraries(pyopensot PUBLIC OpenSothpipmOC)
     endif()
 
+    # Check if pybind11-stubgen is available
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} -c "import pybind11_stubgen"
+        RESULT_VARIABLE STUBGEN_AVAILABLE
+        OUTPUT_QUIET ERROR_QUIET
+    )
+
+    set(PYTHON_INSTALL_DIR "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
 
     install(TARGETS pyopensot
         COMPONENT python
-        LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+        LIBRARY DESTINATION ${PYTHON_INSTALL_DIR}
         ARCHIVE DESTINATION "lib"
         RUNTIME DESTINATION "bin")
+
+    # Generate stubs during install
+    if(STUBGEN_AVAILABLE EQUAL 0)
+        install(CODE "
+            message(STATUS \"Generating Python stub files for pyopensot\")
+            execute_process(
+                COMMAND ${Python3_EXECUTABLE} -m pybind11_stubgen 
+                    pyopensot
+                    -o ${CMAKE_INSTALL_PREFIX}/${PYTHON_INSTALL_DIR}
+                WORKING_DIRECTORY ${CMAKE_INSTALL_PREFIX}/${PYTHON_INSTALL_DIR}
+                RESULT_VARIABLE STUB_RESULT
+            )
+            if(NOT STUB_RESULT EQUAL 0)
+                message(WARNING \"Failed to generate stub files\")
+            endif()
+        "
+        COMPONENT python)
+        message(STATUS "Stub generation will run during install")
+    else()
+        message(STATUS "pybind11-stubgen not found. Install with: pip install pybind11-stubgen")
+    endif()
 
 else()
     message(STATUS "pybind not found")

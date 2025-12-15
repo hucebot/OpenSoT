@@ -1,6 +1,7 @@
 from pyopensot.tasks import MinimizeVariable
 import pyopensot as pysot
 import numpy as np
+import unittest
 
 var_dict = {}
 var_dict["a"] = 3
@@ -38,5 +39,10 @@ print(f"a ref: {min_a.getReference()}")
 print(f"a: {a_val}")
 print(f"b ref: {min_b.getReference()}")
 print(f"b: {b_val}")
+
+utest = unittest.TestCase()
+for i in range(3):
+    utest.assertTrue(np.abs((a_val[i] - min_a.getReference()[i])) <= 1e-6)
+    utest.assertTrue(np.abs((b_val[i] - min_b.getReference()[i])) <= 1e-6)
 
 

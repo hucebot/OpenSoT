@@ -4,6 +4,7 @@
 #include <OpenSoT/Task.h>
 #include <OpenSoT/utils/Affine.h>
 #include <xbot2_interface/xbotinterface2.h>
+#include <OpenSoT/utils/LieGroupsUtils.h>
 
 
 namespace OpenSoT { namespace oc {
@@ -13,6 +14,9 @@ public:
 
     TorquesTask(XBot::ModelInterface& robot, const AffineHelper& dX, const AffineHelper& dU);
 
+    void addForce(const std::string& frame_name, const std::shared_ptr<VariableXd> force);
+    
+    void removeForce(const std::string& frame_name);
 
 private:
     XBot::ModelInterface& _robot;
@@ -26,10 +30,15 @@ private:
     Eigen::MatrixXd _dtau_dq;
     Eigen::MatrixXd _dtau_dv;
     Eigen::MatrixXd _dtau_da;
+    std::map<std::string, Eigen::MatrixXd> _dtau_dfext;
 
-    AffineHelper _dTAU;
+    //AffineHelper _dTAU;
     Eigen::MatrixXd _Fx;
     Eigen::MatrixXd _Fu;
+
+    bool _fext_flag;
+    std::map<std::string, std::shared_ptr<VariableXd>> _frame_forces_vars;
+    std::map<std::string, Eigen::Vector6d> _frame_forces;
 
     virtual void _update();
     

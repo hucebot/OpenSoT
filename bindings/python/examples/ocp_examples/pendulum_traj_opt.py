@@ -7,7 +7,7 @@ import numpy as np
 import subprocess
 import time
 from scipy.spatial.transform import Rotation as R
-from pyopensot import AffineHelper, OptvarHelper
+from pyopensot import AffineHelper, OptvarHelper, VariableXd
 from pyopensot.oc import *
 from pyopensot.tasks.velocity import Postural
 
@@ -50,11 +50,11 @@ dq = dvariables.getVariable("dq")
 dqdot = dvariables.getVariable("dqdot")
 dqddot = dvariables.getVariable("dqddot")
 
-x = AffineHelper.pile(q, qdot)
-xdot = AffineHelper.pile(qdot, qddot)
+x = VariableXd.pile(q, qdot)
+xdot = VariableXd.pile(qdot, qddot)
 
-dx = AffineHelper.pile(dq, dqdot)
-dxdot = AffineHelper.pile(dqdot, dqddot)
+dx = VariableXd.pile(dq, dqdot)
+dxdot = VariableXd.pile(dqdot, dqddot)
 
 
 Ns = 100 # number of nodes
@@ -79,19 +79,19 @@ for i in range(Ns+1):
     stage.state_space = CompositeSpace([VectorSpace(model.nq), VectorSpace(model.nv)])
 
     """ We include both state variables and dvariables """
-    stage.x = x
-    stage.xdot = xdot
-    stage.dx = dx
+    stage.x = x.copy()
+    stage.xdot = xdot.copy()
+    stage.dx = dx.copy()
 
     if i<Ns:
         """ We include both control variables and dvariables """
-        stage.u = qddot
-        stage.du = dqddot
+        stage.u = qddot.copy()
+        stage.du = dqddot.copy()
 
     """ We include q and qdot defined for the state variables """
-    stage.q = q
-    stage.v = qdot
-    stage.a = qddot
+    stage.q = q.copy()
+    stage.v = qdot.copy()
+    stage.a = qddot.copy()
 
     stage.model = xbi.ModelInterface2(rosnode.urdf)
 
@@ -101,7 +101,7 @@ ocp.update(x0, u0)
 
 mintaus = []
 for i in range(Ns):
-    df = EulerVector(stage.model, dx, dxdot, ocp.stage(i).x, ocp.stage(i).xdot, ocp.stage(i+1).x, dt)
+    df = EulerVector(ocp.stage(i).model, ocp.stage(i).dx, dxdot, ocp.stage(i).x, ocp.stage(i).xdot, ocp.stage(i+1).x, dt)
     dd.append(df)
     ocp.stage(i).dynamics_derivative = df
 
@@ -139,6 +139,14 @@ solver.getOptions().verbose = True
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getQPSolver().getOptions().warm_start = False
+#solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
+#solver.getOptions().initial_hessian_regularization = 2.22045e-16
+#solver.getQPSolver().getOptions().iter_max = 30
+solver.getQPSolver().getOptions().tol_ineq = 1e-6
+solver.getQPSolver().getOptions().tol_eq = 1e-6
+solver.getQPSolver().getOptions().tol_stat = 1e-6
+solver.getQPSolver().getOptions().tol_comp = 1e-6
 solver.init()
 print(f"{solver.getOptions().print()}")
 print("...solver inited!")

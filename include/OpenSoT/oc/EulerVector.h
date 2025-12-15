@@ -15,9 +15,9 @@ public:
     EulerVector(const XBot::ModelInterface& robot,
                                const AffineHelper& dX,
                                const AffineHelper& dU,
-                               const AffineHelper& Xk,
-                               const AffineHelper& Uk,
-                               const AffineHelper& Xk_1,
+                               std::shared_ptr<AffineHelper> Xk,
+                               std::shared_ptr<AffineHelper> Uk,
+                               std::shared_ptr<AffineHelper> Xk_1,
                                const double dt);
 
 
@@ -25,9 +25,9 @@ private:
     const XBot::ModelInterface& _robot;
     AffineHelper _dU;
     AffineHelper _dX;
-    AffineHelper _Xk;
-    AffineHelper _Uk;
-    AffineHelper _Xk_1;
+    std::shared_ptr<AffineHelper> _Xk;
+    std::shared_ptr<AffineHelper> _Uk;
+    std::shared_ptr<AffineHelper> _Xk_1;
     double _dt;
 
     AffineHelper _dXnext;

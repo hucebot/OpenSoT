@@ -28,9 +28,9 @@ public:
     EulerSE3(const XBot::ModelInterface& robot,
                                const AffineHelper& dX,
                                const AffineHelper& dU,
-                               const AffineHelper& Xk,
-                               const AffineHelper& Uk,
-                               const AffineHelper& Xk_1,
+                               std::shared_ptr<AffineHelper> Xk,
+                               std::shared_ptr<AffineHelper> Uk,
+                               std::shared_ptr<AffineHelper> Xk_1,
                                const double dt);
 
 
@@ -38,12 +38,12 @@ private:
     const XBot::ModelInterface& _robot;
     AffineHelper _dU;
     AffineHelper _dX;
-    AffineHelper _Xk;
-    AffineHelper _Uk;
-    AffineHelper _Xk_1;
+    std::shared_ptr<AffineHelper> _Xk;
+    std::shared_ptr<AffineHelper> _Uk;
+    std::shared_ptr<AffineHelper> _Xk_1;
     double _dt;
 
-    AffineHelper _dXnext;
+    //AffineHelper _dXnext;
 
     Eigen::VectorXd _qdot;
     Eigen::Vector6d _xi;
@@ -51,11 +51,12 @@ private:
     Eigen::Matrix3d _t_skew;
     Eigen::Matrix6d _Fx;
     Eigen::Matrix6d _Fu;
+    Eigen::Affine3d _Exp6;
 
 
 
     virtual void _update();
-    
+    Eigen::Matrix6d _J_l6;
 };
 
 

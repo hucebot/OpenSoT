@@ -19,6 +19,8 @@ from pyopensot import AffineHelper, OptvarHelper, GenericTask, Task, AffineTask,
 import random
 import math
 
+from geometry_msgs.msg import TransformStamped, WrenchStamped
+
 
 def random_quaternion():
     """
@@ -247,3 +249,86 @@ def quaternion_trajectory_numpy(N, axis=[0, 0, 1]):
         quaternions.append(quaternion)
     
     return np.array(quaternions)
+
+
+
+
+class force_node(Node):
+    def __init__(self):
+        super().__init__('force_pub')
+
+        self.force_publishers = {}
+
+
+    def initialize_force_publishers(self, contact_frames):
+        for contact_frame in contact_frames:
+            self.force_publishers[contact_frame] = self.create_publisher(WrenchStamped, contact_frame, 10)
+
+    def publish(self, force_msgs):
+        for contact_frame, force_msg in force_msgs.items():
+            self.force_publishers[contact_frame].publish(force_msg)
+
+
+
+def Rz(theta):
+    """
+    Create a 3x3 rotation matrix for a rotation about the z-axis by angle theta (radians).
+    """
+    c = math.cos(theta)
+    s = math.sin(theta)
+
+    return [
+        [c, -s, 0],
+        [s,  c, 0],
+        [0,  0, 1]
+    ]
+
+
+def quat_to_rotmat(q):
+    
+    w = q[3]
+    x = q[0]
+    y = q[1]
+    z = q[2]
+
+    R = np.array([
+        [1 - 2*(y*y + z*z),   2*(x*y - w*z),     2*(x*z + w*y)],
+        [2*(x*y + w*z),       1 - 2*(x*x + z*z), 2*(y*z - w*x)],
+        [2*(x*z - w*y),       2*(y*z + w*x),     1 - 2*(x*x + y*y)]
+    ])
+    return R
+
+
+
+def hat(v):
+    vx, vy, vz = v[0],v[1],v[2]
+
+    return np.array([
+        [0,   -vz,  vy],
+        [vz,   0,  -vx],
+        [-vy, vx,   0]
+    ])
+
+
+
+
+class ContactScheduler:
+    def __init__(self, dt=0.01, contact_frame_dict=None):
+        self.DT = dt
+        self.total_nodes = 0
+        self.contact_phases = []
+        self.contact_sequence_fnames = []
+
+        self.contact_frame_dict = contact_frame_dict
+
+    def add_phase(self, phase, duration_sec):
+        steps = int(duration_sec / self.DT)
+        self.total_nodes += steps
+        self.contact_phases.extend([phase] * steps)
+
+        for _ in range(steps):
+            frame_names = []
+            for key in phase:
+                frame_names.extend(self.contact_frame_dict.get(key, []))
+
+            self.contact_sequence_fnames.append(frame_names)

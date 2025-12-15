@@ -30,9 +30,14 @@ public:
         int iters;
         double cost;
         double constraint_violation;
+        double max_dsolution;
         double alpha;
         int line_search_iters;
         bool line_search_accepted;
+
+        //timing
+        std::chrono::_V2::system_clock::time_point _iter_start;
+        std::chrono::_V2::system_clock::time_point _start;
         double iter_time;
         double total_time = std::numeric_limits<double>::quiet_NaN();
 
@@ -46,6 +51,7 @@ public:
             _oss << "  iter              : " << iters << std::endl;
             _oss << "  cost              : " << cost << std::endl;
             _oss << "  sum-constr-viol   : " << constraint_violation << std::endl;
+            _oss << "  max-delta_state   : " << max_dsolution << std::endl;
             _oss << "  iter time         : " << iter_time << std::endl;
             _oss << "  total time        : " << total_time << std::endl;
             _oss << " === LineSearch Statistics === " << std::endl;
@@ -91,6 +97,9 @@ public:
             alpha_min = 0.125;
             beta = 1e-4;
             line_search_strategy = 0;
+            initial_hessian_regularization = std::numeric_limits<double>::epsilon();
+            hessian_scale_factor_up = 10.;
+            max_hessian_regularization = 1.;
         }
 
         //termination criteria
@@ -101,6 +110,11 @@ public:
         double alpha_min;
         uint line_search_strategy;
         double beta; // multiply merit derivative in Armijo's condition in line search
+
+        /// Hessian Regularization
+        double initial_hessian_regularization;
+        double hessian_scale_factor_up;
+        double max_hessian_regularization;
 
         bool verbose;
 
@@ -156,7 +170,8 @@ private:
     void linearize(); // update linearization/quadritization matrices
     void update_statistics();
     void step(double alpha); //step of the solver
-    bool break_criteria(); // sqp solvers breaking criteria
+    bool convergence_criteria(); // sqp solvers breaking criteria
+    double compute_kkt_residual();
 
     double _prev_cost;  // total cost
     double _prev_defect; // total gap violation
@@ -173,11 +188,11 @@ private:
 
     hpipmOC::Ptr _qp_solver;
     OpenSoT::ocp::Ptr _ocp;
+    std::vector<hpipm::OcpQpSolution> _qp_solution;
 
     options _opt;
     statistics _stats;
 
-    std::vector<Eigen::MatrixXd> _Mx, _Mu;
 
     // stores dynamics in the horizon
     std::vector<Eigen::MatrixXd> _A, _B;
@@ -195,8 +210,9 @@ private:
     std::vector<Eigen::VectorXd> _x0_candidate, _u0_candidate;
 
     Eigen::VectorXd _dx0; //initial delta state constraint (_dx0 = 0)
-    
 
+    double _sigma; //Hessian regularization
+    
 };
 
 }

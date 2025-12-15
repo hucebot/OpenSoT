@@ -30,31 +30,20 @@ OpenSoT::OptvarHelper::OptvarHelper(std::vector< std::pair< std::string, int > >
     }
 }
 
-OpenSoT::AffineHelper OpenSoT::OptvarHelper::getVariable(std::string name) const
+OpenSoT::VariableXd OpenSoT::OptvarHelper::getVariable(std::string name) const
 {
     auto it = _vars_map.find(name);
     
     if( it == _vars_map.end() ){
         throw std::invalid_argument("Variable does not exist");
     }
-    
-    
-    
-    Eigen::MatrixXd M;
-    Eigen::VectorXd q;
-    
-    M.setZero(it->second.size, _size);
-    q.setZero(it->second.size);
-    
-    M.block(0, it->second.start_idx, M.rows(), it->second.size) = Eigen::MatrixXd::Identity(M.rows(), it->second.size);
-    
-    return OpenSoT::AffineHelper(M, q);
-    
+
+    return OpenSoT::VariableXd(it->second.start_idx, _size, it->second.size);
 }
 
-std::vector< OpenSoT::AffineHelper > OpenSoT::OptvarHelper::getAllVariables() const
+std::vector< OpenSoT::VariableXd > OpenSoT::OptvarHelper::getAllVariables() const
 {
-    std::vector<OpenSoT::AffineHelper> all_vars;
+    std::vector<OpenSoT::VariableXd> all_vars;
     for(auto v : _vars){
         all_vars.push_back( getVariable(v.name) );
     }

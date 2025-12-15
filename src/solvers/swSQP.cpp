@@ -7,14 +7,14 @@ swSQP::swSQP(OpenSoT::ocp::Ptr ocp):
 {
     _qp_solver = std::make_shared<hpipmOC>(ocp->getNumberOfNodes());
 
-init();
+    init();
 }
 
 void swSQP::computeDynamics(const unsigned int i, Eigen::MatrixXd& A, Eigen::MatrixXd& B, Eigen::VectorXd& b)
 {
-    A = _ocp->stage(i)->dynamics_derivative->getA() * _Mx[i].transpose();
-    B = _ocp->stage(i)->dynamics_derivative->getA() * _Mu[i].transpose();
-    b = - 1. *_ocp->stage(i)->dynamics_derivative->getb(); //this is negative because it comes from an OpenSoT Task ||Ax - b||!
+    A = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
+    B = _ocp->stage(i)->dynamics_derivative->getA().middleCols(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
+    b = _ocp->stage(i)->dynamics_derivative->getb();
 }
 
 void swSQP::computeCost(const unsigned int i,
@@ -26,35 +26,45 @@ void swSQP::computeCost(const unsigned int i,
     _H[i].triangularView<Eigen::Upper>() = _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWA();
     _H[i] = _H[i].selfadjointView<Eigen::Upper>();
 
+    // Apply sigma opnly if more than std::numeric_limits<double>::epsilon()
+    if(_sigma > std::numeric_limits<double>::epsilon())
+    {
+        for(unsigned int j = 0; j < _H[i].rows(); ++j)
+            _H[i](j,j) += _sigma;
+    }
+
     _g[i] = - _ocp->stage(i)->stack->getStack()[0]->getA().transpose() * _ocp->stage(i)->stack->getStack()[0]->getWb();
 
-
     // computing state and control cost matrices from the quadratic approximation
-    Q = _Mx[i] * _H[i] * _Mx[i].transpose();
-    q = _Mx[i] * _g[i];
+    Q = _H[i].block(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getStartIdx(),
+                    _ocp->stage(i)->dx->getM().rows(), _ocp->stage(i)->dx->getM().rows());
+    q = _g[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
 
     if(_ocp->stage(i)->u)
     {
-        R = _Mu[i] * _H[i] * _Mu[i].transpose();
-        S = _Mu[i] * _H[i] * _Mx[i].transpose();
-        r = _Mu[i] * _g[i];
+        R = _H[i].block(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getStartIdx(),
+                        _ocp->stage(i)->du->getM().rows(), _ocp->stage(i)->du->getM().rows());
+
+        S = _H[i].block(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->dx->getStartIdx(),
+                        _ocp->stage(i)->du->getM().rows(), _ocp->stage(i)->dx->getM().rows());
+
+        r = _g[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
     }
 }
 
 void swSQP::computeConstraints(const unsigned int i,
                                Eigen::MatrixXd& C, Eigen::MatrixXd& D, Eigen::VectorXd& dl, Eigen::VectorXd& du)
 {
-    OpenSoT::constraints::Aggregated::ConstraintPtr constraints = _ocp->stage(i)->stack->getBounds();
-
     //Do not make sense to check bnounds since bounds in the non-linear problem are constraints
-    if(constraints->getAineq().rows() > 0) //there are constraints
+    if(_ocp->stage(i)->stack->getBounds()->getAineq().rows() > 0) //there are constraints
     {
-        C = constraints->getAineq() * _Mx[i].transpose();
-        if(_ocp->stage(i)->u)
-            D = constraints->getAineq() * _Mu[i].transpose();
+        C = _ocp->stage(i)->stack->getBounds()->getAineq().middleCols(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows());
+        if(_ocp->stage(i)->u){
+            D = _ocp->stage(i)->stack->getBounds()->getAineq().middleCols(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows());
+        }
 
-        dl = constraints->getbLowerBound();
-        du = constraints->getbUpperBound();
+        dl = _ocp->stage(i)->stack->getBounds()->getbLowerBound();
+        du = _ocp->stage(i)->stack->getBounds()->getbUpperBound();
     }
 }
 
@@ -85,7 +95,7 @@ void swSQP::linearize()
 
 bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0)
 {
-    auto start = std::chrono::high_resolution_clock::now();
+    _stats._start = std::chrono::high_resolution_clock::now();
 
     _x0_candidate = x0;
     _u0_candidate = u0;
@@ -104,12 +114,16 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
     for (uint i = 0; i < _ocp->getNumberOfNodes() && _opt.line_search_strategy==1 ; i++)
     {
-        dcost_dw[i] = _ocp->stage(i)->stage_dcost_dw();
+        //dcost_dw[i] = _ocp->stage(i)->stage_dcost_dw();
+        dcost_dw[i] = _g[i];
         dviol_dw[i] = _ocp->stage(i)->stage_dviolation_dw();
         ddefect_dw[i] = _ocp->stage(i)->stage_ddefect_dw();
     }
 
     _dx0.setZero();
+
+    // relinarize qp
+    linearize();
 
     for(unsigned int iter = 1; iter <= _opt.max_iters; ++iter)
     {
@@ -118,25 +132,27 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _stats.line_search_iters = 1;
         _stats.line_search_accepted = false;
 
-        auto iter_start = std::chrono::high_resolution_clock::now();
-
-        // relinarize and update qp
-        linearize();
+        _stats._iter_start = std::chrono::high_resolution_clock::now();
 
         // solve
         if (!_qp_solver->solve(_dx0))
         {
-            std::cout<< "nosolve"<< std::endl;
-            return false;
+            std::cout<< "qp nosolve: "<<_qp_solver->solveStatus()<<std::endl;
+            // return false;
         }
+        _qp_solution = _qp_solver->getSolution();
 
         // first update
         step(_stats.alpha);
+
+        _ocp->update(_x0_candidate, _u0_candidate);
         
-    
+        //Line-search
+        if(_opt.line_search_strategy == 0)
+            _stats.line_search_accepted = true;
+
         while(_opt.line_search_strategy!=0 && _stats.alpha >= _opt.alpha_min)
         {
-            _ocp->update(_x0_candidate, _u0_candidate);
             if((this->*ls_function)())
             {
                 _stats.line_search_accepted=true;
@@ -145,42 +161,59 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             _stats.alpha /= 2.;
             _stats.line_search_iters++;
             step(_stats.alpha);
-
-            
-        }
-        if (_opt.line_search_strategy==0)
             _ocp->update(_x0_candidate, _u0_candidate);
+        }
 
-        _x0 = _x0_candidate;
-        _u0 = _u0_candidate;
-        
-
-        // check break criteria on QP solution
-        if (break_criteria())
+        if(!_stats.line_search_accepted)
         {
-            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
+            _ocp->update(_x0, _u0); //update at previous linearization point
+            _sigma *= _opt.hessian_scale_factor_up; //rise regularization
+            std::cout<<"_sigma: "<<_sigma<<std::endl;
+
+            // relinarize qp
+            linearize();
+
+            if(_sigma > _opt.max_hessian_regularization)
+            {
+                std::cout<< "line search failed"<< std::endl; //to better define!
+                return false;
+            }
+        }
+        else
+        {
+            _sigma = _opt.initial_hessian_regularization;
+
+            _x0 = _x0_candidate;
+            _u0 = _u0_candidate;
+
+            // relinarize qp
+            linearize();
+
+            // check break criteria on QP solution
+            if (convergence_criteria())
+            {
+                std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
+                _stats.iter_time = iter_elapsed.count();
+                break;
+            }
+
+            _prev_cost = _ocp->cost();
+            _prev_defect = _ocp->dynamics_defect();
+            _prev_viol = _ocp->constraint_violation();
+
+            update_statistics();
+            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
             _stats.iter_time = iter_elapsed.count();
-            break;
-        } 
-
-        _prev_cost = _ocp->cost();
-        _prev_defect = _ocp->dynamics_defect();
-        _prev_viol = _ocp->constraint_violation();
-
-        update_statistics();
-        std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - iter_start;
-        _stats.iter_time = iter_elapsed.count();
-        if(_opt.verbose)
-        {
-            std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+            if(_opt.verbose)
+            {
+                std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+            }
         }
 
     }
 
-    // _ocp->update(_x0, _u0);
-
     update_statistics();
-    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - start;
+    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - _stats._start;
     _stats.total_time = elapsed.count();
     if(_opt.verbose)
     {
@@ -190,15 +223,90 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
     return true;
 }
 
-bool swSQP::break_criteria()
+bool swSQP::convergence_criteria()
 {
-    double max_dw = -INFINITY;
-    for(unsigned int i = 0; i < _ocp->getNumberOfNodes() ; ++i)
-        max_dw = std::max(max_dw, (_x0[i] - _x0_candidate[i]).cwiseAbs().maxCoeff());
-        // #TODO: USE THE MANIFOLD OMINUS
+    // 1. Change in decision variables
+    double max_dsol = -INFINITY;
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
+        max_dsol = std::max(max_dsol, _stats.alpha * _qp_solution[i].x.cwiseAbs().maxCoeff());
+    
+    _stats.max_dsolution =  max_dsol;
+    bool step_converged = max_dsol <= _opt.min_abs_delta_solution;
+    
+    // 2. Constraint violation
+    bool feasible = _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
+    
+    // 3. KKT residual (optimality condition)
+    double kkt_residual = compute_kkt_residual();
+    bool optimal = kkt_residual <= _opt.min_abs_delta_solution;
 
-    return max_dw <= _opt.min_abs_delta_solution && _ocp->constraint_violation() <= _opt.min_abs_delta_solution;
+    // Combined criteria
+    bool converged = (step_converged && feasible) || (optimal && feasible);
+    
+    // Optional: Store convergence info for debugging
+    if (_opt.verbose) {
+    std::cout   << "  Max step:           " << max_dsol << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  Constraint viol:    " << _ocp->constraint_violation() << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  KKT residual:       " << kkt_residual << " (tol: " << _opt.min_abs_delta_solution << ")\n"
+                << "  Converged:          " << (converged ? "YES" : "NO") << "\n";
+    }
+    return converged;
+}
 
+double swSQP::compute_kkt_residual()
+{
+    double total_kkt_sq = 0.0;
+    
+    for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
+    {
+        // ===== STATE KKT GRADIENT =====
+        Eigen::VectorXd kkt_x = _q[i];  // Objective gradient w.r.t. state (already computed!)
+
+        // Add general constraint multipliers: C^T * (lam_ug - lam_lg)
+        if(_C[i].rows() > 0)
+        {
+            kkt_x += _C[i].transpose() * (_qp_solution[i].lam_ug - _qp_solution[i].lam_lg);
+        }
+        
+        // Add dynamics multipliers (costate equation)
+        // Current stage dynamics: -A[i]^T * pi[i]
+        if(i < _ocp->getNumberOfNodes()-1)
+        {
+            Eigen::VectorXd pi = _qp_solution[i].pi;
+            kkt_x -= _A[i].transpose() * pi;
+        }
+        
+        // Previous stage dynamics: +pi[i-1]
+        if(i > 0)
+        {
+            Eigen::VectorXd pi_prev = _qp_solution[i-1].pi;
+            kkt_x += pi_prev;
+        }
+        
+        total_kkt_sq += kkt_x.squaredNorm();
+        
+        
+        // ===== CONTROL KKT GRADIENT (only for stages with control) =====
+        if(i < _ocp->getNumberOfNodes()-1)
+        {
+            Eigen::VectorXd kkt_u = _r[i];  // Objective gradient w.r.t. control (already computed!)
+
+            // Add general constraint multipliers: D^T * (lam_ug - lam_lg)
+            if(_D[i].rows() > 0)
+            {
+                
+                kkt_u += _D[i].transpose() * (_qp_solution[i].lam_ug - _qp_solution[i].lam_lg);
+            }
+            
+            // Add dynamics multipliers: B^T * pi
+            Eigen::VectorXd pi = _qp_solution[i].pi;
+            kkt_u += _B[i].transpose() * pi;
+            
+            total_kkt_sq += kkt_u.squaredNorm();
+        }
+    }
+    
+    return std::sqrt(total_kkt_sq);
 }
 
 void swSQP::step(double alpha)
@@ -207,10 +315,10 @@ void swSQP::step(double alpha)
     {
         if(_ocp->stage(k)->state_space)
         {
-            _ocp->stage(k)->state_space->plus(_x0[k], alpha*_qp_solver->getSolution()[k].x, _x0_candidate[k]);
+            _ocp->stage(k)->state_space->plus(_x0[k], alpha*_qp_solution[k].x, _x0_candidate[k]);
         }
         if (k < _u0_candidate.size())
-            _u0_candidate[k] = _u0[k] + alpha * _qp_solver->getSolution()[k].u;
+            _u0_candidate[k] = _u0[k] + alpha * _qp_solution[k].u;
 
     }
 }
@@ -227,24 +335,30 @@ bool swSQP::ls_merit()
         // std::cout<< dcost_dw[i].rows() <<"----"<< dcost_dw[i].cols()<< std::endl;
         // std::cout<< dviol_dw[i].rows() <<"----"<< dviol_dw[i].cols()<< std::endl;
         // std::cout<< ddefect_dw[i].rows() <<"----"<< ddefect_dw[i].cols()<< std::endl;
-        // std::cout<< _qp_solver->getSolution()[i].x.rows() <<",,"<< _qp_solver->getSolution()[i].x.cols()<< std::endl;
+        // std::cout<< _qp_solution[i].x.rows() <<",,"<< _qp_solution[i].x.cols()<< std::endl;
         // std::cout<< _Mx[i].rows() <<",,"<< _Mx[i].cols()<< std::endl;
-        // std::cout<< _qp_solver->getSolution()[i].u.rows() <<",,,"<< _qp_solver->getSolution()[i].u.cols()<< std::endl;
+        // std::cout<< _qp_solution[i].u.rows() <<",,,"<< _qp_solution[i].u.cols()<< std::endl;
         // std::cout<< _Mu[i].rows() <<",,,"<< _Mu[i].cols()<< std::endl;
 
-        merit_der += (dcost_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
-        merit_der += (dviol_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
-        merit_der += (ddefect_dw[i].transpose() * _Mx[i].transpose() * _qp_solver->getSolution()[i].x)[0];
+        merit_der += ((dcost_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
+
+        merit_der += ((dviol_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
+
+        merit_der += ((ddefect_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
 
         if(i<_ocp->getNumberOfNodes()-1)
         {
-            merit_der += (dcost_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
-            merit_der += (dviol_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
-            merit_der += (ddefect_dw[i].transpose() * _Mu[i].transpose() * _qp_solver->getSolution()[i].u)[0];
+            merit_der += ((dcost_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
+
+            merit_der += ((dviol_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
+
+            merit_der += ((ddefect_dw[i].segment(_ocp->stage(i)->du->getStartIdx(), _ocp->stage(i)->du->getM().rows())).transpose() * _qp_solver->getSolution()[i].u)[0];
         }
     }
 
-    if(merit < _prev_cost + _prev_viol + _prev_defect + _opt.beta * _stats.alpha * merit_der)
+    double armijo = _prev_cost + _prev_viol + _prev_defect + _opt.beta * _stats.alpha * merit_der;
+
+    if(merit < armijo || std::fabs(merit - armijo) <= std::numeric_limits<double>::epsilon())
         return  true;
 
     return false;
@@ -252,7 +366,10 @@ bool swSQP::ls_merit()
 
 bool swSQP::ls_filter()
 {
-    if (_ocp->cost() <  _prev_cost || _ocp->constraint_violation() < _prev_viol || _ocp->dynamics_defect()< _prev_defect)  
+
+    if (_ocp->cost() <  _prev_cost || std::fabs(_ocp->cost() -  _prev_cost) <=  std::numeric_limits<double>::epsilon() ||
+        _ocp->constraint_violation() < _prev_viol || std::fabs(_ocp->constraint_violation() - _prev_viol) <=  std::numeric_limits<double>::epsilon() ||
+        _ocp->dynamics_defect() < _prev_defect || std::fabs(_ocp->dynamics_defect() - _prev_defect)  <=  std::numeric_limits<double>::epsilon())
         return true;
 
     return false;
@@ -269,11 +386,19 @@ void swSQP::update_statistics()
         _stats.stages_statistics[i].constraint_violation = _ocp->stage(i)->stage_constraint_violation();
     }
     
+
+    std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
+    _stats.iter_time = iter_elapsed.count();
+    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - _stats._start;
+    _stats.total_time = elapsed.count();
+
 }
 
 
 void swSQP::init()
 {
+    _sigma = _opt.initial_hessian_regularization;
+
     _stats.line_search_accepted = false;
     _stats.line_search_iters = 0;
     _stats.alpha = 1;
@@ -291,12 +416,10 @@ void swSQP::init()
 
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
     {
-        _Mx.push_back(_ocp->stage(k)->dx->getM());
 
         // --- Dynamics (only for k < N) ---
         if(k < _ocp->getNumberOfNodes()-1)
         {
-            _Mu.push_back(_ocp->stage(k)->du->getM());
 
             Eigen::MatrixXd A, B;
             Eigen::VectorXd b;
@@ -342,4 +465,5 @@ void swSQP::init()
     if(_opt.verbose)
             std::cout<<"Solver inited"<<std::endl;
 }
+
 
