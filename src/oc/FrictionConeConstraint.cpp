@@ -17,7 +17,7 @@ namespace OpenSoT::oc {
         _bLowerBound.resize(5);
         _bUpperBound.resize(5);
 
-        _mu = 1.;
+        _mu = 0.6;
 
         _inf = 100000.;
 
@@ -71,13 +71,13 @@ namespace OpenSoT::oc {
         _bUpperBound(1) = _inf-(_mu * _w_force(2) - _w_force(0));
 
         _bLowerBound(2) = -(_mu * _w_force(2) + _w_force(0));
-        _bUpperBound(2) = _inf-(_mu * _w_force(2) - _w_force(0));
+        _bUpperBound(2) = _inf-(_mu * _w_force(2) + _w_force(0));
 
         _bLowerBound(3) = -(_mu * _w_force(2) - _w_force(1));
         _bUpperBound(3) = _inf-(_mu * _w_force(2) - _w_force(1));
 
         _bLowerBound(4) = -(_mu * _w_force(2) + _w_force(1));
-        _bUpperBound(4) = _inf-(_mu * _w_force(2) - _w_force(1));
+        _bUpperBound(4) = _inf-(_mu * _w_force(2) + _w_force(1));
 
 
     }

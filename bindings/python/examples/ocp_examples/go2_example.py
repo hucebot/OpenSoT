@@ -77,10 +77,10 @@ q_weights = np.ones(model.nv)
 
 w_shoulder = 1e3
 q_weights[:6] = q_weights[:6]*0
-q_weights[6]  = w_shoulder * q_weights[6]
-q_weights[9]  = w_shoulder * q_weights[9]
-q_weights[12] = w_shoulder * q_weights[13]
-q_weights[15] = w_shoulder * q_weights[15]
+# q_weights[6]  = w_shoulder * q_weights[6]
+# q_weights[9]  = w_shoulder * q_weights[9]
+# q_weights[12] = w_shoulder * q_weights[13]
+# q_weights[15] = w_shoulder * q_weights[15]
 
 # w_elbow = 1e-3
 # q_weights[8]  = w_elbow * q_weights[8]
@@ -173,10 +173,10 @@ contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
 
 contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
 # # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.add_phase([], .2)
-# contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot"], .5)
+# contact_scheduler.add_phase([], .3)
+# contact_scheduler.add_phase(["rl_foot"], 1.)
 
-for i in range(6):
+for i in range(2):
     contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
     contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
@@ -270,6 +270,8 @@ for i in range(Ns):
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
     minvel.setWeight(1e-9  *  np.eye(model.nv))
+    if i==Ns-1:
+        minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel
 
@@ -282,22 +284,24 @@ for i in range(Ns):
 
 
 # Base
-    if i <= Ns-1:
+    if i == Ns-1:
         cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-        cartesian_task.setWeight(1e-3 * np.eye(6))
+        cartesian_task.setWeight(1e-0 * np.eye(6))
         costs.append(cartesian_task)
         base_ref = cartesian_task.getReference().copy()
         # base_ref.translation[1] += 0.3
         # base_ref.translation[0] -= 0.1
         # base_ref.translation[2] -= 0.05
-        # base_ref.linear = Rz(np.pi/2)
+        base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        # stack += cartesian_task%[3,4,5]
+        stack += cartesian_task%[3,4,5]
 
 
 # Contac
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-3 * np.diag(q_weights))
+    if i==Ns-1:
+        postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
     stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
@@ -349,6 +353,7 @@ solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
+# solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 100
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-2
