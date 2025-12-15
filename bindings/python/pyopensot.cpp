@@ -13,6 +13,7 @@
 #include "constraints/force.hpp"
 #include "variables/torque.hpp"
 #include "oc.hpp"
+#include "liegroupsutils.hpp"
 
 #ifdef OPENSOT_COMPILE_COLLISION
     #include "constraints/velocity_collision.hpp"
@@ -69,7 +70,11 @@ PYBIND11_MODULE(pyopensot, m) {
     pyVelocityMinimumEffort(m_tv);
 
     auto m_ta = m_t.def_submodule("acceleration");
-    pyAccelerationPostural(m_ta);
+    pyAccelerationPostural(m_ta);// Add this call to your module initialization:
+// PYBIND11_MODULE(your_module, m) {
+//     pyopensot_oc(m);
+//     pyopensot_lie_groups(m);
+// }
     pyAccelerationCartesian(m_ta);
     pyAccelerationAngularMomentum(m_ta);
     pyAccelerationCoM(m_ta);
@@ -103,6 +108,9 @@ PYBIND11_MODULE(pyopensot, m) {
 
     auto m_oc = m.def_submodule("oc");
     pyopensot_oc(m_oc);
+
+    auto m_lie_utils = m.def_submodule("lie_utils");
+    pyopensot_lie_groups(m_lie_utils);
 
 }
 

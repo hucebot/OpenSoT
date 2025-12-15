@@ -133,6 +133,12 @@ inline void Exp6(const Eigen::Vector6d & tau, Eigen::Affine3d& M){
     M.translation() = J_l(tau.tail(3)) * tau.head(3);
 }
 
+static Eigen::Affine3d Exp6(const Eigen::Vector6d & tau){
+    Eigen::Affine3d M;
+    Exp6(tau, M);
+    return M;
+}
+
 inline Eigen::Vector6d Log6(const Eigen::Affine3d& T){
     Eigen::Vector6d v;
 
@@ -141,6 +147,16 @@ inline Eigen::Vector6d Log6(const Eigen::Affine3d& T){
     return v;
 }
 
+
+static Eigen::Matrix6d Adjoint(const Eigen::Affine3d M){
+    Eigen::Matrix6d Adj = Eigen::Matrix6d::Zero();
+
+    Adj.block<3,3>(0,0) = M.linear();
+    Adj.block<3,3>(3,3) = Adj.block<3,3>(0,0);
+    Adj.block<3,3>(0,3) = hat(M.translation()) * Adj.block<3,3>(0,0);
+
+    return Adj;
+}
 
 
 // Q(ρ,θ)
@@ -197,6 +213,14 @@ static void J_l6(const Eigen::Vector6d & tau, Eigen::Matrix6d& J) {
     J.block<3,3>(3,3) = J.block<3,3>(0,0);
 }
 
+static Eigen::MatrixXd J_l6(const Eigen::Vector6d & tau){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_l6(tau, J);
+    return J;
+}
+
+
 // Left Jacobian (Inverse for SE(3), this is equivalent to call pinocchio::JLog6(T))
 static void J_l6_inv(const Eigen::Vector6d & tau, Eigen::Matrix6d& J) {
     J.setZero();
@@ -211,14 +235,66 @@ static void J_l6_inv(const Eigen::Vector6d & tau, Eigen::Matrix6d& J) {
     J.block<3,3>(3,3) = J.block<3,3>(0,0);
 }
 
-static Eigen::Matrix6d Adjoint(const Eigen::Affine3d M){
-    Eigen::Matrix6d Adj = Eigen::Matrix6d::Zero();
+static Eigen::MatrixXd J_l6_inv(const Eigen::Vector6d & tau){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_l6_inv(tau, J);
+    return J;
+}
 
-    Adj.block(0,0,3,3) = M.rotation();
-    Adj.block(3,3,3,3) = M.rotation();
-    Adj.block(0,3,3,3) = hat(M.translation()) * M.rotation();
+static void J_r6(const Eigen::Vector6d & tau, Eigen::Matrix6d& J){
+    J_l6(-tau, J);
+}
 
-    return Adj;
+static Eigen::MatrixXd J_r6(const Eigen::Vector6d & tau){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_r6(tau, J);
+    return J;
+}
+
+static void J_r6_inv(const Eigen::Vector6d & tau, Eigen::Matrix6d& J){
+    J_l6_inv(-tau, J);
+}
+
+static Eigen::MatrixXd J_r6_inv(const Eigen::Vector6d & tau){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_r6_inv(tau, J);
+    return J;
+}
+
+static Eigen::Matrix6d JExp6(const Eigen::Affine3d& M){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_l6(-Log6(M), J);
+    return J;
+}
+
+static Eigen::Matrix6d JLog6(const Eigen::Affine3d& M){
+    Eigen::Matrix6d J;
+    J.setZero();
+    J_l6_inv(-Log6(M), J);
+    return J;
+}
+
+static Eigen::Matrix6d JMaMb_Ma(const Eigen::Affine3d& Ma, const Eigen::Affine3d& Mb){
+    Eigen::Matrix6d J;
+    J.setZero();
+    
+    J.block<3,3>(0,0) = Mb.linear().transpose();
+    J.block<3,3>(3,3) = J.block<3,3>(0,0);
+    J.block<3,3>(0,3) = -1.*J.block<3,3>(0,0) * hat(Mb.translation());
+
+    return J;
+}
+
+static Eigen::Matrix6d JMaMb_Mb(const Eigen::Affine3d& Ma, const Eigen::Affine3d& Mb){
+    return Eigen::Matrix6d::Identity();
+}
+
+static Eigen::Matrix6d JMinv_M(const Eigen::Affine3d& M){
+    return -1.*Adjoint(M);
 }
 
 // Exponential map: Quaternion -> SO(3)
