@@ -20,11 +20,13 @@ from ttictoc import tic, toc
 import time
 from utils import *
 
+from pyopensot.lie_utils import *
+
 
 np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=1, sign=' ')
 
 
-urdf_string = pathlib.Path(get_package_share_directory('hurobots') + "/description_files/urdf/go2/go2.urdf").read_text()
+urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
 
 model = xbi.ModelInterface2(urdf_string)
 
@@ -101,8 +103,8 @@ _du = dqddot
 for frame in contact_frames:
     _du = VariableXd.pile(_du, contact_frames_dvars[frame])
 
-Ns = 5 # number of nodes
-tf = 2. # final time
+Ns = 2 # number of nodes
+tf = 1. # final time
 dt = tf/Ns 
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
 
@@ -152,11 +154,13 @@ for i in range(Ns):
 ocp.update(x0, u0)
 
 
+l_dbase = []
+
 for i in range(Ns-1):
     dbase = pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], dt)
     dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], dt)
     dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, dt)
-    dd.append(dbase)
+    l_dbase.append(dbase)
     dd.append(dpos)
     dd.append(dvel)
     ocp.stage(i).dynamics_derivative = dbase + dpos + dvel
@@ -210,9 +214,10 @@ for i in range(Ns-1):
     ocp.stage(i).stack <<  p_cc
 
 
-    
+STAGE = 0
+eps   = 1e-6
 
-
+print(["*"]*200)
 
 # q_base = random_pose(-2.,2.)
 # q_base = np.array([0.,0.,0.,0.,0.,0.,1.])
@@ -232,32 +237,40 @@ print(model.nv)
 f0 = np.random.rand(3)
 
 x0 = list()
-u0 = list()
+u0 = []
 for i in range(Ns):
-    x0.append(np.concatenate((q_val, qdot_val)))
+    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.),np.random.rand(model.nv-6))), np.random.rand(model.nv))))
     if i<Ns-1:
-        u0.append(qddot_val)
+        u0.append(0* np.random.rand(model.nv))
         for frame in contact_frames:
-            u0[i] = np.concatenate((u0[i], f0))
+            u0[-1] =  np.concatenate((u0[-1], 0* np.random.rand(3)))
 
 
+# x0[STAGE] = x0[STAGE]
 
 ocp.update(x0, u0)
 
+input()
 
 import unittest
 utest = unittest.TestCase()
 
-STAGE = 1
-eps   = 1e-6
+
 
 
 # Jac = costs[STAGE].getA().copy()
-# Jac = dbase.getA().copy()
-Jac = const[STAGE].getAineq().copy()
 # val = costs[STAGE].getb()
-print(const[STAGE].getbLowerBound())
-print(const[STAGE].getbUpperBound())
+
+# Jac = const[STAGE].getAineq().copy()
+# print(const[STAGE].getbLowerBound())
+# print(const[STAGE].getbUpperBound())
+
+
+Jac = l_dbase[STAGE].getA().copy()
+# val = l_dbase[STAGE].getb().copy()
+
+# print(val)
+# input()
 
 
 print(Jac.shape)
@@ -277,13 +290,11 @@ print(JacDiff.shape)
 # input()
 
 
-
 x_space = CompositeSpace([SE3Space(), VectorSpace(model.nq-7), VectorSpace(model.nv)])
 u_space = CompositeSpace([VectorSpace(model.nv + 3*4)])
 
 _x0 = x0.copy()
 _u0 = u0.copy()
-
 
 print("-"*200)
 
@@ -294,26 +305,28 @@ for i in range(N):
     if i < dx.size:
         dx[i] += eps
         _x0[STAGE] = x_space.plus(x0[STAGE], dx)
+        # _x0[STAGE+1] = x_space.plus(x0[STAGE+1], dx)
     else:
         du[i- dx.size] += eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
     # valp =  - costs[STAGE].getb().copy()
-    # valp = dbase.getb().copy()
-    valp =  - const[STAGE].getbLowerBound().copy()
+    valp = l_dbase[STAGE].getb().copy()
+    # valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
     du = np.zeros(x_space.nv())
     if i < dx.size:
         dx[i] -= eps
         _x0[STAGE] = x_space.plus(x0[STAGE], dx)
+        # _x0[STAGE+1] = x_space.plus(x0[STAGE+1], dx)
     else:
         du[i- dx.size] -= eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
     # valm = - costs[STAGE].getb().copy()
-    # valm = dbase.getb().copy()
-    valm =  - const[STAGE].getbLowerBound().copy()
+    valm = l_dbase[STAGE].getb().copy()
+    # valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
     # print(valm)

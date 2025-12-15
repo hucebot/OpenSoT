@@ -35,31 +35,21 @@ EulerSE3::EulerSE3(const XBot::ModelInterface& robot,
 
 void EulerSE3::_update()
 {  
-    _robot.getJointVelocity(_qdot);
-
-    _xi = _qdot.segment<6>(0) * _dt;
-
-    _RbT = Exp3(_xi.tail(3)).transpose();    
-    _t_skew = hat(_xi.head(3));
-
-    _Fx.setZero();
-    _Fx.block<3,3>(0,0) = _RbT;
-    _Fx.block<3,3>(3,3) = _RbT;
-    _Fx.block<3,3>(0,3) = -_RbT * _t_skew;
-
-
-    J_l6(-_xi, _J_l6);
-    _Fu = _J_l6 * _dt;
-
     _Uk->update();
     _Xk->update();
     _Xk_1->update();
 
+    Eigen::Affine3d xk   = XYZQUATtoSE3(_Xk->getValue().segment<7>(0));
+    Eigen::VectorXd uk   = _Uk->getValue().segment<6>(0);
+    Eigen::Affine3d xk_1 = XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0));
+    Exp6(uk*_dt, _Exp6);
+    Eigen::Affine3d diff =  xk_1.inverse() * xk * _Exp6;
 
-    Exp6(_Uk->getValue().segment<6>(0)*_dt, _Exp6);
-
+    _Fx = J_r6_inv(Log6(diff)) * JMaMb_Ma(xk, _Exp6);
+    _Fu = J_r6_inv(Log6(diff)) * JMaMb_Mb(xk, _Exp6) * JExp6(_Exp6) * _dt;
 
     _A.leftCols(6) = _Fx;
     _A.middleCols(_robot.getNv(), 6) = _Fu;
-    _b = Log6((XYZQUATtoSE3(_Xk->getValue().segment<7>(0)) * _Exp6).inverse() * XYZQUATtoSE3(_Xk_1->getValue().segment<7>(0)));
+
+    _b = Log6(diff);
 }
