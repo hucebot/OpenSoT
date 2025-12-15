@@ -40,10 +40,25 @@ bool hpipmOC::solve(const Eigen::VectorXd& x0)
 {
     if(!_solver)
     {
-        _solver = std::make_shared<hpipm::OcpQpIpmSolver>(_qp, _solver_settings);
+        _solver = std::make_shared<hpipm::OcpQpIpmSolver>(_solver_settings);
+        _solver->resize(_qp);
     }
 
     _solve_status = _solver->solve(x0, _qp, _solution);
+    if(_solve_status == hpipm::HpipmStatus::Success)
+        return true;
+    return false;
+}
+
+bool hpipmOC::solve()
+{
+    if(!_solver)
+    {
+        _solver = std::make_shared<hpipm::OcpQpIpmSolver>(_solver_settings);
+        _solver->resize_with_initial_state(_qp);
+    }
+
+    _solve_status = _solver->solve(_qp, _solution);
     if(_solve_status == hpipm::HpipmStatus::Success)
         return true;
     return false;

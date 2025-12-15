@@ -18,6 +18,15 @@ using namespace OpenSoT;
 
 
 void pyHPIPMOC(py::module& m) {
+    py::enum_<hpipm::HpipmStatus>(m, "HpipmStatus")
+        .value("Success", hpipm::HpipmStatus::Success)
+        .value("MaxIterReached", hpipm::HpipmStatus::MaxIterReached)
+        .value("MinStepLengthReached", hpipm::HpipmStatus::MinStepLengthReached)
+        .value("NaNDetected", hpipm::HpipmStatus::NaNDetected)
+        .value("UnknownFailure", hpipm::HpipmStatus::UnknownFailure)
+        .export_values();
+
+
     py::enum_<hpipm::HpipmMode>(m, "HpipmMode")
         .value("SpeedAbs", hpipm::HpipmMode::SpeedAbs)
         .value("Speed",    hpipm::HpipmMode::Speed)
@@ -61,7 +70,20 @@ void pyHPIPMOC(py::module& m) {
         .def("setCost", &solvers::hpipmOC::setCost)
         .def("setLSCost", &solvers::hpipmOC::setLSCost,
         py::arg("i"), py::arg("Ax"), py::arg("Wx"), py::arg("bx"), py::arg("Au") = Eigen::MatrixXd(0,0), py::arg("Wu") = Eigen::MatrixXd(0,0), py::arg("bu") = Eigen::VectorXd(0))
-        .def("solve", &solvers::hpipmOC::solve)
+
+
+
+        .def("solve", py::overload_cast<const Eigen::VectorXd&>(&solvers::hpipmOC::solve), py::arg("x0"))
+        .def("solve", py::overload_cast<>(&solvers::hpipmOC::solve))
+
+
+
+
+
+
+
+
+        .def("solveStatus", &solvers::hpipmOC::solveStatus)
         .def("getSolution", &solvers::hpipmOC::getSolution)
         .def("setStageDynamics", &solvers::hpipmOC::setStageDynamics)
         .def("getOptions", &solvers::hpipmOC::getOptions, py::return_value_policy::reference_internal);

@@ -155,6 +155,7 @@ public:
      * @return true if success
      */
     bool solve(const Eigen::VectorXd& x0);
+    bool solve();
 
     const std::vector<hpipm::OcpQpSolution>& getSolution() const {return _solution;}
 
