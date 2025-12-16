@@ -8,8 +8,7 @@ from pyopensot.constraints.velocity import JointLimits
 from pyopensot.tasks.velocity import Postural
 
 import rclpy
-from ament_index_python.packages import get_package_share_directory
-import pathlib
+
 
 from xbot2_interface import pyxbot2_interface as xbi
 import subprocess
@@ -20,43 +19,66 @@ from ttictoc import tic, toc
 import time
 from utils import *
 
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
+
+qos_profile = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1
+)
+
 np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=1)
+
 
 
 class ros2_node(Node):
     def __init__(self):
-        super().__init__('go2')
-        self.get_logger().info("go2 node has been started.")
-        self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)
-        self.base_link_broadcaster = TransformBroadcaster(self)
-        self.joint_msg = JointState()
-        self.w_T_b = TransformStamped()
-        self.w_T_b.header.frame_id = "world"
-        self.w_T_b.child_frame_id = "base"
+        name = "go2_deploy_node"
+        super().__init__(name)
+        self.get_logger().info(f"{name} node has been started.")
 
-    def publish(self, q):
-        t = self.get_clock().now().to_msg()
+        self.joint_state_publisher = self.create_publisher(JointState, '/joint_commands', 10)
 
-        self.joint_msg.position = q[7::]
-        self.joint_msg.header.stamp = t
+        self.robot_description_subscriber = self.create_subscription(
+            String,
+            'robot_description',
+            self.listener_callback,
+            qos_profile)
 
-        self.w_T_b.header.stamp = t
-        self.w_T_b.transform.translation.x = q[0]
-        self.w_T_b.transform.translation.y = q[1]
-        self.w_T_b.transform.translation.z = q[2]
-        self.w_T_b.transform.rotation.x = q[3]
-        self.w_T_b.transform.rotation.y = q[4]
-        self.w_T_b.transform.rotation.z = q[5]
-        self.w_T_b.transform.rotation.w = q[6]
 
-        self.joint_state_publisher.publish(self.joint_msg)
-        self.base_link_broadcaster.sendTransform(self.w_T_b)
+        # self.joint_states_subsriber = self.create_subscription(
+        #     JointState,             # message type
+        #     '/joint_states',      # topic name
+        #     self.joint_states_callback,      # callback function
+        #     10                       # QoS (queue size)
+        # )
+        # self.get_logger().info('JointSubscriber node has been started.')
 
-roslaunch = subprocess.Popen(['ros2', 'launch', 'huro', 'go2_rviz.launch.py'], stdout=subprocess.PIPE, shell=False)
 
-urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
+        self.urdf=None
+        self.state = None
+        while self.urdf is None:
+            rclpy.spin_once(self)
 
+        self.get_logger().info(f"{name} initialization complete")
+
+
+    # def joint_states_callback(self, msg: JointState):
+    #     self.state = np.concatenate((msg.position , msg.velocity))
+
+    def listener_callback(self, msg):
+        self.get_logger().info("URDF readed")
+        self.urdf = msg.data
+
+    def publish(self, joint_state_msg:JointState):
+        self.joint_state_publisher.publish(joint_state_msg)
+
+rclpy.init()
+ros2node = ros2_node()
+urdf_string = ros2node.urdf
 model = xbi.ModelInterface2(urdf_string)
+
 
 q_init = [
     0.,
@@ -107,17 +129,6 @@ model.update()
 
 contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
 
-rclpy.init()
-ros2node = ros2_node()
-
-forcesnode = force_node()
-forcesnode.initialize_force_publishers(contact_frames)
-
-ros2node.joint_msg.name = model.getJointNames()[1::]
-ros2node.publish(q_val)
-time.sleep(0.5)
-
-rclpy.spin_once(ros2node, timeout_sec=2.)
 
 
 vars = list()
@@ -159,7 +170,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.01
+DT = 0.025
 
 # CONTACT SCHEDULING
 contacts_dict = {
@@ -172,15 +183,15 @@ contacts_dict = {
 contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
 
 contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
-# # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.add_phase([], .3)
+# contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
+contact_scheduler.add_phase([], .2)
 # contact_scheduler.add_phase(["rl_foot"], 1.)
 
-for i in range(2):
-    contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+# for i in range(2):
+#     contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
+#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+#     contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
+#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
 contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
 
 frame_contact_seq = contact_scheduler.contact_sequence_fnames
@@ -279,11 +290,11 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[0:model.nv]
-        stack += 1e-9 * minqddot[model.nv:]
+        stack += 1e-9 * minqddot[6:model.nv]
+        stack += 1e-6 * minqddot[model.nv:]
 
 
-# Base
+#Base
     if i == Ns-1:
         cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_task.setWeight(1e-0 * np.eye(6))
@@ -292,20 +303,19 @@ for i in range(Ns):
         # base_ref.translation[1] += 0.3
         # base_ref.translation[0] -= 0.1
         # base_ref.translation[2] -= 0.05
-        base_ref.linear = Rz(np.pi/2)
+        base_ref.linear = Rz(np.pi/4)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task%[3,4,5]
+        stack += cartesian_task%[3,4]
 
 
-# Contac
+#Postural
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-6 * np.diag(q_weights))
     if i==Ns-1:
         postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
     stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
-
 
 #Compute Torques
     if i<Ns-1:
@@ -315,6 +325,7 @@ for i in range(Ns):
         tau_compute.setWeight(0 * np.eye(ocp.stage(i).model.nv))
         mintaus.append(tau_compute)
         stack += tau_compute
+
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
     
@@ -387,51 +398,30 @@ u0 = solver.getControlSolution()
 #     # print(f"x0: {x0}")
 #     print(f"u0[{i}]:\t {u0[i]}")
 
-force_msgs = {}
-for contact_frame in contact_frames:
-    force_msgs[contact_frame] = WrenchStamped()
-    force_msgs[contact_frame].header.frame_id = contact_frame
-    force_msgs[contact_frame].wrench.torque.x = force_msgs[contact_frame].wrench.torque.y = force_msgs[contact_frame].wrench.torque.z = 0.
 
-
+msg = JointState()
+msg.name = model.getJointNames()[1:]
+t= 0.
 try:
-    t= 0.
     while rclpy.ok():
         input()
         x = x0[0]
         for i in range(len(x0)-1):
             x = x0[i]
-            q_val = x.tolist()[:model.nq]
-            ros2node.publish(q_val)
-            model.setJointPosition(q_val)
-            model.setJointVelocity(qdot_val)
-            model.update()
-            # print(model.getPose("RL_foot").translation[2])
+            q_val = x.tolist()[7:model.nq]
+            v_val = x.tolist()[6:model.nv]
+            tau_val = mintaus[i].getb()[6:model.nv]
+            # print(tau_val)
 
-            if i<len(u0):
-                j=0
-                for contact_frame in contact_frames:
-                    T = ocp.stage(i).model.getPose(contact_frame)
-                    # force_msgs[contact_frame].header.stamp = msg.header.stamp
-                    # f_local = T.linear.transpose() @ variables.getVariable(contact_frame).getValue(x)
-                    f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
-                    #f_local = T.linear.transpose() @ f_local
+            msg.header.stamp = ros2node.get_clock().now().to_msg()
+            msg.position = q_val
+            msg.velocity = v_val
+            msg.effort = tau_val
 
-                    force_msgs[contact_frame].wrench.force.x = f_local[0]
-                    force_msgs[contact_frame].wrench.force.y = f_local[1]
-                    force_msgs[contact_frame].wrench.force.z = f_local[2]
-                    j+=1
-
-                forcesnode.publish(force_msgs)
-
-
+            ros2node.publish(msg)
             time.sleep(DT)
 
-        ros2node.publish(q_val)
-
         rclpy.spin_once(ros2node, timeout_sec=0.0)
-
-        # time.sleep(0.001)
         
 
 except KeyboardInterrupt:
