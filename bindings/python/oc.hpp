@@ -18,6 +18,7 @@
 #include <OpenSoT/oc/TorquesConstraint.h>
 #include <OpenSoT/oc/Contact.h>
 #include <OpenSoT/oc/FrictionConeConstraint.h>
+#include <OpenSoT/oc/Scheduler.h>
 
 namespace py = pybind11;
 
@@ -169,4 +170,20 @@ void pyopensot_oc(py::module &m)
 
         .def("update", &ocp::update)
         .def("updateDVariables", &ocp::updateDVariables);
+
+
+    py::class_<OpenSoT::oc::Scheduler>(m, "Scheduler")
+        .def(py::init<>())
+        .def("addContact", &OpenSoT::oc::Scheduler::addContact,
+             py::arg("contact_name"),
+             py::arg("contact_frame_names"))
+        .def("addPhase", &OpenSoT::oc::Scheduler::addPhase,
+             py::arg("contacts_list"),
+             py::arg("duration"),
+             py::arg("sequence_name") = "_")
+        .def("getSequence", &OpenSoT::oc::Scheduler::getSequence,
+             py::arg("sampling_rate"),
+             py::arg("sequence_name") = "_",
+             py::arg("nodes_number") = -1,
+             py::arg("current_time") = 0.0);
 }
