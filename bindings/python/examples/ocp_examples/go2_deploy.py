@@ -56,6 +56,14 @@ class ros2_node(Node):
         # self.get_logger().info('JointSubscriber node has been started.')
 
 
+        self.base_link_broadcaster = TransformBroadcaster(self)
+        self.joint_msg = JointState()
+        self.w_T_b = TransformStamped()
+        self.w_T_b.header.frame_id = "world"
+        self.w_T_b.child_frame_id = "commands/base"
+
+
+
         self.urdf=None
         self.state = None
         while self.urdf is None:
@@ -71,8 +79,19 @@ class ros2_node(Node):
         self.get_logger().info("URDF readed")
         self.urdf = msg.data
 
-    def publish(self, joint_state_msg:JointState):
+    def publish(self, joint_state_msg:JointState, q):
+
+        self.w_T_b.header.stamp = self.get_clock().now().to_msg()
+        self.w_T_b.transform.translation.x = q[0]
+        self.w_T_b.transform.translation.y = q[1]
+        self.w_T_b.transform.translation.z = q[2]
+        self.w_T_b.transform.rotation.x = q[3]
+        self.w_T_b.transform.rotation.y = q[4]
+        self.w_T_b.transform.rotation.z = q[5]
+        self.w_T_b.transform.rotation.w = q[6]
+        self.base_link_broadcaster.sendTransform(self.w_T_b)
         self.joint_state_publisher.publish(joint_state_msg)
+
 
 rclpy.init()
 ros2node = ros2_node()
@@ -82,36 +101,36 @@ model = xbi.ModelInterface2(urdf_string)
 
 q_init = [
     0.,
-    0.72,
+    0.8,
     -1.4,
     -0.,
-    0.72,
+    0.8,
     -1.4,
     -0.,
-    0.72,
+    0.8,
     -1.4,
     0.,
-    0.72,
+    0.8,
     -1.4,
 ]
 
 q_weights = np.ones(model.nv)
-
-w_shoulder = 1e3
 q_weights[:6] = q_weights[:6]*0
+
+# w_shoulder = 1e3
 # q_weights[6]  = w_shoulder * q_weights[6]
 # q_weights[9]  = w_shoulder * q_weights[9]
 # q_weights[12] = w_shoulder * q_weights[13]
 # q_weights[15] = w_shoulder * q_weights[15]
 
-# w_elbow = 1e-3
-# q_weights[8]  = w_elbow * q_weights[8]
-# q_weights[11]  = w_elbow * q_weights[11]
-# q_weights[14]  = w_elbow * q_weights[14]
-# q_weights[17]  = w_elbow * q_weights[17]
+w_elbow = 1e-1
+q_weights[8]  = w_elbow * q_weights[8]
+q_weights[11]  = w_elbow * q_weights[11]
+q_weights[14]  = w_elbow * q_weights[14]
+q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3242,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -121,13 +140,16 @@ model.setJointVelocity(qdot_val)
 model.update()
 
 
-# print(model.getPose("RL_foot"))
-# print(model.getPose("FL_foot"))
-# print(model.getPose("RR_foot"))
-# print(model.getPose("FR_foot"))
-# input()
+print(model.getPose("RL_foot"))
+print(model.getPose("FL_foot"))
+print(model.getPose("RR_foot"))
+print(model.getPose("FR_foot"))
+input()
 
 contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
+
+forcesnode = force_node()
+forcesnode.initialize_force_publishers(contact_frames)
 
 
 
@@ -170,7 +192,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.025
+DT = 0.02
 
 # CONTACT SCHEDULING
 contacts_dict = {
@@ -183,8 +205,9 @@ contacts_dict = {
 contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
 
 contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
-# contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-contact_scheduler.add_phase([], .2)
+contact_scheduler.add_phase(["rl_foot", "rr_foot"], 1.)
+# contact_scheduler.add_phase([], .2)
+# contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot"], .5)
 # contact_scheduler.add_phase(["rl_foot"], 1.)
 
 # for i in range(2):
@@ -290,8 +313,8 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[6:model.nv]
-        stack += 1e-6 * minqddot[model.nv:]
+        stack += 1e-9 * minqddot[0:model.nv]
+        stack += 1e-9 * minqddot[model.nv:]
 
 
 #Base
@@ -303,14 +326,14 @@ for i in range(Ns):
         # base_ref.translation[1] += 0.3
         # base_ref.translation[0] -= 0.1
         # base_ref.translation[2] -= 0.05
-        base_ref.linear = Rz(np.pi/4)
+        base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task%[3,4]
+        # stack += cartesian_task%[3,4,5]
 
 
 #Postural
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-6 * np.diag(q_weights))
+    postural.setWeight(1e-3 * np.diag(q_weights))
     if i==Ns-1:
         postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
@@ -398,6 +421,13 @@ u0 = solver.getControlSolution()
 #     # print(f"x0: {x0}")
 #     print(f"u0[{i}]:\t {u0[i]}")
 
+force_msgs = {}
+for contact_frame in contact_frames:
+    force_msgs[contact_frame] = WrenchStamped()
+    force_msgs[contact_frame].header.frame_id = "commands/"+contact_frame
+    force_msgs[contact_frame].wrench.torque.x = force_msgs[contact_frame].wrench.torque.y = force_msgs[contact_frame].wrench.torque.z = 0.
+
+
 
 msg = JointState()
 msg.name = model.getJointNames()[1:]
@@ -408,17 +438,36 @@ try:
         x = x0[0]
         for i in range(len(x0)-1):
             x = x0[i]
-            q_val = x.tolist()[7:model.nq]
-            v_val = x.tolist()[6:model.nv]
-            tau_val = mintaus[i].getb()[6:model.nv]
-            # print(tau_val)
+            q_val = x.tolist()
+            v_val = x.tolist()
+            tau_val = - mintaus[i].getb()
 
             msg.header.stamp = ros2node.get_clock().now().to_msg()
-            msg.position = q_val
-            msg.velocity = v_val
-            msg.effort = tau_val
+            msg.position = q_val[7:model.nq]
+            msg.velocity = v_val[6:model.nv]
+            msg.effort = tau_val[6:model.nv]
 
-            ros2node.publish(msg)
+            ros2node.publish(msg, q_val)
+
+            if i<len(u0):
+                j=0
+                for contact_frame in contact_frames:
+                    T = ocp.stage(i).model.getPose(contact_frame)
+                    # force_msgs[contact_frame].header.stamp = msg.header.stamp
+                    # f_local = T.linear.transpose() @ variables.getVariable(contact_frame).getValue(x)
+                    f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
+                    #f_local = T.linear.transpose() @ f_local
+
+                    force_msgs[contact_frame].wrench.force.x = f_local[0]
+                    force_msgs[contact_frame].wrench.force.y = f_local[1]
+                    force_msgs[contact_frame].wrench.force.z = f_local[2]
+                    force_msgs[contact_frame].wrench.torque.x = np.linalg.norm(f_local)
+                    j+=1
+
+                forcesnode.publish(force_msgs)
+
+
+
             time.sleep(DT)
 
         rclpy.spin_once(ros2node, timeout_sec=0.0)
