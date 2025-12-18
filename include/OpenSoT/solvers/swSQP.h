@@ -34,6 +34,7 @@ public:
         double alpha;
         int line_search_iters;
         bool line_search_accepted;
+        std::string converged;
 
         //timing
         std::chrono::_V2::system_clock::time_point _iter_start;
@@ -54,6 +55,7 @@ public:
             _oss << "  max-delta_state   : " << max_dsolution << std::endl;
             _oss << "  iter time         : " << iter_time << std::endl;
             _oss << "  total time        : " << total_time << std::endl;
+            _oss << "  converged         : " << converged <<std::endl;
             _oss << " === LineSearch Statistics === " << std::endl;
             _oss << "   accepted         : " << line_search_accepted << std::endl;
             _oss << "   alpha            : " << alpha << std::endl;
