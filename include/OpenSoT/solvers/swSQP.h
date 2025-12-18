@@ -34,6 +34,8 @@ public:
         double alpha;
         int line_search_iters;
         bool line_search_accepted;
+        std::string converged;
+        int qp_iters;
 
         //timing
         std::chrono::_V2::system_clock::time_point _iter_start;
@@ -41,7 +43,7 @@ public:
         double iter_time;
         double total_time = std::numeric_limits<double>::quiet_NaN();
 
-        const std::ostringstream& toOSS()
+        const std::ostringstream& toOSS(int verbose_level)
         {
             _oss.str("");
             _oss.clear();
@@ -49,35 +51,38 @@ public:
 
             _oss<<"=== swSQP Statistics ==="<<std::endl;
             _oss << "  iter              : " << iters << std::endl;
+            _oss << "  QP iterations     : " << qp_iters << std::endl;
             _oss << "  cost              : " << cost << std::endl;
             _oss << "  sum-constr-viol   : " << constraint_violation << std::endl;
             _oss << "  max-delta_state   : " << max_dsolution << std::endl;
             _oss << "  iter time         : " << iter_time << std::endl;
             _oss << "  total time        : " << total_time << std::endl;
+            _oss << "  converged         : " << converged <<std::endl;
             _oss << " === LineSearch Statistics === " << std::endl;
             _oss << "   accepted         : " << line_search_accepted << std::endl;
             _oss << "   alpha            : " << alpha << std::endl;
             _oss << "   ls iters         : " << line_search_iters << std::endl;
 
 
-            _oss << "=== swSQP Stage Statistics ===" << std::endl;
-
-            // Column headers
-            _oss << std::setw(10) << "Stage"
-                << std::setw(15) << "Cost"
-                << std::setw(25) << "Constr-Viol"
-                << std::endl;
-
-            // Print a separator line (optional)
-            _oss << std::string(50, '-') << std::endl;
-
-            // Print one row per stage
-            for (size_t i = 0; i < stages_statistics.size(); ++i) {
-                const auto& s = stages_statistics[i];
-                _oss << std::setw(10) << i
-                    << std::setw(15) << s.cost
-                    << std::setw(25) << s.constraint_violation
+            if (verbose_level==2)
+            {
+                _oss << "=== swSQP Stage Statistics ===" << std::endl;
+                // Column headers
+                _oss << std::setw(10) << "Stage"
+                    << std::setw(15) << "Cost"
+                    << std::setw(25) << "Constr-Viol"
                     << std::endl;
+
+                _oss << std::string(50, '-') << std::endl;
+
+                // Print one row per stage
+                for (size_t i = 0; i < stages_statistics.size(); ++i) {
+                    const auto& s = stages_statistics[i];
+                    _oss << std::setw(10) << i
+                        << std::setw(15) << s.cost
+                        << std::setw(25) << s.constraint_violation
+                        << std::endl;
+                }
             }
 
             return _oss;
@@ -93,13 +98,14 @@ public:
         {
             max_iters = 100;
             min_abs_delta_solution = 1e-7;
-            verbose = false;
+            verbose = 0;
             alpha_min = 0.125;
             beta = 1e-4;
             line_search_strategy = 0;
             initial_hessian_regularization = std::numeric_limits<double>::epsilon();
             hessian_scale_factor_up = 10.;
             max_hessian_regularization = 1.;
+            wall_time = -1;
         }
 
         //termination criteria
@@ -116,7 +122,8 @@ public:
         double hessian_scale_factor_up;
         double max_hessian_regularization;
 
-        bool verbose;
+        int verbose; // 0 no print, 1 minimum, 2 full
+        double wall_time;
 
         const std::ostringstream& toOSS()
         {

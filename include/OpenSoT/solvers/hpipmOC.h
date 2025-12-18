@@ -160,6 +160,8 @@ public:
 
     const hpipm::HpipmStatus& solveStatus() const {return _solve_status; }
 
+    const int get_iters() const { return _solver->getSolverStatistics().iter; }
+
 
 private:
     hpipm::OcpQpIpmSolverSettings _solver_settings;
