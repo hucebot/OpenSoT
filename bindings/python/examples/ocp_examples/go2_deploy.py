@@ -191,37 +191,30 @@ for frame in contact_frames:
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
 
+DT = 0.01
 
-DT = 0.02
+contact_scheduler = Scheduler()
+contact_scheduler.addContact("rl", ["RL_foot"])
+contact_scheduler.addContact("rr", ["RR_foot"])
+contact_scheduler.addContact("fl", ["FL_foot"])
+contact_scheduler.addContact("fr", ["FR_foot"])
+contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 
-# CONTACT SCHEDULING
-contacts_dict = {
-    "rl_foot": ["RL_foot"],
-    "rr_foot": ["RR_foot"],
-    "fl_foot": ["FL_foot"],
-    "fr_foot": ["FR_foot"],
-}
-
-contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
-
-contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
-contact_scheduler.add_phase(["rl_foot", "rr_foot"], 1.)
-# contact_scheduler.add_phase([], .2)
-# contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot"], .5)
+contact_scheduler.addPhase(["all"], .5)
+# # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
+# contact_scheduler.add_phase([], .3)
 # contact_scheduler.add_phase(["rl_foot"], 1.)
+for i in range(2):
+    contact_scheduler.addPhase(["rl", "fr"], .2)
+    contact_scheduler.addPhase(["all"], .2)
+    contact_scheduler.addPhase(["rr", "fl"], .2)
+    contact_scheduler.addPhase(["all"], .2)
+contact_scheduler.addPhase(["all"], .5)
 
-# for i in range(2):
-#     contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
-#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-#     contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
-#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
-
-frame_contact_seq = contact_scheduler.contact_sequence_fnames
-
+frame_contact_seq = contact_scheduler.getSequence(DT)
 
 
-Ns = contact_scheduler.total_nodes
+Ns = len(frame_contact_seq)
 tf = Ns * DT
 print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
 

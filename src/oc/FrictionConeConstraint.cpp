@@ -19,7 +19,7 @@ namespace OpenSoT::oc {
 
         _mu = 0.6;
 
-        _inf = 100000.;
+        _inf = 1e12;
 
         update();
     }

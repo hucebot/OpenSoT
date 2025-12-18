@@ -161,33 +161,29 @@ for frame in contact_frames:
 
 DT = 0.01
 
-# CONTACT SCHEDULING
-contacts_dict = {
-    "rl_foot": ["RL_foot"],
-    "rr_foot": ["RR_foot"],
-    "fl_foot": ["FL_foot"],
-    "fr_foot": ["FR_foot"],
-}
+contact_scheduler = Scheduler()
+contact_scheduler.addContact("rl", ["RL_foot"])
+contact_scheduler.addContact("rr", ["RR_foot"])
+contact_scheduler.addContact("fl", ["FL_foot"])
+contact_scheduler.addContact("fr", ["FR_foot"])
+contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
+contact_scheduler.addContact("air", [])
 
-contact_scheduler = ContactScheduler(dt=DT, contact_frame_dict=contacts_dict)
-
-contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
+contact_scheduler.addPhase(["all"], 1.)
 # # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.add_phase([], .3)
-# contact_scheduler.add_phase(["rl_foot"], 1.)
+contact_scheduler.addPhase(["air"], .2)
+contact_scheduler.addPhase(["rl"], 2.)
+# for i in range(2):
+#     contact_scheduler.addPhase(["rl", "fr"], .2)
+#     contact_scheduler.addPhase(["all"], .2)
+#     contact_scheduler.addPhase(["rr", "fl"], .2)
+#     contact_scheduler.addPhase(["all"], .2)
+contact_scheduler.addPhase(["all"], 0.5)
 
-for i in range(2):
-    contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
-
-frame_contact_seq = contact_scheduler.contact_sequence_fnames
-
+frame_contact_seq = contact_scheduler.getSequence(DT)
 
 
-Ns = contact_scheduler.total_nodes
+Ns = len(frame_contact_seq)
 tf = Ns * DT
 print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
 
@@ -294,12 +290,12 @@ for i in range(Ns):
         # base_ref.translation[2] -= 0.05
         base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task%[3,4,5]
+        # stack += cartesian_task%[3,4,5]
 
 
 # Contac
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-9 * np.diag(q_weights))
     if i==Ns-1:
         postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
@@ -312,7 +308,7 @@ for i in range(Ns):
         tau_compute = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in frame_contact_seq[i]:
             tau_compute.addForce(frame, contact_frames_vars[frame])
-        tau_compute.setWeight(0 * np.eye(ocp.stage(i).model.nv))
+        tau_compute.setWeight(1e-3 * np.eye(ocp.stage(i).model.nv))
         mintaus.append(tau_compute)
         stack += tau_compute
 
