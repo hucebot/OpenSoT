@@ -124,9 +124,11 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
     // relinarize qp
     linearize();
-
-    for(unsigned int iter = 1; iter <= _opt.max_iters; ++iter)
+    for(unsigned int iter = 1; (iter <= _opt.max_iters && (_opt.wall_time ==-1 || ((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()<_opt.wall_time) ); ++iter)
     {
+        std::cout<<((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()<<std::endl;
+        std::cout<<_opt.wall_time<<std::endl;
+        std::cout<<((((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()< _opt.wall_time)? "True":"False") <<std::endl;
         _stats.iters = iter;
         _stats.alpha = 1.;
         _stats.line_search_iters = 1;

@@ -74,6 +74,7 @@ void pyHPIPMOC(py::module& m) {
         .def_readwrite("max_iters", &OpenSoT::solvers::swSQP::options::max_iters)
         .def_readwrite("alpha_min", &OpenSoT::solvers::swSQP::options::alpha_min)
         .def_readwrite("beta", &OpenSoT::solvers::swSQP::options::beta)
+        .def_readwrite("wall_time", &OpenSoT::solvers::swSQP::options::wall_time)
         .def_readwrite("min_abs_delta_solution", &OpenSoT::solvers::swSQP::options::min_abs_delta_solution)
         .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy)
         .def_readwrite("hessian_scale_factor_up", &OpenSoT::solvers::swSQP::options::hessian_scale_factor_up)

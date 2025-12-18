@@ -105,6 +105,7 @@ public:
             initial_hessian_regularization = std::numeric_limits<double>::epsilon();
             hessian_scale_factor_up = 10.;
             max_hessian_regularization = 1.;
+            wall_time = -1;
         }
 
         //termination criteria
@@ -122,6 +123,7 @@ public:
         double max_hessian_regularization;
 
         int verbose; // 0 no print, 1 minimum, 2 full
+        double wall_time;
 
         const std::ostringstream& toOSS()
         {
