@@ -41,7 +41,7 @@ public:
         double iter_time;
         double total_time = std::numeric_limits<double>::quiet_NaN();
 
-        const std::ostringstream& toOSS()
+        const std::ostringstream& toOSS(int verbose_level)
         {
             _oss.str("");
             _oss.clear();
@@ -60,24 +60,25 @@ public:
             _oss << "   ls iters         : " << line_search_iters << std::endl;
 
 
-            _oss << "=== swSQP Stage Statistics ===" << std::endl;
-
-            // Column headers
-            _oss << std::setw(10) << "Stage"
-                << std::setw(15) << "Cost"
-                << std::setw(25) << "Constr-Viol"
-                << std::endl;
-
-            // Print a separator line (optional)
-            _oss << std::string(50, '-') << std::endl;
-
-            // Print one row per stage
-            for (size_t i = 0; i < stages_statistics.size(); ++i) {
-                const auto& s = stages_statistics[i];
-                _oss << std::setw(10) << i
-                    << std::setw(15) << s.cost
-                    << std::setw(25) << s.constraint_violation
+            if (verbose_level==2)
+            {
+                _oss << "=== swSQP Stage Statistics ===" << std::endl;
+                // Column headers
+                _oss << std::setw(10) << "Stage"
+                    << std::setw(15) << "Cost"
+                    << std::setw(25) << "Constr-Viol"
                     << std::endl;
+
+                _oss << std::string(50, '-') << std::endl;
+
+                // Print one row per stage
+                for (size_t i = 0; i < stages_statistics.size(); ++i) {
+                    const auto& s = stages_statistics[i];
+                    _oss << std::setw(10) << i
+                        << std::setw(15) << s.cost
+                        << std::setw(25) << s.constraint_violation
+                        << std::endl;
+                }
             }
 
             return _oss;
@@ -93,7 +94,7 @@ public:
         {
             max_iters = 100;
             min_abs_delta_solution = 1e-7;
-            verbose = false;
+            verbose = 0;
             alpha_min = 0.125;
             beta = 1e-4;
             line_search_strategy = 0;
@@ -116,7 +117,7 @@ public:
         double hessian_scale_factor_up;
         double max_hessian_regularization;
 
-        bool verbose;
+        int verbose; // 0 no print, 1 minimum, 2 full
 
         const std::ostringstream& toOSS()
         {

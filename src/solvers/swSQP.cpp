@@ -206,7 +206,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             _stats.iter_time = iter_elapsed.count();
             if(_opt.verbose)
             {
-                std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+                std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
             }
         }
 
@@ -217,7 +217,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
     _stats.total_time = elapsed.count();
     if(_opt.verbose)
     {
-        std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+        std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
     }
 
     return true;

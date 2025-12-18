@@ -97,8 +97,8 @@ void pyHPIPMOC(py::module& m) {
         .def_readonly("line_search_accepted", &OpenSoT::solvers::swSQP::statistics::line_search_accepted)
         .def_readonly("iter_time", &OpenSoT::solvers::swSQP::statistics::iter_time)
         .def_readonly("total_time", &OpenSoT::solvers::swSQP::statistics::total_time)
-        .def_readonly("stages_statistics", &OpenSoT::solvers::swSQP::statistics::stages_statistics)
-        .def("toString", [](OpenSoT::solvers::swSQP::statistics &self) -> std::string { return self.toOSS().str();});
+        .def_readonly("stages_statistics", &OpenSoT::solvers::swSQP::statistics::stages_statistics);
+        // .def("toString", [](OpenSoT::solvers::swSQP::statistics &self) -> std::string { return self.toOSS(_opt.verbose).str();});
 
     // Bind swSQP
     py::class_<OpenSoT::solvers::swSQP, OpenSoT::solvers::swSQP::Ptr>(m, "swSQP")
