@@ -35,6 +35,7 @@ public:
         int line_search_iters;
         bool line_search_accepted;
         std::string converged;
+        int qp_iters;
 
         //timing
         std::chrono::_V2::system_clock::time_point _iter_start;
@@ -50,6 +51,7 @@ public:
 
             _oss<<"=== swSQP Statistics ==="<<std::endl;
             _oss << "  iter              : " << iters << std::endl;
+            _oss << "  QP iterations     : " << qp_iters << std::endl;
             _oss << "  cost              : " << cost << std::endl;
             _oss << "  sum-constr-viol   : " << constraint_violation << std::endl;
             _oss << "  max-delta_state   : " << max_dsolution << std::endl;
