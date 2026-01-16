@@ -172,8 +172,8 @@ contact_scheduler.addContact("air", [])
 
 contact_scheduler.addPhase(["all"], 1.)
 # # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.addPhase(["air"], .2)
-# contact_scheduler.addPhase(["rl"], 2.)
+# contact_scheduler.addPhase(["air"], .1)
+# contact_scheduler.addPhase(["rl"], .)
 # for i in range(2):
 #     contact_scheduler.addPhase(["rl", "fr"], .2)
 #     contact_scheduler.addPhase(["all"], .2)
@@ -289,9 +289,9 @@ for i in range(Ns):
         # base_ref.translation[1] += 0.3
         # base_ref.translation[0] -= 0.1
         # base_ref.translation[2] -= 0.05
-        base_ref.linear = Rz(np.pi/2)
+        # base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        # stack += cartesian_task%[3,4,5]
+        stack += cartesian_task%[3,4,5]
 
 
 # Contac
@@ -353,11 +353,12 @@ ocp.update(x0, u0)
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 100
-solver.getOptions().verbose = 1
-solver.getOptions().line_search_strategy = 1
+solver.getOptions().verbose = 0
+solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
+solver.getOptions().wall_time = 0.05
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 100
@@ -390,44 +391,29 @@ for contact_frame in contact_frames:
     force_msgs[contact_frame].wrench.torque.x = force_msgs[contact_frame].wrench.torque.y = force_msgs[contact_frame].wrench.torque.z = 0.
 
 
+
+dt_sim = 0.001
+
 try:
     t= 0.
     while rclpy.ok():
-        input()
-        x = x0[0]
-        for i in range(len(x0)-1):
-            x = x0[i]
-            q_val = x.tolist()[:model.nq]
-            ros2node.publish(q_val)
-            model.setJointPosition(q_val)
-            model.setJointVelocity(qdot_val)
-            model.update()
-            # print(model.getPose("RL_foot").translation[2])
+        solver.solve(x0, u0)
+        x0 = solver.getStateSolution()
+        u0 = solver.getControlSolution()
 
-            if i<len(u0):
-                j=0
-                for contact_frame in contact_frames:
-                    T = ocp.stage(i).model.getPose(contact_frame)
-                    # force_msgs[contact_frame].header.stamp = msg.header.stamp
-                    # f_local = T.linear.transpose() @ variables.getVariable(contact_frame).getValue(x)
-                    f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
-                    #f_local = T.linear.transpose() @ f_local
-
-                    force_msgs[contact_frame].wrench.force.x = f_local[0]
-                    force_msgs[contact_frame].wrench.force.y = f_local[1]
-                    force_msgs[contact_frame].wrench.force.z = f_local[2]
-                    j+=1
-
-                forcesnode.publish(force_msgs)
-
-
-            time.sleep(DT)
-
+        q_val = x0[1].tolist()[:model.nq]
         ros2node.publish(q_val)
 
-        rclpy.spin_once(ros2node, timeout_sec=0.0)
+        for i in range(len(x0)-1):
+            x0[i] = x0[i+1]
+        for i in range(len(u0)-1):
+            u0[i] = u0[i+1]    
+        u0[-1] = u0[-1]*0.
 
-        # time.sleep(0.001)
+        # time.sleep(DT)
+
+       
+        rclpy.spin_once(ros2node, timeout_sec=0.0)
         
 
 except KeyboardInterrupt:
