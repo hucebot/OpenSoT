@@ -278,7 +278,7 @@ for i in range(Ns+1):
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 100
-solver.getOptions().verbose = True
+solver.getOptions().verbose = 2
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().min_abs_delta_solution = 1e-3
 solver.init()

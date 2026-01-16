@@ -347,7 +347,7 @@ ocp.update(x0, u0)
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 100
-solver.getOptions().verbose = True
+solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2

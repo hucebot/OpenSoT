@@ -124,8 +124,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
     // relinarize qp
     linearize();
-
-    for(unsigned int iter = 1; iter <= _opt.max_iters; ++iter)
+    for(unsigned int iter = 1; (iter <= _opt.max_iters && (_opt.wall_time ==-1 || ((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()<_opt.wall_time) ); ++iter)
     {
         _stats.iters = iter;
         _stats.alpha = 1.;
@@ -136,10 +135,8 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
 
         // solve
         if (!_qp_solver->solve(_dx0))
-        {
             std::cout<< "qp nosolve: "<<_qp_solver->solveStatus()<<std::endl;
-            // return false;
-        }
+        _stats.qp_iters = _qp_solver->get_iters();
         _qp_solution = _qp_solver->getSolution();
 
         // first update
@@ -206,7 +203,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             _stats.iter_time = iter_elapsed.count();
             if(_opt.verbose)
             {
-                std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+                std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
             }
         }
 
@@ -217,7 +214,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
     _stats.total_time = elapsed.count();
     if(_opt.verbose)
     {
-        std::cout<<_stats.toOSS().str()<<"\n"<<std::endl;
+        std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
     }
 
     return true;
@@ -243,13 +240,9 @@ bool swSQP::convergence_criteria()
     // Combined criteria
     bool converged = (step_converged && feasible) || (optimal && feasible);
     
-    // Optional: Store convergence info for debugging
-    if (_opt.verbose) {
-    std::cout   << "  Max step:           " << max_dsol << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-                << "  Constraint viol:    " << _ocp->constraint_violation() << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-                << "  KKT residual:       " << kkt_residual << " (tol: " << _opt.min_abs_delta_solution << ")\n"
-                << "  Converged:          " << (converged ? "YES" : "NO") << "\n";
-    }
+
+    _stats.converged = (converged ? (optimal?"Optimal Solution Found":"Local minimum Solution") : "NO");
+
     return converged;
 }
 
@@ -294,7 +287,6 @@ double swSQP::compute_kkt_residual()
             // Add general constraint multipliers: D^T * (lam_ug - lam_lg)
             if(_D[i].rows() > 0)
             {
-                
                 kkt_u += _D[i].transpose() * (_qp_solution[i].lam_ug - _qp_solution[i].lam_lg);
             }
             
@@ -332,13 +324,6 @@ bool swSQP::ls_merit()
 
     for(unsigned int i = 0; i < _ocp->getNumberOfNodes(); ++i)
     {
-        // std::cout<< dcost_dw[i].rows() <<"----"<< dcost_dw[i].cols()<< std::endl;
-        // std::cout<< dviol_dw[i].rows() <<"----"<< dviol_dw[i].cols()<< std::endl;
-        // std::cout<< ddefect_dw[i].rows() <<"----"<< ddefect_dw[i].cols()<< std::endl;
-        // std::cout<< _qp_solution[i].x.rows() <<",,"<< _qp_solution[i].x.cols()<< std::endl;
-        // std::cout<< _Mx[i].rows() <<",,"<< _Mx[i].cols()<< std::endl;
-        // std::cout<< _qp_solution[i].u.rows() <<",,,"<< _qp_solution[i].u.cols()<< std::endl;
-        // std::cout<< _Mu[i].rows() <<",,,"<< _Mu[i].cols()<< std::endl;
 
         merit_der += ((dcost_dw[i].segment(_ocp->stage(i)->dx->getStartIdx(), _ocp->stage(i)->dx->getM().rows())).transpose() * _qp_solver->getSolution()[i].x)[0];
 
