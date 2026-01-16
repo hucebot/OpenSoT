@@ -362,10 +362,11 @@ for i in range(Ns+1):
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 10
-solver.getOptions().verbose = 0
-solver.getOptions().line_search_strategy = 2
+solver.getOptions().verbose = 1
+solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getOptions().wall_time = 0.001
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-6
 solver.getQPSolver().getOptions().tol_eq = 1e-6
