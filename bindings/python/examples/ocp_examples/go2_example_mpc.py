@@ -82,11 +82,11 @@ q_weights[:6] = q_weights[:6]*0
 # q_weights[12] = w_shoulder * q_weights[13]
 # q_weights[15] = w_shoulder * q_weights[15]
 
-# w_elbow = 1e-3
-# q_weights[8]  = w_elbow * q_weights[8]
-# q_weights[11]  = w_elbow * q_weights[11]
-# q_weights[14]  = w_elbow * q_weights[14]
-# q_weights[17]  = w_elbow * q_weights[17]
+w_elbow = 1e-3
+q_weights[8]  = w_elbow * q_weights[8]
+q_weights[11]  = w_elbow * q_weights[11]
+q_weights[14]  = w_elbow * q_weights[14]
+q_weights[17]  = w_elbow * q_weights[17]
 
 
 q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
@@ -160,7 +160,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.01
+DT = 0.05
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -170,18 +170,16 @@ contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
-contact_scheduler.addPhase(["all"], 1.)
-# # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.addPhase(["air"], .1)
-# contact_scheduler.addPhase(["rl"], .)
-# for i in range(2):
-#     contact_scheduler.addPhase(["rl", "fr"], .2)
-#     contact_scheduler.addPhase(["all"], .2)
-#     contact_scheduler.addPhase(["rr", "fl"], .2)
-#     contact_scheduler.addPhase(["all"], .2)
-# contact_scheduler.addPhase(["all"], 0.5)
+# contact_scheduler.addPhase(["all"], 1.)
 
-frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 10)
+contact_scheduler.addPhase(["all"], .1)
+contact_scheduler.addPhase(["rl", "fr"], .2)
+contact_scheduler.addPhase(["all"], .1)
+contact_scheduler.addPhase(["rr", "fl"], .2)
+
+
+
+frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 20)
 
 
 Ns = len(frame_contact_seq)
@@ -199,7 +197,7 @@ for frame in contact_frames:
 
 
 mass = model.getMass()
-f0 = np.array([0.,0.,0.])#mass*9.81/4.])
+f0 = np.array([0.,0.,0.])
 
 x0 = list()
 u0 = list()
@@ -262,11 +260,13 @@ ocp.update(x0, u0)
 costs = []
 mintaus = []
 qlims = list()
+
+constraints = []
 for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9  *  np.eye(model.nv))
+    minvel.setWeight(1e-6  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
@@ -291,14 +291,14 @@ for i in range(Ns):
         # base_ref.translation[2] -= 0.05
         # base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task%[3,4,5]
+        stack += cartesian_task#%[3,4,5]
 
 
 # Contac
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-3 * np.diag(q_weights))
-    if i==Ns-1:
-        postural.setWeight(1e-0 * np.diag(q_weights))
+    # if i==Ns-1:
+    #     postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
     stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
@@ -313,9 +313,7 @@ for i in range(Ns):
         mintaus.append(tau_compute)
         stack += tau_compute
 
-    ocp.stage(i).stack = pysot.AutoStack(stack)
-    
-
+    ocp.stage(i).stack = pysot.AutoStack(stack)    
 
 #Joint Limits
     qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
@@ -323,6 +321,8 @@ for i in range(Ns):
     ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
 
 
+
+    constraints.append({})
     if i < Ns-1:
 # Dynamics 
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
@@ -334,19 +334,21 @@ for i in range(Ns):
         const.append(tau_lim)
         ocp.stage(i).stack = ocp.stage(i).stack << tau_lim
 
-
+        
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
+        constraints[i]["friction"] = {}
         for frame in contact_frames:
             contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
             costs.append(contact_task)
+            constraints[i]["friction"][frame] = contact_task
             if frame in frame_contact_seq[i]:
                 contact_task.activate(0.)
             ocp.stage(i).stack = ocp.stage(i).stack << contact_task
-    
+
 
 ocp.update(x0, u0)
 
@@ -358,7 +360,6 @@ solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
-solver.getOptions().wall_time = 0.05
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 100
@@ -377,9 +378,11 @@ print("...solver inited!")
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
-x0 = solver.getStateSolution()
-u0 = solver.getControlSolution()
 
+solver.getOptions().wall_time = DT
+solver.init()
+
+input()
 # for i in range(len(x0)-1):
 #     # print(f"x0: {x0}")
 #     print(f"u0[{i}]:\t {u0[i]}")
@@ -392,11 +395,19 @@ for contact_frame in contact_frames:
 
 
 
-dt_sim = 0.001
-
+# dt_sim = 0.001
 try:
     t= 0.
     while rclpy.ok():
+        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 20, current_time = t)
+
+        for i in range(Ns-1):
+            for frame in contact_frames:
+                if frame in frame_contact_seq[i]:
+                    constraints[i]["friction"][frame].activate(0.)
+                else:constraints[i]["friction"][frame].deactivate()
+
+
         solver.solve(x0, u0)
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
@@ -409,9 +420,8 @@ try:
         for i in range(len(u0)-1):
             u0[i] = u0[i+1]    
         u0[-1] = u0[-1]*0.
-
-        # time.sleep(DT)
-
+        
+        t += DT
        
         rclpy.spin_once(ros2node, timeout_sec=0.0)
         
