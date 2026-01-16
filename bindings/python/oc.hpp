@@ -14,6 +14,7 @@
 #include <OpenSoT/oc/EulerSE3.h>
 #include <OpenSoT/oc/EulerVector.h>
 #include <OpenSoT/oc/SE3Task.h>
+#include <OpenSoT/oc/SE3VelTask.h>
 #include <OpenSoT/oc/TorquesTask.h>
 #include <OpenSoT/oc/TorquesConstraint.h>
 #include <OpenSoT/oc/Contact.h>
@@ -82,6 +83,10 @@ void pyopensot_oc(py::module &m)
         .def("setReference", &OpenSoT::oc::SE3Task::setReference)
         .def("getReference", &OpenSoT::oc::SE3Task::getReference)
         .def("getDistalFrame", &OpenSoT::oc::SE3Task::getDistalFrame);
+
+    py::class_<OpenSoT::oc::SE3VelTask, OpenSoT::oc::SE3VelTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "SE3VelTask")
+        .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
+        .def("setReferenceVelocity", &OpenSoT::oc::SE3VelTask::setReferenceVelocity);
 
     py::class_<OpenSoT::Space, OpenSoT::Space::Ptr, PyStateSpaceRepresentation>(m, "Space")
         .def(py::init<unsigned int, unsigned int>(), py::arg("nq"), py::arg("nv"))
