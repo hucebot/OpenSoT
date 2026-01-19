@@ -160,7 +160,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.01
+DT = 0.05
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -170,18 +170,18 @@ contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
-contact_scheduler.addPhase(["all"], 1.)
+contact_scheduler.addPhase(["all"], 0.2)
 # # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
 # contact_scheduler.addPhase(["air"], .2)
 # contact_scheduler.addPhase(["rl"], 2.)
-# for i in range(2):
-#     contact_scheduler.addPhase(["rl", "fr"], .2)
-#     contact_scheduler.addPhase(["all"], .2)
-#     contact_scheduler.addPhase(["rr", "fl"], .2)
-#     contact_scheduler.addPhase(["all"], .2)
-# contact_scheduler.addPhase(["all"], 0.5)
+for i in range(3):
+    contact_scheduler.addPhase(["rl", "fr"], .2)
+    contact_scheduler.addPhase(["all"], .2)
+    contact_scheduler.addPhase(["rr", "fl"], .2)
+    contact_scheduler.addPhase(["all"], .2)
+contact_scheduler.addPhase(["all"], 0.5)
 
-frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 10)
+frame_contact_seq = contact_scheduler.getSequence(DT)#, nodes_number = 10)
 
 
 Ns = len(frame_contact_seq)
@@ -292,6 +292,15 @@ for i in range(Ns):
         base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
         # stack += cartesian_task%[3,4,5]
+
+# Base velocity
+    if i <= Ns-1:
+        cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+        cartesian_vel_task.setReferenceVelocity([1.,1.,0.,0.,0.,-0.5])
+        cartesian_vel_task.setWeight(1e-3 * np.eye(6))
+        minus.append(cartesian_vel_task)
+        stack += cartesian_vel_task
+
 
 
 # Contac

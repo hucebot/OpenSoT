@@ -160,7 +160,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.05
+DT = 0.02
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -291,7 +291,16 @@ for i in range(Ns):
         # base_ref.translation[2] -= 0.05
         # base_ref.linear = Rz(np.pi/2)
         cartesian_task.setReference(base_ref)
-        stack += cartesian_task#%[3,4,5]
+        # stack += cartesian_task#%[3,4,5]
+
+# Base velocity
+    if i <= Ns-1:
+        cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+        cartesian_vel_task.setReferenceVelocity([.0,0.,0.,0.,0.,2.5])
+        cartesian_vel_task.setWeight(1e-3 * np.eye(6))
+        minus.append(cartesian_vel_task)
+        stack += cartesian_vel_task
+
 
 
 # Contac
@@ -319,7 +328,6 @@ for i in range(Ns):
     qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
     qlims.append(qlims_i)
     ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
-
 
 
     constraints.append({})
@@ -354,15 +362,15 @@ ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 100
-solver.getOptions().verbose = 0
+solver.getOptions().max_iters = 1000
+solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getQPSolver().getOptions().iter_max = 100
+solver.getQPSolver().getOptions().iter_max = 1000
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-2
 solver.getQPSolver().getOptions().tol_eq = 1e-2
@@ -378,14 +386,12 @@ print("...solver inited!")
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
-
+solver.getQPSolver().getOptions().iter_max = 100
 solver.getOptions().wall_time = DT
 solver.init()
 
+print("inited")
 input()
-# for i in range(len(x0)-1):
-#     # print(f"x0: {x0}")
-#     print(f"u0[{i}]:\t {u0[i]}")
 
 force_msgs = {}
 for contact_frame in contact_frames:
@@ -407,13 +413,25 @@ try:
                     constraints[i]["friction"][frame].activate(0.)
                 else:constraints[i]["friction"][frame].deactivate()
 
-
         solver.solve(x0, u0)
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
 
         q_val = x0[1].tolist()[:model.nq]
         ros2node.publish(q_val)
+
+        j=0
+        i=0
+        for contact_frame in contact_frames:
+            T = ocp.stage(i).model.getPose(contact_frame)
+            f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
+
+            force_msgs[contact_frame].wrench.force.x = f_local[0]
+            force_msgs[contact_frame].wrench.force.y = f_local[1]
+            force_msgs[contact_frame].wrench.force.z = f_local[2]
+            j+=1
+
+        forcesnode.publish(force_msgs)
 
         for i in range(len(x0)-1):
             x0[i] = x0[i+1]
