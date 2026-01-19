@@ -68,12 +68,14 @@ void pyopensot_oc(py::module &m)
         .def("deactivate", &OpenSoT::oc::ContactConstraint::deactivate);
 
     py::class_<OpenSoT::oc::FrictionConeConstraint, OpenSoT::oc::FrictionConeConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "FrictionConeConstraint")
-        .def(py::init<XBot::ModelInterface &, const std::string&,std::shared_ptr<VariableXd>, const AffineHelper &, const AffineHelper &>());
+        .def(py::init<XBot::ModelInterface &, const std::string&,std::shared_ptr<VariableXd>, const AffineHelper &, const AffineHelper &>())
+        .def("setCoefficient", &OpenSoT::oc::FrictionConeConstraint::setCoefficient);
 
 
     py::class_<OpenSoT::oc::DynamicsConstraint, OpenSoT::oc::DynamicsConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "DynamicsConstraint")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
         .def("addForce", &OpenSoT::oc::DynamicsConstraint::addForce)
+        .def("removeForce", &OpenSoT::oc::DynamicsConstraint::removeForce)
         .def("getTorqueLimit", &OpenSoT::oc::DynamicsConstraint::getTorqueLimit)
         .def("setTorqueLimit", &OpenSoT::oc::DynamicsConstraint::setTorqueLimit);
 
