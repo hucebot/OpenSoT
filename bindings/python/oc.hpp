@@ -60,7 +60,8 @@ void pyopensot_oc(py::module &m)
 
     py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
         .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
-        .def("addForce", &OpenSoT::oc::TorquesTask::addForce);
+        .def("addForce", &OpenSoT::oc::TorquesTask::addForce)
+        .def("removeForce", &OpenSoT::oc::TorquesTask::removeForce);
 
     py::class_<OpenSoT::oc::ContactConstraint, OpenSoT::oc::ContactConstraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "ContactConstraint")
         .def(py::init<XBot::ModelInterface &, const std::string&, const AffineHelper &, const AffineHelper &>())
