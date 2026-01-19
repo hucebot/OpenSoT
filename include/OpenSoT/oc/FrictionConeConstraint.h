@@ -39,6 +39,10 @@ namespace OpenSoT::oc {
                             const std::shared_ptr<VariableXd> force,
                             const AffineHelper &dX,
                             const AffineHelper &dU);
+        
+        void setCoefficient(double mu){
+            _mu = mu;
+        }
 
 
     };
