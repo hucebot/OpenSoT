@@ -184,8 +184,14 @@ for i in range(Ns-1):
     # stack = mintau
 
 
-    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1.*0. * np.eye(6))
+    # cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    # cartesian_task.setWeight(1.*0. * np.eye(6))
+    # costs.append(cartesian_task)
+    # stack = cartesian_task
+
+    cartesian_task = pysot.oc.SE3VelTask("CartesianVel", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    cartesian_task.setWeight(1. * np.eye(6))
+    cartesian_task.setReferenceVelocity([1,0,0,0,0,0])
     costs.append(cartesian_task)
     stack = cartesian_task
 
@@ -207,27 +213,27 @@ for i in range(Ns-1):
     # const.append(friction_const)
     # ocp.stage(i).stack << friction_const
 
-    contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-    p_cc = contact_constraint
-    contact_constraint.activate(0.)
-    const.append(p_cc)
-    ocp.stage(i).stack <<  p_cc
+    # contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
+    # p_cc = contact_constraint
+    # contact_constraint.activate(0.)
+    # const.append(p_cc)
+    # ocp.stage(i).stack <<  p_cc
 
 
 STAGE = 0
 eps   = 1e-6
 
-print(["*"]*200)
+print("*"*200)
 
-# q_base = random_pose(-2.,2.)
+q_base = random_pose(-2.,2.)
 # q_base = np.array([0.,0.,0.,0.,0.,0.,1.])
 
 
 # print(q_base)
 
-q_zero = np.zeros(model.nq + model.nv)
-q_zero[6] = 1.
-# q_val = np.concatenate((q_base,np.random.rand(model.nv)))
+# q_zero = np.zeros(model.nq + model.nv)
+# q_zero[6] = 1.
+q_val = np.concatenate((q_base,np.random.rand(model.nv)))
 qdot_val = np.random.rand(model.nv)
 # qdot_val = np.ones(model.nv)
 qddot_val = np.random.rand(model.nv)
@@ -258,7 +264,7 @@ utest = unittest.TestCase()
 
 
 
-# Jac = costs[STAGE].getA().copy()
+Jac = costs[STAGE].getA().copy()
 # val = costs[STAGE].getb()
 
 # Jac = const[STAGE].getAineq().copy()
@@ -266,7 +272,7 @@ utest = unittest.TestCase()
 # print(const[STAGE].getbUpperBound())
 
 
-Jac = l_dbase[STAGE].getA().copy()
+# Jac = l_dbase[STAGE].getA().copy()
 # val = l_dbase[STAGE].getb().copy()
 
 # print(val)
@@ -310,8 +316,8 @@ for i in range(N):
         du[i- dx.size] += eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    # valp =  - costs[STAGE].getb().copy()
-    valp = l_dbase[STAGE].getb().copy()
+    valp =  - costs[STAGE].getb().copy()
+    # valp = l_dbase[STAGE].getb().copy()
     # valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
@@ -324,8 +330,8 @@ for i in range(N):
         du[i- dx.size] -= eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    # valm = - costs[STAGE].getb().copy()
-    valm = l_dbase[STAGE].getb().copy()
+    valm = - costs[STAGE].getb().copy()
+    # valm = l_dbase[STAGE].getb().copy()
     # valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
