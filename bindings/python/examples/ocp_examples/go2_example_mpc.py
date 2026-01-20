@@ -75,14 +75,14 @@ q_init = [
 
 q_weights = np.ones(model.nv)
 
-w_shoulder = 1e3
-q_weights[:6] = q_weights[:6]*0
-# q_weights[6]  = w_shoulder * q_weights[6]
-# q_weights[9]  = w_shoulder * q_weights[9]
-# q_weights[12] = w_shoulder * q_weights[13]
-# q_weights[15] = w_shoulder * q_weights[15]
+w_shoulder = 1e1
+# q_weights[:6] = q_weights[:6]*0
+q_weights[6]  = w_shoulder * q_weights[6]
+q_weights[9]  = w_shoulder * q_weights[9]
+q_weights[12] = w_shoulder * q_weights[13]
+q_weights[15] = w_shoulder * q_weights[15]
 
-w_elbow = 1e-1
+w_elbow = 1e-3
 # q_weights[7]  = w_elbow * q_weights[7]
 # q_weights[10]  = w_elbow * q_weights[10]
 # q_weights[13]  = w_elbow * q_weights[13]
@@ -165,7 +165,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.04
+DT = 0.02
 Ns = 20
 
 contact_scheduler = Scheduler()
@@ -176,12 +176,13 @@ contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
-# contact_scheduler.addPhase(["all"], 1.)
+# contact_scheduler.addPhase(["all"], .5)
+# contact_scheduler.addPhase(["air"], .2)
 
 contact_scheduler.addPhase(["all"], .2)
-contact_scheduler.addPhase(["rl", "fr"], .2)
-contact_scheduler.addPhase(["all"], .2)
 contact_scheduler.addPhase(["rr", "fl"], .2)
+contact_scheduler.addPhase(["all"], .2)
+contact_scheduler.addPhase(["rl", "fr"], .2)
 
 
 
@@ -272,15 +273,15 @@ for i in range(Ns):
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
     minvel.setWeight(1e-9  *  np.eye(model.nv))
     if i==Ns-1:
-        minvel.setWeight(1e-3  *  np.eye(model.nv))
+        minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
-    stack = minvel
+    stack = minvel#[6:model.nv]
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[0:model.nv]
+        stack += 1e-9 * minqddot[6:model.nv]
         stack += 1e-9 * minqddot[model.nv:]
 
 
@@ -296,21 +297,22 @@ for i in range(Ns):
 # Base velocity
     if i <= Ns-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-        cartesian_vel_task.setReferenceVelocity([.0,0.,0.,0.,0.,0.])
-        cartesian_vel_task.setWeight(1e-4 * np.eye(6))
+        cartesian_vel_task.setReferenceVelocity([.0,.0,0.,0.,0.,0.])
+        cartesian_vel_task.setWeight(2.*1e-3 * np.eye(6))
         minus.append(cartesian_vel_task)
-        # stack += cartesian_vel_task
+        stack += cartesian_vel_task
 
 
 
 # Contac
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-5 * np.diag(q_weights))
+    postural.setWeight(1e-3 * np.diag(q_weights))
     # if i==Ns-1:
     #     postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
-    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
+    stack +=  AffineTask.toAffine(postural , dvariables.getVariable("dq"))[6:]
+    # stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[2]
 
 
 #Compute Torques
@@ -364,17 +366,17 @@ solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1E-4
-solver.getOptions().min_abs_delta_solution = 1e-2
+solver.getOptions().beta = 1e-4
+solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 1000
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-2
-solver.getQPSolver().getOptions().tol_eq = 1e-2
-solver.getQPSolver().getOptions().tol_stat = 1e-2
-solver.getQPSolver().getOptions().tol_comp = 1e-2
+solver.getQPSolver().getOptions().tol_ineq = 1e-4
+solver.getQPSolver().getOptions().tol_eq = 1e-4
+solver.getQPSolver().getOptions().tol_stat = 1e-3
+solver.getQPSolver().getOptions().tol_comp = 1e-3
 
 solver.init()
 print(f"{solver.getOptions().print()}")
@@ -385,9 +387,11 @@ print("...solver inited!")
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
+# solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
+solver.getOptions().verbose = 0
 solver.getOptions().line_search_strategy = 2
 solver.getQPSolver().getOptions().iter_max = 100
-solver.getOptions().wall_time = 0.05
+solver.getOptions().wall_time = DT
 solver.init()
 
 print("inited")
@@ -412,9 +416,11 @@ try:
                 if frame in frame_contact_seq[i]:
                     constraints[i]["friction"][frame].activate(0.)
                     constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
+                    mintaus[i].addForce(frame, contact_frames_vars[frame])
                 else:
                     constraints[i]["friction"][frame].deactivate()
                     constraints[i]["dynamics"].removeForce(frame)
+                    mintaus[i].removeForce(frame)
 
         solver.solve(x0, u0)
         x0 = solver.getStateSolution()

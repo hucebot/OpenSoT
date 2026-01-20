@@ -47,13 +47,13 @@ class ros2_node(Node):
             qos_profile)
 
 
-        # self.joint_states_subsriber = self.create_subscription(
-        #     JointState,             # message type
-        #     '/joint_states',      # topic name
-        #     self.joint_states_callback,      # callback function
-        #     10                       # QoS (queue size)
-        # )
-        # self.get_logger().info('JointSubscriber node has been started.')
+        self.joint_states_subsriber = self.create_subscription(
+            JointState,             # message type
+            '/joint_states',      # topic name
+            self.joint_states_callback,      # callback function
+            10                       # QoS (queue size)
+        )
+        self.get_logger().info('JointSubscriber node has been started.')
 
 
         self.base_link_broadcaster = TransformBroadcaster(self)
@@ -65,14 +65,14 @@ class ros2_node(Node):
 
         self.urdf=None
         self.state = None
-        while self.urdf is None:
+        while self.urdf is None or self.state is None:
             rclpy.spin_once(self)
 
         self.get_logger().info(f"{name} initialization complete")
 
 
-    # def joint_states_callback(self, msg: JointState):
-    #     self.state = np.concatenate((msg.position , msg.velocity))
+    def joint_states_callback(self, msg: JointState):
+        self.state = np.concatenate((msg.position , msg.velocity))
 
     def listener_callback(self, msg):
         self.get_logger().info("URDF readed")
@@ -98,7 +98,7 @@ urdf_string = ros2node.urdf
 model = xbi.ModelInterface2(urdf_string)
 
 
-
+# q_init = ros2node.state[:12]
 q_init = [
     0.,
     0.72,
@@ -114,31 +114,46 @@ q_init = [
     -1.4,
 ]
 
+
 q_weights = np.ones(model.nv)
-
-w_shoulder = 1e3
+w_shoulder = 1e1
 q_weights[:6] = q_weights[:6]*0
-# q_weights[6]  = w_shoulder * q_weights[6]
-# q_weights[9]  = w_shoulder * q_weights[9]
-# q_weights[12] = w_shoulder * q_weights[13]
-# q_weights[15] = w_shoulder * q_weights[15]
+q_weights[6]  = w_shoulder * q_weights[6]
+q_weights[9]  = w_shoulder * q_weights[9]
+q_weights[12] = w_shoulder * q_weights[13]
+q_weights[15] = w_shoulder * q_weights[15]
 
-w_elbow = 1e-2
+w_elbow = 1e-3
 # q_weights[7]  = w_elbow * q_weights[7]
 # q_weights[10]  = w_elbow * q_weights[10]
 # q_weights[13]  = w_elbow * q_weights[13]
 # q_weights[16]  = w_elbow * q_weights[16]
 
-q_weights[8]  = w_elbow * q_weights[8]
+q_weights[8]   = w_elbow * q_weights[8]
 q_weights[11]  = w_elbow * q_weights[11]
 q_weights[14]  = w_elbow * q_weights[14]
 q_weights[17]  = w_elbow * q_weights[17]
 
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
+
+
+model.setJointPosition(q_val)
+model.setJointVelocity(qdot_val)
+qmin, qmax = model.getJointLimits()
+model.update()
+
+
+z = model.getPose("RL_foot").translation[2]
+z += model.getPose("FL_foot").translation[2]
+z += model.getPose("RR_foot").translation[2]
+z += model.getPose("FR_foot").translation[2]
+z = z/4
+
+q_val[2] = -z
 
 
 model.setJointPosition(q_val)
@@ -199,7 +214,8 @@ for frame in contact_frames:
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
 
-DT = 0.05
+DT = 0.02
+Ns = 20
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -208,17 +224,21 @@ contact_scheduler.addContact("fl", ["FL_foot"])
 contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 
+
+# contact_scheduler.addPhase(["all"], .2)
+# contact_scheduler.addPhase(["rl", "fr", "rr"], .1)
+
 contact_scheduler.addPhase(["all"], .2)
-contact_scheduler.addPhase(["rl", "fr"], .3)
+contact_scheduler.addPhase(["rr", "fl"], .2)
 contact_scheduler.addPhase(["all"], .2)
-contact_scheduler.addPhase(["rr", "fl"], .3)
+contact_scheduler.addPhase(["rl", "fr"], .2)
 
-frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 20)
+frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns)
 
 
-Ns = len(frame_contact_seq)
-tf = Ns * DT
-print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
+# Ns = len(frame_contact_seq)
+# tf = Ns * DT
+# print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
 
 
 _u = qddot
@@ -300,9 +320,9 @@ for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-6  *  np.eye(model.nv))
-    # if i==Ns-1:
-    #     minvel.setWeight(1e0  *  np.eye(model.nv))
+    minvel.setWeight(1e-9  *  np.eye(model.nv))
+    if i==Ns-1:
+        minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel
 
@@ -310,7 +330,7 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[0:model.nv]
+        stack += 1e-9 * minqddot[6:model.nv]
         stack += 1e-9 * minqddot[model.nv:]
 
 
@@ -321,12 +341,12 @@ for i in range(Ns):
         costs.append(cartesian_task)
         base_ref = cartesian_task.getReference().copy()
         cartesian_task.setReference(base_ref)
-        # stack += cartesian_task#%[3,4,5]
+        # stack += cartesian_task%[3,4,5]
 
 # Base velocity
     if i <= Ns-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-        cartesian_vel_task.setReferenceVelocity([.0,0.,0.,0.,0.,0.])
+        cartesian_vel_task.setReferenceVelocity([.1,-0.,0.,0.,0.,0.])
         cartesian_vel_task.setWeight(1e-3 * np.eye(6))
         minus.append(cartesian_vel_task)
         stack += cartesian_vel_task
@@ -395,17 +415,17 @@ solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 1
-solver.getOptions().beta = 1E-4
-solver.getOptions().min_abs_delta_solution = 1e-2
+solver.getOptions().beta = 1e-4
+solver.getOptions().min_abs_delta_solution = 1e-3
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 1000
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-2
-solver.getQPSolver().getOptions().tol_eq = 1e-2
-solver.getQPSolver().getOptions().tol_stat = 1e-2
-solver.getQPSolver().getOptions().tol_comp = 1e-2
+solver.getQPSolver().getOptions().tol_ineq = 1e-4
+solver.getQPSolver().getOptions().tol_eq = 1e-4
+solver.getQPSolver().getOptions().tol_stat = 1e-3
+solver.getQPSolver().getOptions().tol_comp = 1e-3
 
 solver.init()
 print(f"{solver.getOptions().print()}")
@@ -416,8 +436,10 @@ print("...solver inited!")
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
+# solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
+solver.getOptions().verbose = 0
 solver.getOptions().line_search_strategy = 2
-solver.getQPSolver().getOptions().iter_max = 100
+solver.getQPSolver().getOptions().iter_max = 1000
 solver.getOptions().wall_time = DT
 solver.init()
 
@@ -437,7 +459,7 @@ msg.name = model.getJointNames()[1:]
 try:
     t= 0.
     while rclpy.ok():
-        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = 20, current_time = t)
+        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t)
 
         for i in range(Ns-1):
             for frame in contact_frames:
@@ -450,21 +472,24 @@ try:
                     constraints[i]["dynamics"].removeForce(frame)
                     calctaus[i].removeForce(frame)
 
+        # x0[0][7:model.nq] = ros2node.state[:12]
+        # x0[0][model.nq+6:] = ros2node.state[12:]
+
         solver.solve(x0, u0)
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
 
-        x = x0[1]
-        q_val = x.tolist()
-        v_val = x.tolist()
-        tau_val = - calctaus[0].getb()
+        x = x0[1].tolist()
+        q_val = x[7:model.nq]
+        v_val = x[model.nq+6:]
+        tau_val = - calctaus[1].getb()[6:model.nv]
 
         msg.header.stamp = ros2node.get_clock().now().to_msg()
-        msg.position = q_val[7:model.nq]
-        msg.velocity = v_val[6:model.nv]
-        msg.effort = tau_val[6:model.nv]
+        msg.position = q_val
+        msg.velocity = v_val
+        msg.effort = tau_val
 
-        ros2node.publish(msg, q_val)
+        ros2node.publish(msg, x[:7])
 
         # j=0
         # i=0
