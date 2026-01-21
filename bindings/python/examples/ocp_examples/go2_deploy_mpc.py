@@ -324,14 +324,14 @@ for i in range(Ns):
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
-    stack = minvel
+    stack = minvel[6:model.nv]
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
         stack += 1e-9 * minqddot[6:model.nv]
-        stack += 1e-9 * minqddot[model.nv:]
+        stack += 1e-8 * minqddot[model.nv:]
 
 
 # Base
@@ -346,16 +346,16 @@ for i in range(Ns):
 # Base velocity
     if i <= Ns-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-        cartesian_vel_task.setReferenceVelocity([.1,-0.,0.,0.,0.,0.])
-        cartesian_vel_task.setWeight(1e-3 * np.eye(6))
+        cartesian_vel_task.setReferenceVelocity([.2,-0.,0.,0.,0.,0.])
+        cartesian_vel_task.setWeight(1e-2 * np.eye(6))
         minus.append(cartesian_vel_task)
         stack += cartesian_vel_task
 
 
 
-# Contac
+# Postural
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-4 * np.diag(q_weights))
     # if i==Ns-1:
     #     postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
@@ -395,6 +395,7 @@ for i in range(Ns):
         
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            friction_const.setCoefficient(0.9)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
