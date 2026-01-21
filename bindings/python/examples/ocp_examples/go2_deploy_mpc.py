@@ -12,7 +12,7 @@ import rclpy
 
 from xbot2_interface import pyxbot2_interface as xbi
 import subprocess
-from sensor_msgs.msg import JointState
+from sensor_msgs.msg import JointState, Joy
 from geometry_msgs.msg import TransformStamped, WrenchStamped
 from tf2_ros import TransformBroadcaster
 from ttictoc import tic, toc
@@ -55,6 +55,13 @@ class ros2_node(Node):
         )
         self.get_logger().info('JointSubscriber node has been started.')
 
+        self.joy_subsriber = self.create_subscription(
+            Joy,             # message type
+            '/joy',      # topic name
+            self.joy_callback,      # callback function
+            10                       # QoS (queue size)
+        )
+
 
         self.base_link_broadcaster = TransformBroadcaster(self)
         self.joint_msg = JointState()
@@ -65,7 +72,8 @@ class ros2_node(Node):
 
         self.urdf=None
         self.state = None
-        while self.urdf is None or self.state is None:
+        self.joy_cmd = None
+        while self.urdf is None or self.state is None or self.joy_cmd is None:
             rclpy.spin_once(self)
 
         self.get_logger().info(f"{name} initialization complete")
@@ -73,6 +81,9 @@ class ros2_node(Node):
 
     def joint_states_callback(self, msg: JointState):
         self.state = np.concatenate((msg.position , msg.velocity))
+
+    def joy_callback(self, msg: Joy):
+        self.joy_cmd = msg
 
     def listener_callback(self, msg):
         self.get_logger().info("URDF readed")
@@ -315,8 +326,10 @@ costs = []
 calctaus = []
 qlims = list()
 
+cost_list = []
 constraints = []
 for i in range(Ns):
+    cost_list.append({})
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
@@ -348,7 +361,7 @@ for i in range(Ns):
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_vel_task.setReferenceVelocity([.2,-0.,0.,0.,0.,0.])
         cartesian_vel_task.setWeight(1e-2 * np.eye(6))
-        minus.append(cartesian_vel_task)
+        cost_list[i]["base_vel"] = cartesian_vel_task
         stack += cartesian_vel_task
 
 
@@ -460,9 +473,12 @@ msg.name = model.getJointNames()[1:]
 try:
     t= 0.
     while rclpy.ok():
-        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t)
+        vx = 0.3 * ros2node.joy_cmd.axes[3]
+        vy = 0.3 * ros2node.joy_cmd.axes[2]
+        wz = 0.5 * ros2node.joy_cmd.axes[0]
 
         for i in range(Ns-1):
+            cost_list[i]["base_vel"].setReferenceVelocity([vx,vy,0.,0.,0.,wz])
             for frame in contact_frames:
                 if frame in frame_contact_seq[i]:
                     constraints[i]["friction"][frame].activate(0.)
