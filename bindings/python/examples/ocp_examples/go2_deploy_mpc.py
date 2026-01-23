@@ -73,6 +73,7 @@ class ros2_node(Node):
         self.urdf=None
         self.state = None
         self.joy_cmd = None
+        # while self.urdf is None:
         while self.urdf is None or self.joy_cmd is None:
             rclpy.spin_once(self)
 
@@ -135,10 +136,10 @@ q_weights[12] = w_shoulder * q_weights[13]
 q_weights[15] = w_shoulder * q_weights[15]
 
 w_elbow = 1e-1
-q_weights[7]  = w_elbow * q_weights[7]
-q_weights[10]  = w_elbow * q_weights[10]
-q_weights[13]  = w_elbow * q_weights[13]
-q_weights[16]  = w_elbow * q_weights[16]
+# q_weights[7]  = w_elbow * q_weights[7]
+# q_weights[10]  = w_elbow * q_weights[10]
+# q_weights[13]  = w_elbow * q_weights[13]
+# q_weights[16]  = w_elbow * q_weights[16]
 
 q_weights[8]   = w_elbow * q_weights[8]
 q_weights[11]  = w_elbow * q_weights[11]
@@ -225,8 +226,9 @@ for frame in contact_frames:
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
 
-DT = 0.02
-Ns = 20
+trajopt_dt = 0.02
+trajopt_nodes = 10
+mpc_dt = 0.02
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -261,16 +263,10 @@ contact_scheduler.addPhase(["rr", "fl"], .1,sequence_name="trot")
 contact_scheduler.addPhase(["all"], .1,sequence_name="trot")
 contact_scheduler.addPhase(["rl", "fr"], .1, sequence_name="trot")
 
-gait = "trot"
+gait = "stance"
 
 
-frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, sequence_name=gait)
-
-
-# Ns = len(frame_contact_seq)
-# tf = Ns * DT
-# print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
-
+frame_contact_seq = contact_scheduler.getSequence(trajopt_dt, nodes_number = trajopt_nodes, sequence_name=gait)
 
 _u = qddot
 for frame in contact_frames:
@@ -287,9 +283,9 @@ f0 = np.array([0.,0.,0.])#mass*9.81/4.])
 
 x0 = list()
 u0 = list()
-for i in range(Ns):
+for i in range(trajopt_nodes):
     x0.append(np.concatenate((q_val, qdot_val)))
-    if i<Ns-1:
+    if i<trajopt_nodes-1:
         u0.append(qddot_val)
         for frame in contact_frames:
             u0[i] = np.concatenate((u0[i], f0))
@@ -298,7 +294,7 @@ ocp = pysot.oc.OCP()
 dd = list()
 const = list()
 minus = list()
-for i in range(Ns):
+for i in range(trajopt_nodes):
     stage = Stage()
     """ First we include information related to the state space """
     stage.state_space = CompositeSpace([SE3Space(), VectorSpace(model.nq-7), VectorSpace(model.nv)])
@@ -308,7 +304,7 @@ for i in range(Ns):
     stage.xdot = xdot.copy()
     stage.dx = dx.copy()
 
-    if i<Ns-1:
+    if i<trajopt_nodes-1:
         """ We include both control variables and dvariables """
         stage.u =  _u.copy()
         stage.du = _du.copy()
@@ -330,11 +326,10 @@ for i in range(Ns):
 ocp.update(x0, u0)
 
 
-for i in range(Ns-1):
-    print(i)
-    dbase =   pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], DT)
-    dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], DT)
-    dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, DT)
+for i in range(trajopt_nodes-1):
+    dbase =   pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], trajopt_dt)
+    dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], trajopt_dt)
+    dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, trajopt_dt)
     dd.append(dbase)
     dd.append(dpos)
     dd.append(dvel)
@@ -349,28 +344,28 @@ qlims = list()
 
 cost_list = []
 constraints = []
-for i in range(Ns):
+for i in range(trajopt_nodes):
     cost_list.append({})
     stack = None
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9  *  np.eye(model.nv))
-    if i==Ns-1:
-        minvel.setWeight(1e3  *  np.eye(model.nv))
+    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:],  ocp.stage(i).dx[model.nv:])
+    minvel.setWeight(1e-6 *  np.eye(model.nv))
+    # if i==trajopt_nodes-1:
+    #     minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel[6:model.nv]
 
-    if i < Ns-1:
+    if i < trajopt_nodes-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-8 * minqddot[6:model.nv]
-        stack += 1e-7 * minqddot[model.nv:]
+        stack += 1e-6 * minqddot[6:model.nv]
+        stack += 1e-8 * minqddot[model.nv:]
 
 
 # Base
-    if i == Ns-1:
-        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    if i == trajopt_nodes-1:
+        cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model,  ocp.stage(i).dx, "base")
         cartesian_task.setWeight(1e-0 * np.eye(6))
         costs.append(cartesian_task)
         base_ref = cartesian_task.getReference().copy()
@@ -378,8 +373,8 @@ for i in range(Ns):
         # stack += cartesian_task%[3,4,5]
 
 # Base velocity
-    if i <= Ns-1:
-        cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    if i <= trajopt_nodes-1:
+        cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model,  ocp.stage(i).dx, "base")
         cartesian_vel_task.setReferenceVelocity([.0,-0.,0.,0.,0.,0.])
         cartesian_vel_task.setWeight(1e-2 * np.eye(6))
         cost_list[i]["base_vel"] = cartesian_vel_task
@@ -389,43 +384,44 @@ for i in range(Ns):
 
 # Postural
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-6 * np.diag(q_weights))
+    # if i == trajopt_nodes-1: postural.setWeight(1e0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
     # stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[2]
-    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
+    # stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
 
 
 #Compute Torques
-    if i<Ns-1:
+    if i<trajopt_nodes-1:
         tau_compute = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in frame_contact_seq[i]:
             tau_compute.addForce(frame, contact_frames_vars[frame])
         tau_compute.setWeight(0 * np.eye(ocp.stage(i).model.nv))
         calctaus.append(tau_compute)
-        stack += tau_compute
+        # stack += tau_compute
 
 #Feet air
     cost_list[i]["feet_height"] = {}
-    if i<Ns-1:
+    if i<trajopt_nodes-1:
         for frame in contact_frames:
             cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, frame, "world")
             cartesian_task.setLambda(1)
             cartesian_task.setWeight(1e-0 * np.eye(6))
             cost_list[i]["feet_height"][frame] = cartesian_task
-            stack += AffineTask.toAffine(cartesian_task, dvariables.getVariable("dq"))%[2]
+            # stack += AffineTask.toAffine(cartesian_task, dvariables.getVariable("dq"))%[2]
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)    
 
 #Joint Limits
-    qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
-    qlims.append(qlims_i)
-    ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
+    # qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
+    # qlims.append(qlims_i)
+    # ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
 
 
     constraints.append({})
-    if i < Ns-1:
+    if i < trajopt_nodes-1:
 # Dynamics 
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in frame_contact_seq[i]:
@@ -465,7 +461,7 @@ solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-# solver.getQPSolver().getOptions().iter_max = 1000
+# solver.getQPSolver().getOptions().iter_max = 4
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-4
 solver.getQPSolver().getOptions().tol_eq = 1e-4
@@ -484,11 +480,11 @@ x0 = solver.getStateSolution()
 u0 = solver.getControlSolution()
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getOptions().verbose = 2
+solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 2
 solver.getQPSolver().getOptions().iter_max = 10
-# solver.getOptions().wall_time = 0.02
-solver.getOptions().max_iters = 1
+solver.getOptions().wall_time = mpc_dt
+solver.getOptions().max_iters = 4
 solver.init()
 
 print("inited")
@@ -504,6 +500,10 @@ for contact_frame in contact_frames:
 h_feet_target,_ = cost_list[0]["feet_height"][contact_frames[0]].getReference()
 h_feet_target.translation[2] = 0.05
 
+q_space =  CompositeSpace([SE3Space(), VectorSpace(model.nq-7)])
+
+
+
 msg = JointState()
 msg.name = model.getJointNames()[1:]
 try:
@@ -515,17 +515,20 @@ try:
         vy = 0.3 * ros2node.joy_cmd.axes[0]
         vz = 0.1 * ros2node.joy_cmd.axes[3]
 
-        frame_contact_seq = contact_scheduler.getSequence(DT,sequence_name=gait, nodes_number = Ns, current_time = t)
+        frame_contact_seq = contact_scheduler.getSequence(trajopt_dt,sequence_name=gait, nodes_number = trajopt_nodes, current_time = t)
 
-        for i in range(Ns-1):
+        for i in range(trajopt_nodes-1):
             cost_list[i]["base_vel"].setReferenceVelocity([vx,vy,vz,0.,0.,wz])
             for frame in contact_frames:
                 if frame in frame_contact_seq[i]:
                     constraints[i]["friction"][frame].activate(0.)
                     constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
+                    h_feet_target.translation[2] = 0.
+                    cost_list[i]["feet_height"][frame].setReference(h_feet_target)
                     calctaus[i].addForce(frame, contact_frames_vars[frame])
                 else:
                     constraints[i]["friction"][frame].deactivate()
+                    h_feet_target.translation[2] = 0.
                     cost_list[i]["feet_height"][frame].setReference(h_feet_target)
                     constraints[i]["dynamics"].removeForce(frame)
                     calctaus[i].removeForce(frame)
@@ -533,26 +536,28 @@ try:
         # x0[1][7:model.nq] = ros2node.state[:12]
         # x0[0][model.nq+6:] = ros2node.state[12:]
 
-        # ocp.update(x0, u0)
+        ocp.update(x0, u0)
         solve = solver.solve(x0, u0)
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
 
-        x = x0[1].tolist()
-        q_val = x[7:model.nq]
-        v_val = x[model.nq+6:]
+        v_val = x0[0][model.nq:]+ u0[0][:model.nv]*mpc_dt
+        q_val = q_space.plus(x0[0][:model.nq], v_val*mpc_dt) 
+
+
+        # x = x0[1].tolist()
+        # q_val = x[7:model.nq]
+        # v_val = x[model.nq+6:]
         tau_val = - calctaus[0].getb()[6:model.nv]
 
         msg.header.stamp = ros2node.get_clock().now().to_msg()
-        msg.position = q_val
-        msg.velocity = v_val
+        msg.position = q_val[7:model.nq]
+        msg.velocity = v_val[6:model.nv]
         msg.effort = tau_val
 
         if solve:
-            ros2node.publish(msg, x[:7])
+            ros2node.publish(msg, q_val.tolist())
         
-        # input()
-
         j=0
         i=0
         for contact_frame in contact_frames:
@@ -570,10 +575,12 @@ try:
         for i in range(len(u0)-1):
             u0[i] = u0[i+1]    
         u0[-1] = u0[-1]*0.
+
+        # x0[0] = np.concatenate((q_val,v_val))
         
-        t += DT
+        t += mpc_dt
        
-        rclpy.spin_once(ros2node, timeout_sec=0.0)  
+        rclpy.spin_once(ros2node, timeout_sec=0.1)  
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt: Stopping the node.")

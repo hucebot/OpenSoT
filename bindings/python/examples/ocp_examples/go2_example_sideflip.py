@@ -271,7 +271,7 @@ qlims = list()
 for i in range(Ns):
     stack = None
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
+    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
     minvel.setWeight(1e-9  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))

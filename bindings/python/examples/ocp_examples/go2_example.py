@@ -265,18 +265,18 @@ qlims = list()
 for i in range(Ns):
     stack = None
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9  *  np.eye(model.nv))
+    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:],  ocp.stage(i).dx[model.nv:])
+    minvel.setWeight(1e-6  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
-    stack = minvel
+    stack = minvel[6:model.nv]
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[0:model.nv]
+        stack += 1e-6 * minqddot[6:model.nv]
         stack += 1e-9 * minqddot[model.nv:]
 
 
@@ -297,7 +297,7 @@ for i in range(Ns):
     if i <= Ns-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_vel_task.setReferenceVelocity([1.,1.,0.,0.,0.,-0.5])
-        cartesian_vel_task.setWeight(1e-3 * np.eye(6))
+        cartesian_vel_task.setWeight(1e-0 * np.eye(6))
         minus.append(cartesian_vel_task)
         stack += cartesian_vel_task
 
@@ -305,12 +305,12 @@ for i in range(Ns):
 
 # Contac
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-4 * np.diag(q_weights))
     if i==Ns-1:
         postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
-    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
+    stack += AffineTask.toAffine(postural, ocp.stage(i).dx[:model.nv])[6:]
 
 
 #Compute Torques
