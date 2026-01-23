@@ -165,7 +165,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.02
+DT = 0.01
 Ns = 20
 
 contact_scheduler = Scheduler()
@@ -179,10 +179,10 @@ contact_scheduler.addContact("air", [])
 # contact_scheduler.addPhase(["all"], .5)
 # contact_scheduler.addPhase(["air"], .2)
 
-contact_scheduler.addPhase(["all"], .2)
-contact_scheduler.addPhase(["rr", "fl"], .2)
-contact_scheduler.addPhase(["all"], .2)
-contact_scheduler.addPhase(["rl", "fr"], .2)
+contact_scheduler.addPhase(["all"], .1)
+contact_scheduler.addPhase(["rr", "fl"], .1)
+contact_scheduler.addPhase(["all"], .1)
+contact_scheduler.addPhase(["rl", "fr"], .1)
 
 
 
@@ -263,7 +263,7 @@ ocp.update(x0, u0)
 
 
 costs = []
-mintaus = []
+calctaus = []
 qlims = list()
 
 constraints = []
@@ -275,7 +275,7 @@ for i in range(Ns):
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
-    stack = minvel#[6:model.nv]
+    stack = minvel[6:model.nv]
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
@@ -298,7 +298,7 @@ for i in range(Ns):
     if i <= Ns-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
         cartesian_vel_task.setReferenceVelocity([.0,.0,0.,0.,0.,0.])
-        cartesian_vel_task.setWeight(2.*1e-3 * np.eye(6))
+        cartesian_vel_task.setWeight(1e-2 * np.eye(6))
         minus.append(cartesian_vel_task)
         stack += cartesian_vel_task
 
@@ -306,7 +306,7 @@ for i in range(Ns):
 
 # Contac
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.diag(q_weights))
+    postural.setWeight(1e-4 * np.diag(q_weights))
     # if i==Ns-1:
     #     postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
@@ -321,7 +321,7 @@ for i in range(Ns):
         for frame in frame_contact_seq[i]:
             tau_compute.addForce(frame, contact_frames_vars[frame])
         tau_compute.setWeight(0 * np.eye(ocp.stage(i).model.nv))
-        mintaus.append(tau_compute)
+        calctaus.append(tau_compute)
         stack += tau_compute
 
     ocp.stage(i).stack = pysot.AutoStack(stack)    
@@ -347,6 +347,7 @@ for i in range(Ns):
         
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            friction_const.setCoefficient(0.9)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
@@ -391,7 +392,7 @@ success = solver.solve(x0, u0)
 solver.getOptions().verbose = 0
 solver.getOptions().line_search_strategy = 2
 solver.getQPSolver().getOptions().iter_max = 100
-solver.getOptions().wall_time = DT
+solver.getOptions().wall_time = 0.02
 solver.init()
 
 print("inited")
@@ -409,25 +410,27 @@ for contact_frame in contact_frames:
 try:
     t= 0.
     while rclpy.ok():
-        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t)
+        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = 0.)
 
         for i in range(Ns-1):
             for frame in contact_frames:
                 if frame in frame_contact_seq[i]:
                     constraints[i]["friction"][frame].activate(0.)
                     constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
-                    mintaus[i].addForce(frame, contact_frames_vars[frame])
+                    calctaus[i].addForce(frame, contact_frames_vars[frame])
                 else:
                     constraints[i]["friction"][frame].deactivate()
                     constraints[i]["dynamics"].removeForce(frame)
-                    mintaus[i].removeForce(frame)
+                    calctaus[i].removeForce(frame)
 
-        solver.solve(x0, u0)
+        suc = solver.solve(x0, u0)
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
 
         q_val = x0[1].tolist()[:model.nq]
         ros2node.publish(q_val)
+
+        # print(calctaus[1].getb()[:6])
 
         j=0
         i=1

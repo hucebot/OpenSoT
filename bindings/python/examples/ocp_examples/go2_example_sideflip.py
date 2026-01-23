@@ -159,7 +159,7 @@ for frame in contact_frames:
     contact_frames_dvars[frame] = dvariables.getVariable(frame+"_dforce")
 
 
-DT = 0.05
+DT = 0.02
 
 contact_scheduler = Scheduler()
 contact_scheduler.addContact("rl", ["RL_foot"])
@@ -169,11 +169,11 @@ contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
-contact_scheduler.addPhase(["all"], 1.)
+contact_scheduler.addPhase(["all"], .7)
 n1 = len(contact_scheduler.getSequence(DT))
-contact_scheduler.addPhase(["fr", "rr"], .1)
-contact_scheduler.addPhase(["air"], .4)
-contact_scheduler.addPhase(["fl", "rl"], .1)
+contact_scheduler.addPhase(["fr", "rr"], .2)
+contact_scheduler.addPhase(["air"], .3)
+contact_scheduler.addPhase(["fl", "rl"], .2)
 n2 = len(contact_scheduler.getSequence(DT))
 contact_scheduler.addPhase(["all"], 1.)
 
@@ -276,14 +276,14 @@ for i in range(Ns):
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
-    stack = minvel
+    stack = minvel[6:model.nv]
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-9 * minqddot[0:model.nv]
-        stack += 1e-9 * minqddot[model.nv:]
+        stack += 1e-9 * minqddot[6:model.nv]
+        stack += 1e-8 * minqddot[model.nv:]
 
 
 # Base
@@ -304,7 +304,7 @@ for i in range(Ns):
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-6*0* np.diag(q_weights))
     if i==Ns-1:
-        postural.setWeight(1e-0 * np.diag(q_weights))
+        postural.setWeight(1e3 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
     stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
@@ -344,6 +344,7 @@ for i in range(Ns):
 
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
+            friction_const.setCoefficient(0.6)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
@@ -367,10 +368,10 @@ solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getQPSolver().getOptions().iter_max = 100
+solver.getQPSolver().getOptions().iter_max = 1000
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-2
-solver.getQPSolver().getOptions().tol_eq = 1e-2
+solver.getQPSolver().getOptions().tol_ineq = 1e-4
+solver.getQPSolver().getOptions().tol_eq = 1e-4
 solver.getQPSolver().getOptions().tol_stat = 1e-2
 solver.getQPSolver().getOptions().tol_comp = 1e-2
 
@@ -428,7 +429,7 @@ try:
                 forcesnode.publish(force_msgs)
 
 
-            time.sleep(DT)
+            time.sleep(0.1)
 
         ros2node.publish(q_val)
 
