@@ -173,7 +173,7 @@ contact_scheduler.addPhase(["all"], .7)
 n1 = len(contact_scheduler.getSequence(DT))
 contact_scheduler.addPhase(["fr", "rr"], .2)
 contact_scheduler.addPhase(["air"], .3)
-contact_scheduler.addPhase(["fl", "rl"], .2)
+contact_scheduler.addPhase(["fl", "rl"], .1)
 n2 = len(contact_scheduler.getSequence(DT))
 contact_scheduler.addPhase(["all"], 1.)
 
@@ -183,6 +183,7 @@ frame_contact_seq = contact_scheduler.getSequence(DT)
 Ns = len(frame_contact_seq)
 tf = Ns * DT
 print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
+input()
 
 
 _u = qddot
@@ -205,6 +206,7 @@ for i in range(Ns):
         theta = 2*np.pi*((i-n1)/(n2-n1))
         Rot = Rx(theta)
         q_int[3:7] = rotmat_to_quat(Rot)
+        q_int[2] += 0.1
     
     x0.append(np.concatenate((q_int, qdot_val)))
     if i<Ns-1:
@@ -360,7 +362,7 @@ ocp.update(x0, u0)
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 100
+solver.getOptions().max_iters = 200
 solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1E-4
