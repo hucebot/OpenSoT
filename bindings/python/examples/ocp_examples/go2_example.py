@@ -52,7 +52,7 @@ class ros2_node(Node):
         self.joint_state_publisher.publish(self.joint_msg)
         self.base_link_broadcaster.sendTransform(self.w_T_b)
 
-roslaunch = subprocess.Popen(['ros2', 'launch', 'huro', 'go2_rviz.launch.py'], stdout=subprocess.PIPE, shell=False)
+# roslaunch = subprocess.Popen(['ros2', 'launch', 'huro', 'go2_rviz.launch.py'], stdout=subprocess.PIPE, shell=False)
 
 urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
 
@@ -89,7 +89,7 @@ q_weights[:6] = q_weights[:6]*0
 # q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3495,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -100,13 +100,13 @@ qmin, qmax = model.getJointLimits()
 model.update()
 
 
-# print(model.getPose("RL_foot"))
-# print(model.getPose("FL_foot"))
-# print(model.getPose("RR_foot"))
-# print(model.getPose("FR_foot"))
+# print(model.getPose("RL_foot_"))
+# print(model.getPose("FL_foot_"))
+# print(model.getPose("RR_foot_"))
+# print(model.getPose("FR_foot_"))
 # input()
 
-contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
+contact_frames = ["RL_foot_","FL_foot_","RR_foot_","FR_foot_"]
 
 rclpy.init()
 ros2node = ros2_node()
@@ -160,26 +160,28 @@ for frame in contact_frames:
 
 
 
-DT = 0.05
+DT = 0.01
 
 contact_scheduler = Scheduler()
-contact_scheduler.addContact("rl", ["RL_foot"])
-contact_scheduler.addContact("rr", ["RR_foot"])
-contact_scheduler.addContact("fl", ["FL_foot"])
-contact_scheduler.addContact("fr", ["FR_foot"])
-contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
+contact_scheduler.addContact("rl", ["RL_foot_"])
+contact_scheduler.addContact("rr", ["RR_foot_"])
+contact_scheduler.addContact("fl", ["FL_foot_"])
+contact_scheduler.addContact("fr", ["FR_foot_"])
+contact_scheduler.addContact("all", ["FR_foot_", "FL_foot_", "RR_foot_", "RL_foot_"])
 contact_scheduler.addContact("air", [])
 
-contact_scheduler.addPhase(["all"], 0.2)
-# # contact_scheduler.add_phase(["rl_foot", "rr_foot"], .5)
-# contact_scheduler.addPhase(["air"], .2)
-# contact_scheduler.addPhase(["rl"], 2.)
-for i in range(3):
-    contact_scheduler.addPhase(["rl", "fr"], .2)
-    contact_scheduler.addPhase(["all"], .2)
-    contact_scheduler.addPhase(["rr", "fl"], .2)
-    contact_scheduler.addPhase(["all"], .2)
 contact_scheduler.addPhase(["all"], 0.5)
+contact_scheduler.addPhase(["air"], .3)
+contact_scheduler.addPhase(["rl", "rr"], .7)
+# contact_scheduler.addPhase(["air"], .3)
+# contact_scheduler.addPhase(["rl", "rr"], .7)
+# for i in range(3):
+#     contact_scheduler.addPhase(["rl", "fr"], .2)
+#     contact_scheduler.addPhase(["all"], .2)
+#     contact_scheduler.addPhase(["rr", "fl"], .2)
+#     contact_scheduler.addPhase(["all"], .2)
+contact_scheduler.addPhase(["air"], .2)
+contact_scheduler.addPhase(["all"], 0.3)
 
 frame_contact_seq = contact_scheduler.getSequence(DT)#, nodes_number = 10)
 
@@ -187,6 +189,7 @@ frame_contact_seq = contact_scheduler.getSequence(DT)#, nodes_number = 10)
 Ns = len(frame_contact_seq)
 tf = Ns * DT
 print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
+input()
 
 
 _u = qddot
@@ -277,7 +280,7 @@ for i in range(Ns):
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
         stack += 1e-6 * minqddot[6:model.nv]
-        stack += 1e-9 * minqddot[model.nv:]
+        stack += 1e-7 * minqddot[model.nv:]
 
 
 # Base
@@ -299,13 +302,13 @@ for i in range(Ns):
         cartesian_vel_task.setReferenceVelocity([1.,1.,0.,0.,0.,-0.5])
         cartesian_vel_task.setWeight(1e-0 * np.eye(6))
         minus.append(cartesian_vel_task)
-        stack += cartesian_vel_task
+        # stack += cartesian_vel_task
 
 
 
 # Contac
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-4 * np.diag(q_weights))
+    postural.setWeight(1e-3 * np.diag(q_weights))
     if i==Ns-1:
         postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
@@ -355,6 +358,8 @@ for i in range(Ns):
             if frame in frame_contact_seq[i]:
                 contact_task.activate(0.)
             ocp.stage(i).stack = ocp.stage(i).stack << contact_task
+
+        # for frame in ["FL_"]
     
 
 ocp.update(x0, u0)
@@ -369,7 +374,7 @@ solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getQPSolver().getOptions().iter_max = 100
+solver.getQPSolver().getOptions().iter_max = 1000
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-2
 solver.getQPSolver().getOptions().tol_eq = 1e-2
@@ -411,7 +416,6 @@ try:
             model.setJointPosition(q_val)
             model.setJointVelocity(qdot_val)
             model.update()
-            # print(model.getPose("RL_foot").translation[2])
 
             if i<len(u0):
                 j=0

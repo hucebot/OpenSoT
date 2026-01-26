@@ -89,7 +89,7 @@ q_weights[14]  = w_elbow * q_weights[14]
 q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3495,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -100,13 +100,13 @@ qmin, qmax = model.getJointLimits()
 model.update()
 
 
-# print(model.getPose("RL_foot"))
-# print(model.getPose("FL_foot"))
-# print(model.getPose("RR_foot"))
-# print(model.getPose("FR_foot"))
+# print(model.getPose("RL_foot_"))
+# print(model.getPose("FL_foot_"))
+# print(model.getPose("RR_foot_"))
+# print(model.getPose("FR_foot_"))
 # input()
 
-contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
+contact_frames = ["RL_foot_","FL_foot_","RR_foot_","FR_foot_"]
 
 rclpy.init()
 ros2node = ros2_node()
@@ -162,11 +162,11 @@ for frame in contact_frames:
 DT = 0.02
 
 contact_scheduler = Scheduler()
-contact_scheduler.addContact("rl", ["RL_foot"])
-contact_scheduler.addContact("rr", ["RR_foot"])
-contact_scheduler.addContact("fl", ["FL_foot"])
-contact_scheduler.addContact("fr", ["FR_foot"])
-contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
+contact_scheduler.addContact("rl", ["RL_foot_"])
+contact_scheduler.addContact("rr", ["RR_foot_"])
+contact_scheduler.addContact("fl", ["FL_foot_"])
+contact_scheduler.addContact("fr", ["FR_foot_"])
+contact_scheduler.addContact("all", ["FR_foot_", "FL_foot_", "RR_foot_", "RL_foot_"])
 contact_scheduler.addContact("air", [])
 
 contact_scheduler.addPhase(["all"], .7)
@@ -302,7 +302,7 @@ for i in range(Ns):
         # stack += cartesian_task%[3,4,5]
 
 
-# Contac
+# Postural
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-6*0* np.diag(q_weights))
     if i==Ns-1:
@@ -412,7 +412,6 @@ try:
             model.setJointPosition(q_val)
             model.setJointVelocity(qdot_val)
             model.update()
-            # print(model.getPose("RL_foot").translation[2])
 
             if i<len(u0):
                 j=0

@@ -55,7 +55,7 @@ model.setJointVelocity(qdot_val)
 model.update()
 
 
-contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
+contact_frames = ["RL_foot_","FL_foot_","RR_foot_","FR_foot_"]
 
 
 vars = list()
@@ -103,7 +103,7 @@ _du = dqddot
 for frame in contact_frames:
     _du = VariableXd.pile(_du, contact_frames_dvars[frame])
 
-Ns = 2 # number of nodes
+Ns = 3 # number of nodes
 tf = 1. # final time
 dt = tf/Ns 
 print(f"Ns: {Ns}, tf: {tf}, dt: {dt}")
@@ -169,7 +169,7 @@ for i in range(Ns-1):
 
 ocp.update(x0, u0)
 
-frame = "RL_foot"
+frame = "RL_foot_"
 
 costs = []
 const = []
@@ -184,16 +184,22 @@ for i in range(Ns-1):
     # stack = mintau
 
 
-    # cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    # cartesian_task.setWeight(1.*0. * np.eye(6))
+    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    cartesian_task.setWeight(1.*0. * np.eye(6))
+    costs.append(cartesian_task)
+    stack = cartesian_task
+
+    # cartesian_task = pysot.oc.SE3VelTask("CartesianVel", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    # cartesian_task.setWeight(1. * np.eye(6))
+    # cartesian_task.setReferenceVelocity([1,0,0,0,0,0])
     # costs.append(cartesian_task)
     # stack = cartesian_task
 
-    cartesian_task = pysot.oc.SE3VelTask("CartesianVel", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1. * np.eye(6))
-    cartesian_task.setReferenceVelocity([1,0,0,0,0,0])
-    costs.append(cartesian_task)
-    stack = cartesian_task
+    # cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, "base", "world")
+    # cartesian_task.setLambda(1.)
+    # cartesian_task.setWeight(1e-0 * np.eye(6))
+    # costs.append(cartesian_task)
+    # stack = cartesian_task[:3]
 
 
 
@@ -220,7 +226,7 @@ for i in range(Ns-1):
     # ocp.stage(i).stack <<  p_cc
 
 
-STAGE = 0
+STAGE = 1
 eps   = 1e-6
 
 print("*"*200)
@@ -256,7 +262,7 @@ for i in range(Ns):
 
 ocp.update(x0, u0)
 
-input()
+# input()
 
 import unittest
 utest = unittest.TestCase()
