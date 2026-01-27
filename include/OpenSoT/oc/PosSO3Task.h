@@ -37,7 +37,6 @@ class PosSO3Task : public OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>{
         Eigen::MatrixXd _J;
 
         Eigen::MatrixXd _dT_dq;
-        // Eigen::MatrixXd _dV_dv;
 
 
         std::string _distal_frame;

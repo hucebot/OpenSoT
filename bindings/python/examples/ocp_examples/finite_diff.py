@@ -198,10 +198,12 @@ for i in range(Ns-1):
 
     cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
     cartesian_task.setWeight(1. * np.eye(6))
+    pose_ref = cartesian_task.getReference().copy()
+    pose_ref.translation = random_pose(-2.,2.)[:3]
+    pose_ref.linear = R.from_quat(random_pose(-2.,2.)[3:]).as_matrix()
+    cartesian_task.setReference(pose_ref.copy())
     costs.append(cartesian_task)
     stack = cartesian_task
-
-
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
@@ -249,14 +251,14 @@ print(model.nv)
 
 # f0 = np.random.rand(3)
 
-# x0 = list()
-# u0 = []
-# for i in range(Ns):
-#     x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.),np.random.rand(model.nv-6))), np.random.rand(model.nv))))
-#     if i<Ns-1:
-#         u0.append(0* np.random.rand(model.nv))
-#         for frame in contact_frames:
-#             u0[-1] =  np.concatenate((u0[-1], 0* np.random.rand(3)))
+x0 = list()
+u0 = []
+for i in range(Ns):
+    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.),np.random.rand(model.nv-6))), np.random.rand(model.nv))))
+    if i<Ns-1:
+        u0.append(0* np.random.rand(model.nv))
+        for frame in contact_frames:
+            u0[-1] =  np.concatenate((u0[-1], 0* np.random.rand(3)))
 
 
 # x0[STAGE] = x0[STAGE]

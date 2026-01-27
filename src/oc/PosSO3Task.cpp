@@ -11,7 +11,7 @@ _distal_frame(distal_frame)
 {
     _W.setIdentity(dx.getOutputSize(), dx.getOutputSize());
 
-    _ref = _robot.getPose(_distal_frame);
+    _ref = Eigen::Affine3d::Identity();
 
     _J.resize(6, _robot.getNv());
     _J.setZero();
@@ -28,19 +28,13 @@ void PosSO3Task::_update()
     _J.setZero();
 
     _robot.getJacobian(_distal_frame, _J); // LOCAL_WORLD_ALIGNED
-    // _Adj.block<3,3>(0,0) = _wTd.linear().transpose();
-    // _Adj.block<3,3>(3,3) = _wTd.linear().transpose();
-    // _J = _Adj * _J; // LOCAL
 
     _error.head(3) = _wTd.translation() - _ref.translation();
-    _error.tail(3) = Log3(_wTd.linear().transpose() * _ref.linear());
+    _error.tail(3) = Log3(_ref.linear().transpose() * _wTd.linear());
 
-    // J_l6_inv(_w, _J_l6_inv);
-    
     _dT_dq = _J;
-    _dT_dq.bottomRows(3) = - _wTd.linear().transpose() *  _dT_dq.bottomRows(3);
+    _dT_dq.bottomRows(3) = J_l_inv(_error.tail(3)) * _ref.linear().transpose() * _dT_dq.bottomRows(3);
 
     _A.leftCols(_dx.getOutputSize()) = _dT_dq;
     _b = -_error;
-    
 }
