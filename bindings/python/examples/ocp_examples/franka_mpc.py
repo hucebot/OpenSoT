@@ -12,6 +12,7 @@ import numpy as np
 from sensor_msgs.msg import JointState
 import subprocess
 import time
+from utils import *
 from visualization_msgs.msg import InteractiveMarkerControl, InteractiveMarker, Marker
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from geometry_msgs.msg import PoseStamped, Point
@@ -344,8 +345,8 @@ for i in range(Ns):
 
     pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "fp3_link8")
     const.append(pos_const)
-    pos_const.setUpperLimits([10,0.2,0.8], 100* np.eye(3))
-    pos_const.setLowerLimits([-10,-0.2,0.3], -100* np.eye(3))
+    pos_const.setUpperLimits([10,0.2,0.7], Rz(0.4)) # the rotation constraint doen't work
+    pos_const.setLowerLimits([-10,-0.2,0.3], -np.eye(3))
     ocp.stage(i).stack = ocp.stage(i).stack << pos_const
 
 

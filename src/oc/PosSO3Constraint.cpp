@@ -29,9 +29,11 @@ void PosSO3Constraint::_update()
 void PosSO3Constraint::setUpperLimits(const Eigen::Vector3d &pos, const Eigen::Matrix3d &rotation)
 {
     _upper_lim.head(3) = pos;
+    // _upper_lim.tail(3) = Log3(rotation); // This doesn't work
 }
 
 void PosSO3Constraint::setLowerLimits(const Eigen::Vector3d &pos, const Eigen::Matrix3d &rotation)
 {
     _lower_lim.head(3) = pos;
+    // _lower_lim.tail(3) = Log3(rotation); // This doesn't work
 }
