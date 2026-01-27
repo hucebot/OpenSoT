@@ -66,7 +66,7 @@ class ros2_node(Node):
         self.base_link_broadcaster = TransformBroadcaster(self)
         self.joint_msg = JointState()
         self.w_T_b = TransformStamped()
-        self.w_T_b.header.frame_id = "world"
+        self.w_T_b.header.frame_id = "base"
         self.w_T_b.child_frame_id = "commands/base"
 
 
@@ -92,13 +92,13 @@ class ros2_node(Node):
     def publish(self, joint_state_msg:JointState, q):
 
         self.w_T_b.header.stamp = self.get_clock().now().to_msg()
-        self.w_T_b.transform.translation.x = q[0]
-        self.w_T_b.transform.translation.y = q[1]
-        self.w_T_b.transform.translation.z = q[2]
-        self.w_T_b.transform.rotation.x = q[3]
-        self.w_T_b.transform.rotation.y = q[4]
-        self.w_T_b.transform.rotation.z = q[5]
-        self.w_T_b.transform.rotation.w = q[6]
+        # self.w_T_b.transform.translation.x = q[0]
+        # self.w_T_b.transform.translation.y = q[1]
+        # self.w_T_b.transform.translation.z = q[2]
+        # self.w_T_b.transform.rotation.x = q[3]
+        # self.w_T_b.transform.rotation.y = q[4]
+        # self.w_T_b.transform.rotation.z = q[5]
+        # self.w_T_b.transform.rotation.w = q[6]
         self.base_link_broadcaster.sendTransform(self.w_T_b)
         self.joint_state_publisher.publish(joint_state_msg)
 
@@ -111,16 +111,16 @@ model = xbi.ModelInterface2(urdf_string)
 
 # q_init = ros2node.state[:12]
 q_init = [
-    0.,
+    0.0,
     0.72,
     -1.4,
-    -0.,
+    -0.0,
     0.72,
     -1.4,
-    -0.,
+    -0.0,
     0.72,
     -1.4,
-    0.,
+    0.0,
     0.72,
     -1.4,
 ]
@@ -135,10 +135,10 @@ q_weights[12] = w_shoulder * q_weights[13]
 q_weights[15] = w_shoulder * q_weights[15]
 
 w_elbow = 1e-1
-# q_weights[7]  = w_elbow * q_weights[7]
-# q_weights[10]  = w_elbow * q_weights[10]
-# q_weights[13]  = w_elbow * q_weights[13]
-# q_weights[16]  = w_elbow * q_weights[16]
+q_weights[7]  = w_elbow * q_weights[7]
+q_weights[10]  = w_elbow * q_weights[10]
+q_weights[13]  = w_elbow * q_weights[13]
+q_weights[16]  = w_elbow * q_weights[16]
 
 q_weights[8]   = w_elbow * q_weights[8]
 q_weights[11]  = w_elbow * q_weights[11]
@@ -248,19 +248,19 @@ contact_scheduler.addPhase(["all"], .2, sequence_name="stance")
 contact_scheduler.addPhase(["all"], .3, sequence_name="jump")
 contact_scheduler.addPhase(["air"], .2, sequence_name="jump")
 
-contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
-contact_scheduler.addPhase(contacts_list=["fl_air"], duration=.1, sequence_name="walk")
-contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
-contact_scheduler.addPhase(contacts_list=["rr_air"], duration=.1, sequence_name="walk")
-contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
-contact_scheduler.addPhase(contacts_list=["fr_air"], duration=.1, sequence_name="walk")
-contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
-contact_scheduler.addPhase(contacts_list=["rl_air"], duration=.1, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .05, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["fl_air"], duration=.2, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .05, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["rr_air"], duration=.2, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .05, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["fr_air"], duration=.2, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .05, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["rl_air"], duration=.2, sequence_name="walk")
 
-contact_scheduler.addPhase(["all"], .1, sequence_name="trot")
-contact_scheduler.addPhase(["rr", "fl"], .2,sequence_name="trot")
-contact_scheduler.addPhase(["all"], .1,sequence_name="trot")
-contact_scheduler.addPhase(["rl", "fr"], .2, sequence_name="trot")
+contact_scheduler.addPhase(["all"], .2, sequence_name="trot")
+contact_scheduler.addPhase(["rr", "fl"], .15,sequence_name="trot")
+contact_scheduler.addPhase(["all"], .2,sequence_name="trot")
+contact_scheduler.addPhase(["rl", "fr"], .15, sequence_name="trot")
 
 gait = "trot"
 
@@ -375,7 +375,7 @@ for i in range(trajopt_nodes):
     if i <= trajopt_nodes-1:
         cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model,  ocp.stage(i).dx, "base")
         cartesian_vel_task.setReferenceVelocity([.0,-0.,0.,0.,0.,0.])
-        cartesian_vel_task.setWeight(1e-1 * np.eye(6))
+        cartesian_vel_task.setWeight(1e-2 * np.eye(6))
         cost_list[i]["base_vel"] = cartesian_vel_task
         stack += cartesian_vel_task
 
@@ -383,12 +383,14 @@ for i in range(trajopt_nodes):
 
 # Postural
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-4 * np.diag(q_weights))
+    postural.setWeight(1. * np.diag(q_weights))
     # if i == trajopt_nodes-1: postural.setWeight(1e0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
-    # stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[2]
-    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
+    # p1 = 1e-3 * postural[2]
+    p2 = 1e-3 * postural[6:]
+
+    stack += AffineTask.toAffine(p2, dvariables.getVariable("dq"))
 
 
 #Compute Torques
@@ -406,9 +408,9 @@ for i in range(trajopt_nodes):
         for frame in contact_frames:
             cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, frame, "world")
             cartesian_task.setLambda(1)
-            cartesian_task.setWeight(1e-0 * np.eye(6))
+            cartesian_task.setWeight(1e-1 * np.eye(6))
             cost_list[i]["feet_height"][frame] = cartesian_task
-            # stack += AffineTask.toAffine(cartesian_task, dvariables.getVariable("dq"))%[2]
+            stack += AffineTask.toAffine(cartesian_task, dvariables.getVariable("dq"))%[2]
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)    
@@ -434,7 +436,7 @@ for i in range(trajopt_nodes):
         
         for frame in contact_frames:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-            friction_const.setCoefficient(0.6)
+            friction_const.setCoefficient(0.4)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
@@ -496,8 +498,8 @@ for contact_frame in contact_frames:
     force_msgs[contact_frame].wrench.torque.x = force_msgs[contact_frame].wrench.torque.y = force_msgs[contact_frame].wrench.torque.z = 0.
 
 
-# h_feet_target,_ = cost_list[0]["feet_height"][contact_frames[0]].getReference()
-# h_feet_target.translation[2] = 0.05
+h_feet_target,_ = cost_list[0]["feet_height"][contact_frames[0]].getReference()
+h_feet_target.translation[2] = 0.05
 
 q_space =  CompositeSpace([SE3Space(), VectorSpace(model.nq-7)])
 
@@ -505,6 +507,7 @@ q_space =  CompositeSpace([SE3Space(), VectorSpace(model.nq-7)])
 
 msg = JointState()
 msg.name = model.getJointNames()[1:]
+
 try:
     t= 0.
     while rclpy.ok():
@@ -522,17 +525,17 @@ try:
                 if frame in frame_contact_seq[i]:
                     constraints[i]["friction"][frame].activate(0.)
                     constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
-                    # h_feet_target.translation[2] = 0.
-                    # cost_list[i]["feet_height"][frame].setReference(h_feet_target)
+                    h_feet_target.translation[2] = 0.
+                    cost_list[i]["feet_height"][frame].setReference(h_feet_target)
                     calctaus[i].addForce(frame, contact_frames_vars[frame])
                 else:
                     constraints[i]["friction"][frame].deactivate()
-                    # h_feet_target.translation[2] = 0.
-                    # cost_list[i]["feet_height"][frame].setReference(h_feet_target)
+                    h_feet_target.translation[2] = 0.05
+                    cost_list[i]["feet_height"][frame].setReference(h_feet_target)
                     constraints[i]["dynamics"].removeForce(frame)
                     calctaus[i].removeForce(frame)
 
-        # x0[1][7:model.nq] = ros2node.state[:12]
+        # x0[0][7:model.nq] = ros2node.state[:12]
         # x0[0][model.nq+6:] = ros2node.state[12:]
 
         ocp.update(x0, u0)

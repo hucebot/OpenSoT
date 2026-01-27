@@ -184,10 +184,10 @@ for i in range(Ns-1):
     # stack = mintau
 
 
-    cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
-    cartesian_task.setWeight(1.*0. * np.eye(6))
-    costs.append(cartesian_task)
-    stack = cartesian_task
+    # cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
+    # cartesian_task.setWeight(1.*0. * np.eye(6))
+    # costs.append(cartesian_task)
+    # stack = cartesian_task
 
     # cartesian_task = pysot.oc.SE3VelTask("CartesianVel", ocp.stage(i).model, dvariables.getVariable("dq"), "base")
     # cartesian_task.setWeight(1. * np.eye(6))
@@ -195,11 +195,11 @@ for i in range(Ns-1):
     # costs.append(cartesian_task)
     # stack = cartesian_task
 
-    # cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, "base", "world")
-    # cartesian_task.setLambda(1.)
-    # cartesian_task.setWeight(1e-0 * np.eye(6))
-    # costs.append(cartesian_task)
-    # stack = cartesian_task[:3]
+    cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, "FL_foot", "world")
+    cartesian_task.setLambda(1.)
+    cartesian_task.setWeight(1e-0 * np.eye(6))
+    costs.append(cartesian_task)
+    stack = cartesian_task[:3]
 
 
 
