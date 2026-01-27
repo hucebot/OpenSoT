@@ -135,13 +135,17 @@ for i in range(Ns):
 
 
 
-cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base_link")
+# cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base_link")
+# cartesian_task.setWeight(1e3 * np.eye(model.nv))
+
+cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "base_link")
 cartesian_task.setWeight(1e3 * np.eye(model.nv))
 
 ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task)
 
+
 pose_ref = cartesian_task.getReference().copy()
-pose_ref.translation = q_final[0:3]
+pose_ref.translation = q_final[:3]
 pose_ref.linear = R.from_quat(q_final[3:]).as_matrix()
 cartesian_task.setReference(pose_ref.copy())
 
