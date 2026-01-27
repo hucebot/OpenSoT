@@ -15,6 +15,7 @@
 #include <OpenSoT/oc/EulerVector.h>
 #include <OpenSoT/oc/SE3Task.h>
 #include <OpenSoT/oc/PosSO3Task.h>
+#include <OpenSoT/oc/PosSO3Constraint.h>
 #include <OpenSoT/oc/SE3VelTask.h>
 #include <OpenSoT/oc/TorquesTask.h>
 #include <OpenSoT/oc/TorquesConstraint.h>
@@ -89,6 +90,11 @@ void pyopensot_oc(py::module &m)
         .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
         .def("getReference", &OpenSoT::oc::PosSO3Task::getReference)
         .def("setReference", &OpenSoT::oc::PosSO3Task::setReference);
+
+    py::class_<OpenSoT::oc::PosSO3Constraint, OpenSoT::oc::PosSO3Constraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "PosSO3Constraint")
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
+        .def("setUpperLimits", &OpenSoT::oc::PosSO3Constraint::setUpperLimits)
+        .def("setLowerLimits", &OpenSoT::oc::PosSO3Constraint::setLowerLimits);
 
     py::class_<OpenSoT::oc::SE3VelTask, OpenSoT::oc::SE3VelTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "SE3VelTask")
         .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())

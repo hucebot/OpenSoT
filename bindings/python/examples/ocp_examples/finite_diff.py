@@ -229,6 +229,11 @@ for i in range(Ns-1):
     # ocp.stage(i).stack <<  p_cc
 
 
+    pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], frame)
+    const.append(pos_const)
+    ocp.stage(i).stack << pos_const
+
+
 STAGE = 0
 eps   = 1e-6
 
@@ -323,9 +328,9 @@ for i in range(N):
         du[i- dx.size] += eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valp =  - costs[STAGE].getb().copy()
+    # valp =  - costs[STAGE].getb().copy()
     # valp = l_dbase[STAGE].getb().copy()
-    # valp =  - const[STAGE].getbLowerBound().copy()
+    valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
     du = np.zeros(x_space.nv())
@@ -337,9 +342,9 @@ for i in range(N):
         du[i- dx.size] -= eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valm = - costs[STAGE].getb().copy()
+    # valm = - costs[STAGE].getb().copy()
     # valm = l_dbase[STAGE].getb().copy()
-    # valm =  - const[STAGE].getbLowerBound().copy()
+    valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
     # print(valm)
