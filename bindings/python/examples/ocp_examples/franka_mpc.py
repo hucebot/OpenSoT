@@ -142,8 +142,8 @@ node = ros2_node()
 time.sleep(2)
 
 Ns = 10 # number of nodes
-tf = 0.2 # final time
-dt = tf/Ns
+# tf = 0.2 # final time
+dt = 0.01
 
 
 model = xbi.ModelInterface2(node.urdf)
@@ -317,31 +317,49 @@ utest.assertTrue(ocp.getNumberOfNodes() == Ns+1)
 minus = list()
 for i in range(Ns):
     minu = min_var.create(f"minu{i}", ocp.stage(i).u, ocp.stage(i).du)
-    minu.setWeight(1e0 * np.eye(model.nv))
+    minu.setWeight(1e-3 * np.eye(model.nv))
     minus.append(minu)
+    stack = minu
+
+    minvel = min_var.create(f"minvel", ocp.stage(Ns).x[model.nq:], dvariables.getVariable("dqdot"))
+    minvel.setWeight(1e-6 * np.eye(model.nv))
+    # if i ==Ns-1:
+    #     minvel.setWeight(1e-0 * np.eye(model.nv))
+    minus.append(minvel)
+    stack += minvel
 
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-3 * np.eye(model.nv))
+    postural.setWeight(1e-6 * np.eye(model.nv))
     postural.setReference(q_val.copy())
     minus.append(postural)
+    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))
 
-    ocp.stage(i).stack = pysot.AutoStack(minu + AffineTask.toAffine(postural, dvariables.getVariable("dq")))
+    ocp.stage(i).stack = pysot.AutoStack(stack)
 
     # tau_min
     tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
     const.append(tau_lim)
+
     ocp.stage(i).stack << tau_lim
+
+    pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "fp3_link8")
+    const.append(pos_const)
+    pos_const.setUpperLimits([10,0.2,0.8], 100* np.eye(3))
+    pos_const.setLowerLimits([-10,-0.2,0.3], -100* np.eye(3))
+    ocp.stage(i).stack = ocp.stage(i).stack << pos_const
 
 
 # set goal at final state
 minvel = min_var.create(f"minvel", ocp.stage(Ns).x[model.nq:], dvariables.getVariable("dqdot"))
-minvel.setWeight(1e3 * np.eye(model.nv))
+minvel.setWeight(1e-1 * np.eye(model.nv))
 
-cartesian_task = pysot.oc.SE3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "fp3_link8")
-cartesian_task.setWeight(1e6 * np.eye(6))
-ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task + minvel)
+cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(Ns).model, dvariables.getVariable("dq"), "fp3_link8")
+cartesian_task.setWeight(1e0 * np.eye(6))
+ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task  + minvel)
 
-T = cartesian_task.getReference()
+
+T = model.getPose("fp3_link8")
+cartesian_task.setReference(T)
 node.make_6dof_marker(name="fp3_link8", pose=T, frame_id="world")
 
 #
@@ -363,10 +381,10 @@ print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 10
 solver.getOptions().verbose = 1
-solver.getOptions().line_search_strategy = 1
+solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
-solver.getOptions().wall_time = 0.001
+# solver.getOptions().wall_time = 0.001
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-6
 solver.getQPSolver().getOptions().tol_eq = 1e-6
@@ -401,6 +419,7 @@ last_pose_reference = pose_ref.copy()
 msg.position = x0[0][:model.nq].tolist()
 try:
     while rclpy.ok():
+        print(ocp.stage(0).model.getPose("fp3_link8").translation)
 
         pose_ref.translation[0] = node.marker_pose.pose.position.x
         pose_ref.translation[1] = node.marker_pose.pose.position.y
@@ -411,16 +430,17 @@ try:
 
         cartesian_task.setReference(pose_ref)
 
-        tic()
+        # tic()
+        ocp.update(x0, u0)
         success = solver.solve(x0, u0)
-        b = toc()
+        # b = toc()
         # print(b)
 
         x0 = solver.getStateSolution()
         u0 = solver.getControlSolution()
 
 
-        # state = space.plus(state, np.concatenate((state[model.nq:], u0[0]))*dt)
+        # state = space.plus(state, np.concatenate((state[model.nq:], u0[0]))* dt )
         state = x0[1]
 
         msg.position = state[:model.nq].tolist()
@@ -434,7 +454,7 @@ try:
         
         msg.header.stamp = node.get_clock().now().to_msg()
         node.publish(msg)
-        time.sleep(dt)
+        # time.sleep(dt)
 
         rclpy.spin_once(node, timeout_sec=dt_sim)
 
