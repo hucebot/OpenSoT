@@ -12,10 +12,6 @@ import numpy as np
 from sensor_msgs.msg import JointState
 import subprocess
 import time
-from utils import *
-from visualization_msgs.msg import InteractiveMarkerControl, InteractiveMarker, Marker
-from interactive_markers.interactive_marker_server import InteractiveMarkerServer
-from geometry_msgs.msg import PoseStamped, Point
 from scipy.spatial.transform import Rotation as R
 import unittest
 import os
@@ -48,71 +44,7 @@ class ros2_node(Node):
 
         self.joint_state_publisher = self.create_publisher(JointState, '/joint_states', 10)
 
-        self.server = InteractiveMarkerServer(self, 'six_dof_marker_server')
-        self.marker_pose = PoseStamped()
-
-    def make_6dof_marker(self, name, pose, frame_id):
-        int_marker = InteractiveMarker()
-        int_marker.header.frame_id = frame_id
-        int_marker.name = name
-        int_marker.description = '6-DOF Control'
-        int_marker.scale = 0.3
-
-        int_marker.pose.position.x = pose.translation[0]
-        int_marker.pose.position.y = pose.translation[1]
-        int_marker.pose.position.z = pose.translation[2]
-
-        quat_xyzw = R.from_matrix(pose.linear).as_quat() # Format: [x, y, z, w]
-        int_marker.pose.orientation.x = quat_xyzw[0]
-        int_marker.pose.orientation.y = quat_xyzw[1]
-        int_marker.pose.orientation.z = quat_xyzw[2]
-        int_marker.pose.orientation.w = quat_xyzw[3]
-
-        self.marker_pose.pose = int_marker.pose
-
-        # Add a visible marker (e.g., a cube)
-        cube_marker = Marker()
-        cube_marker.type = Marker.CUBE
-        cube_marker.scale.x = 0.05
-        cube_marker.scale.y = 0.05
-        cube_marker.scale.z = 0.05
-        cube_marker.color.r = 0.0
-        cube_marker.color.g = 1.0
-        cube_marker.color.b = 0.0
-        cube_marker.color.a = 1.0
-
-        control = InteractiveMarkerControl()
-        control.always_visible = True
-        control.markers.append(cube_marker)
-        int_marker.controls.append(control)
-
-        # Add 6-DOF controls
-        self.add_6dof_controls(int_marker)
-
-
-        self.server.insert(marker=int_marker, feedback_callback=self.process_feedback)
-        self.server.applyChanges()
-    def process_feedback(self, feedback):
-        self.marker_pose.header = feedback.header
-        self.marker_pose.pose = feedback.pose
-    def add_6dof_controls(self, marker):
-        axes = ['x', 'y', 'z']
-        for axis in axes:
-            # Rotation
-            control = InteractiveMarkerControl()
-            control.name = f'rotate_{axis}'
-            control.orientation.w = 1.0
-            setattr(control.orientation, axis, 1.0)
-            control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-            marker.controls.append(control)
-
-            # Translation
-            control = InteractiveMarkerControl()
-            control.name = f'move_{axis}'
-            control.orientation.w = 1.0
-            setattr(control.orientation, axis, 1.0)
-            control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-            marker.controls.append(control)
+  
 
     def publish(self, joint_state_msg):
         self.joint_state_publisher.publish(joint_state_msg)
@@ -330,7 +262,7 @@ for i in range(Ns):
     stack += minvel
 
     postural = Postural(ocp.stage(i).model)
-    postural.setWeight(1e-6 * np.eye(model.nv))
+    postural.setWeight(1e-2 * np.eye(model.nv))
     postural.setReference(q_val.copy())
     minus.append(postural)
     stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))
@@ -345,8 +277,8 @@ for i in range(Ns):
 
     pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "fp3_link8")
     const.append(pos_const)
-    pos_const.setUpperLimits([10,0.2,0.7], Rz(0.4)) # the rotation constraint doen't work
-    pos_const.setLowerLimits([-10,-0.2,0.3], -np.eye(3))
+    pos_const.setUpperLimits([10.,0.1,0.5], np.eye(3)) # the rotation constraint doen't work
+    pos_const.setLowerLimits([-10.,-.1,0.3], -np.eye(3))
     ocp.stage(i).stack = ocp.stage(i).stack << pos_const
 
 
@@ -358,10 +290,8 @@ cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(Ns).model, dvariable
 cartesian_task.setWeight(1e0 * np.eye(6))
 ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task  + minvel)
 
-
 T = model.getPose("fp3_link8")
 cartesian_task.setReference(T)
-node.make_6dof_marker(name="fp3_link8", pose=T, frame_id="world")
 
 #
 ocp.update(x0, u0)
@@ -381,7 +311,7 @@ for i in range(Ns+1):
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 10
-solver.getOptions().verbose = 1
+solver.getOptions().verbose = 0
 solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1e-2
 solver.getOptions().min_abs_delta_solution = 1e-3
@@ -415,19 +345,18 @@ success = solver.solve(x0, u0)
 x0 = solver.getStateSolution()
 u0 = solver.getControlSolution()
 
+np.printoptions(precision=4)
 
 last_pose_reference = pose_ref.copy()
 msg.position = x0[0][:model.nq].tolist()
+t = 0
 try:
     while rclpy.ok():
         print(ocp.stage(0).model.getPose("fp3_link8").translation)
 
-        pose_ref.translation[0] = node.marker_pose.pose.position.x
-        pose_ref.translation[1] = node.marker_pose.pose.position.y
-        pose_ref.translation[2] = node.marker_pose.pose.position.z
-        quat = [node.marker_pose.pose.orientation.x, node.marker_pose.pose.orientation.y,
-                node.marker_pose.pose.orientation.z, node.marker_pose.pose.orientation.w]
-        pose_ref.linear = R.from_quat(quat).as_matrix()
+        pose_ref.translation[2] = T.translation[2]-0.4 + 0.3*np.cos(np.pi*t)
+        pose_ref.translation[1] = T.translation[1] + 0.3*np.sin(np.pi*t)       
+
 
         cartesian_task.setReference(pose_ref)
 
@@ -455,9 +384,11 @@ try:
         
         msg.header.stamp = node.get_clock().now().to_msg()
         node.publish(msg)
-        # time.sleep(dt)
+        time.sleep(dt)
 
-        rclpy.spin_once(node, timeout_sec=dt_sim)
+        t+= dt
+
+        rclpy.spin_once(node, timeout_sec=0.0)
 
 except KeyboardInterrupt:
     print("KeyboardInterrupt: Stopping the node.")
