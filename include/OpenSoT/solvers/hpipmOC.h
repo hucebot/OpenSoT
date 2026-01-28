@@ -151,10 +151,9 @@ public:
 
     /**
      * @brief solve
-     * @param x0 initial state
      * @return true if success
      */
-    bool solve(const Eigen::VectorXd& x0);
+    bool solve();
 
     const std::vector<hpipm::OcpQpSolution>& getSolution() const {return _solution;}
 

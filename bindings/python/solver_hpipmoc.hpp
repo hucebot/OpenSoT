@@ -79,7 +79,10 @@ void pyHPIPMOC(py::module& m) {
         .def_readwrite("line_search_strategy", &OpenSoT::solvers::swSQP::options::line_search_strategy)
         .def_readwrite("hessian_scale_factor_up", &OpenSoT::solvers::swSQP::options::hessian_scale_factor_up)
         .def_readwrite("initial_hessian_regularization", &OpenSoT::solvers::swSQP::options::initial_hessian_regularization)
-        .def_readwrite("max_hessian_regularization", &OpenSoT::solvers::swSQP::options::max_hessian_regularization);
+        .def_readwrite("max_hessian_regularization", &OpenSoT::solvers::swSQP::options::max_hessian_regularization)
+        .def_readwrite("optimize_first_state", &OpenSoT::solvers::swSQP::options::optimize_first_state)
+        .def_readwrite("optimize_first_state_cost", &OpenSoT::solvers::swSQP::options::optimize_first_state_cost);
+
 
     // Bind swSQP::stage_statistics
     py::class_<OpenSoT::solvers::swSQP::stage_statistics>(m, "swSQPStageStatistics")
