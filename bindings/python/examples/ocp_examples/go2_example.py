@@ -89,7 +89,8 @@ q_weights[:6] = q_weights[:6]*0
 # q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3495,0.,0.,0.,1.]),q_init))
+# q_val = np.concatenate((np.array([0.,0.,1.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -373,11 +374,16 @@ solver.getOptions().beta = 1E-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
+solver.getOptions().optimize_first_state = 1
+solver.getOptions().optimize_first_state_cost = 1e3
+
+
+
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 1000
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-2
-solver.getQPSolver().getOptions().tol_eq = 1e-2
+solver.getQPSolver().getOptions().tol_ineq = 1e-6
+solver.getQPSolver().getOptions().tol_eq = 1e-6
 solver.getQPSolver().getOptions().tol_stat = 1e-2
 solver.getQPSolver().getOptions().tol_comp = 1e-2
 

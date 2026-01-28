@@ -106,6 +106,9 @@ public:
             hessian_scale_factor_up = 10.;
             max_hessian_regularization = 1.;
             wall_time = -1;
+
+            optimize_first_state = 0;
+            optimize_first_state_cost = 1e0;
         }
 
         //termination criteria
@@ -124,6 +127,9 @@ public:
 
         int verbose; // 0 no print, 1 minimum, 2 full
         double wall_time;
+
+        int optimize_first_state; // 0 no optimize, 1 optimize floating base, 2 optimize whole state
+        double optimize_first_state_cost; 
 
         const std::ostringstream& toOSS()
         {
@@ -215,8 +221,6 @@ private:
 
     std::vector<Eigen::VectorXd> _x0, _u0;
     std::vector<Eigen::VectorXd> _x0_candidate, _u0_candidate;
-
-    Eigen::VectorXd _dx0; //initial delta state constraint (_dx0 = 0)
 
     double _sigma; //Hessian regularization
     
