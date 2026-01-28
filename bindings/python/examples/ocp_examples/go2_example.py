@@ -89,7 +89,8 @@ q_weights[:6] = q_weights[:6]*0
 # q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,1.3258,0.,0.,0.,1.]),q_init))
+# q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -176,12 +177,12 @@ contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
 # contact_scheduler.add_phase([], .3)
 # contact_scheduler.add_phase(["rl_foot"], 1.)
 
-for i in range(2):
-    contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
-    contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
-contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
+# for i in range(2):
+#     contact_scheduler.add_phase(["rl_foot", "fr_foot"], .2)
+#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+#     contact_scheduler.add_phase(["rr_foot", "fl_foot"], .2)
+#     contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .2)
+# contact_scheduler.add_phase(["rl_foot", "rr_foot", "fr_foot", "fl_foot"], .5)
 
 frame_contact_seq = contact_scheduler.contact_sequence_fnames
 
@@ -269,7 +270,7 @@ for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9  *  np.eye(model.nv))
+    minvel.setWeight(1e-3  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
@@ -292,9 +293,9 @@ for i in range(Ns):
         # base_ref.translation[1] += 0.3
         # base_ref.translation[0] -= 0.1
         # base_ref.translation[2] -= 0.05
-        base_ref.linear = Rz(np.pi/2)
-        cartesian_task.setReference(base_ref)
-        stack += cartesian_task%[3,4,5]
+        # base_ref.linear = Rz(np.pi/2)
+        # cartesian_task.setReference(base_ref)
+        # stack += cartesian_task%[3,4,5]
 
 
 # Contac
@@ -356,8 +357,8 @@ solver.getOptions().hessian_scale_factor_up = 1e6
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 100
 
-solver.getQPSolver().getOptions().tol_ineq = 1e-2
-solver.getQPSolver().getOptions().tol_eq = 1e-2
+solver.getQPSolver().getOptions().tol_ineq = 1e-6
+solver.getQPSolver().getOptions().tol_eq = 1e-6
 solver.getQPSolver().getOptions().tol_stat = 1e-2
 solver.getQPSolver().getOptions().tol_comp = 1e-2
 

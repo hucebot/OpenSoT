@@ -43,7 +43,7 @@ bool hpipmOC::solve(const Eigen::VectorXd& x0)
         _solver = std::make_shared<hpipm::OcpQpIpmSolver>(_qp, _solver_settings);
     }
 
-    _solve_status = _solver->solve(x0, _qp, _solution);
+    _solve_status = _solver->solve(_qp, _solution);
     if(_solve_status == hpipm::HpipmStatus::Success)
         return true;
     return false;

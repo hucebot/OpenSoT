@@ -83,6 +83,12 @@ void swSQP::linearize()
 
         // --- Cost (always) ---
         computeCost(k, _Q[k], _q[k], _R[k], _r[k], _S[k]);
+        if (k==0)
+        {
+            int nx0 =  _ocp->stage(k)->dx->getM().rows();
+            _Q[k] += 1e3 * Eigen::MatrixXd::Identity(nx0, nx0);
+        }
+
         _qp_solver->setFullCost(k, _R[k], _Q[k], _S[k], _r[k], _q[k]);
 
         // --- Constraints (always) ---
@@ -399,6 +405,18 @@ void swSQP::init()
         ls_function = &swSQP::ls_filter;
 
 
+    // Create list of indices for state bounds at stage 0 (initial state)
+    // Bound ALL state variables (fix initial condition: dx0 = 0)
+    std::vector<int> idxbx0;
+    int nx0 = _ocp->stage(0)->dx->getM().rows();
+    idxbx0.resize(nx0-6);
+    for(int i = 6; i < nx0; ++i)
+        idxbx0[i-6] = i;
+
+    Eigen::VectorXd lbx0 = Eigen::VectorXd::Zero(nx0-6);
+    Eigen::VectorXd ubx0 = Eigen::VectorXd::Zero(nx0-6);
+    _qp_solver->setBoundsX(0, idxbx0, lbx0, ubx0);
+
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
     {
 
@@ -416,7 +434,6 @@ void swSQP::init()
 
             _qp_solver->setStageDynamics(k, A, B, b);
         }
-        _dx0.setZero(_A[0].cols()); //initial delta state constraint (_dx0 = 0)
 
         // --- Cost (always) ---
         _H.push_back(Eigen::MatrixXd(_ocp->stage(k)->stack->getStack()[0]->getA().cols(), _ocp->stage(k)->stack->getStack()[0]->getA().cols()));
