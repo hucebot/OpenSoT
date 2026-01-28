@@ -83,10 +83,10 @@ void swSQP::linearize()
 
         // --- Cost (always) ---
         computeCost(k, _Q[k], _q[k], _R[k], _r[k], _S[k]);
-        if (k==0)
+        if (k==0 && _opt.optimize_first_state!=0)
         {
             int nx0 =  _ocp->stage(k)->dx->getM().rows();
-            _Q[k] += 1e0 * Eigen::MatrixXd::Identity(nx0, nx0);
+            _Q[k] += _opt.optimize_first_state_cost * Eigen::MatrixXd::Identity(nx0, nx0);
         }
 
         _qp_solver->setFullCost(k, _R[k], _Q[k], _S[k], _r[k], _q[k]);
@@ -404,16 +404,30 @@ void swSQP::init()
 
 
     // Create list of indices for state bounds at stage 0 (initial state)
-    // Bound ALL state variables (fix initial condition: dx0 = 0)
-    std::vector<int> idxbx0;
-    int nx0 = _ocp->stage(0)->dx->getM().rows();
-    idxbx0.resize(nx0-6);
-    for(int i = 6; i < nx0; ++i)
-        idxbx0[i-6] = i;
-
-    Eigen::VectorXd lbx0 = Eigen::VectorXd::Zero(nx0-6);
-    Eigen::VectorXd ubx0 = Eigen::VectorXd::Zero(nx0-6);
-    _qp_solver->setBoundsX(0, idxbx0, lbx0, ubx0);
+    if (_opt.optimize_first_state!=2)
+    {
+        std::vector<int> idxbx0;
+        Eigen::VectorXd lbx0;
+        Eigen::VectorXd ubx0;
+        int nx0 = _ocp->stage(0)->dx->getM().rows();
+        if (_opt.optimize_first_state == 1)
+        {
+            idxbx0.resize(nx0-6);
+            for(int i = 6; i < nx0; ++i)
+                idxbx0[i-6] = i;
+            lbx0 = Eigen::VectorXd::Zero(nx0-6);
+            ubx0 = Eigen::VectorXd::Zero(nx0-6);
+        }
+        if (_opt.optimize_first_state == 0)
+        {
+            idxbx0.resize(nx0);
+            for(int i = 0; i < nx0; ++i)
+                idxbx0[i] = i;
+            lbx0 = Eigen::VectorXd::Zero(nx0);
+            ubx0 = Eigen::VectorXd::Zero(nx0);
+        }
+        _qp_solver->setBoundsX(0, idxbx0, lbx0, ubx0);
+    }
 
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
     {
