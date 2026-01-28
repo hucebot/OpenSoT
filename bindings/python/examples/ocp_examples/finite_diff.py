@@ -195,12 +195,18 @@ for i in range(Ns-1):
     # costs.append(cartesian_task)
     # stack = cartesian_task
 
-    cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, "FL_foot", "world")
-    cartesian_task.setLambda(1.)
-    cartesian_task.setWeight(1e-0 * np.eye(6))
+    # cartesian_task = Cartesian("Cartesian", ocp.stage(i).model, "FL_foot", "world")
+    # cartesian_task.setLambda(1.)
+    # cartesian_task.setWeight(1e-0 * np.eye(6))
+
+    cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
+    cartesian_task.setWeight(1. * np.eye(6))
+    pose_ref = cartesian_task.getReference().copy()
+    pose_ref.translation = random_pose(-2.,2.)[:3]
+    pose_ref.linear = R.from_quat(random_pose(-2.,2.)[3:]).as_matrix()
+    cartesian_task.setReference(pose_ref.copy())
     costs.append(cartesian_task)
     stack = cartesian_task[:3]
-
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
@@ -226,27 +232,32 @@ for i in range(Ns-1):
     # ocp.stage(i).stack <<  p_cc
 
 
-STAGE = 1
+    pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], frame)
+    const.append(pos_const)
+    ocp.stage(i).stack << pos_const
+
+
+STAGE = 0
 eps   = 1e-6
 
 print("*"*200)
 
-q_base = random_pose(-2.,2.)
-# q_base = np.array([0.,0.,0.,0.,0.,0.,1.])
+# q_base = random_pose(-2.,2.)
+q_base = np.array([0.,0.,0.,0.,0.,0.,1.])
 
 
 # print(q_base)
 
 # q_zero = np.zeros(model.nq + model.nv)
 # q_zero[6] = 1.
-q_val = np.concatenate((q_base,np.random.rand(model.nv)))
-qdot_val = np.random.rand(model.nv)
+# q_val = np.concatenate((q_base,np.random.rand(model.nv)))
+# qdot_val = np.random.rand(model.nv)
 # qdot_val = np.ones(model.nv)
-qddot_val = np.random.rand(model.nv)
+# qddot_val = np.random.rand(model.nv)
 
 print(model.nv)
 
-f0 = np.random.rand(3)
+# f0 = np.random.rand(3)
 
 x0 = list()
 u0 = []
@@ -261,8 +272,6 @@ for i in range(Ns):
 # x0[STAGE] = x0[STAGE]
 
 ocp.update(x0, u0)
-
-# input()
 
 import unittest
 utest = unittest.TestCase()
@@ -322,9 +331,9 @@ for i in range(N):
         du[i- dx.size] += eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valp =  - costs[STAGE].getb().copy()
+    # valp =  - costs[STAGE].getb().copy()
     # valp = l_dbase[STAGE].getb().copy()
-    # valp =  - const[STAGE].getbLowerBound().copy()
+    valp =  - const[STAGE].getbLowerBound().copy()
 
     dx = np.zeros(x_space.nv())
     du = np.zeros(x_space.nv())
@@ -336,9 +345,9 @@ for i in range(N):
         du[i- dx.size] -= eps
         _u0[STAGE] = u_space.plus(u0[STAGE], du)
     ocp.update(_x0, _u0)
-    valm = - costs[STAGE].getb().copy()
+    # valm = - costs[STAGE].getb().copy()
     # valm = l_dbase[STAGE].getb().copy()
-    # valm =  - const[STAGE].getbLowerBound().copy()
+    valm =  - const[STAGE].getbLowerBound().copy()
 
     # print(valp)
     # print(valm)
