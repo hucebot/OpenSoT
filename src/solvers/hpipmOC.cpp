@@ -36,7 +36,7 @@ hpipmOC::~hpipmOC()
 
 }
 
-bool hpipmOC::solve(const Eigen::VectorXd& x0)
+bool hpipmOC::solve()
 {
     if(!_solver)
     {

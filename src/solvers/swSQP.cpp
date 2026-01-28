@@ -86,7 +86,7 @@ void swSQP::linearize()
         if (k==0)
         {
             int nx0 =  _ocp->stage(k)->dx->getM().rows();
-            _Q[k] += 1e3 * Eigen::MatrixXd::Identity(nx0, nx0);
+            _Q[k] += 1e0 * Eigen::MatrixXd::Identity(nx0, nx0);
         }
 
         _qp_solver->setFullCost(k, _R[k], _Q[k], _S[k], _r[k], _q[k]);
@@ -126,8 +126,6 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         ddefect_dw[i] = _ocp->stage(i)->stage_ddefect_dw();
     }
 
-    _dx0.setZero();
-
     // relinarize qp
     linearize();
     for(unsigned int iter = 1; (iter <= _opt.max_iters && (_opt.wall_time ==-1 || ((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()<_opt.wall_time) ); ++iter)
@@ -140,7 +138,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _stats._iter_start = std::chrono::high_resolution_clock::now();
 
         // solve
-        if (!_qp_solver->solve(_dx0))
+        if (!_qp_solver->solve())
             std::cout<< "qp nosolve: "<<_qp_solver->solveStatus()<<std::endl;
         _stats.qp_iters = _qp_solver->get_iters();
         _qp_solution = _qp_solver->getSolution();
