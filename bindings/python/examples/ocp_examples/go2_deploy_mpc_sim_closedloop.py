@@ -6,6 +6,7 @@ from pyopensot.oc import *
 from rclpy.node import Node
 from pyopensot.constraints.velocity import JointLimits
 from pyopensot.tasks.velocity import Postural
+from unitree_go.msg._sport_mode_state import SportModeState
 
 import rclpy
 
@@ -62,6 +63,13 @@ class ros2_node(Node):
             10                       # QoS (queue size)
         )
 
+        self.odom_subscriber = self.create_subscription(
+            SportModeState,
+            "/sportmodestate",
+            self.odom_callback,
+            10
+        )
+
 
         self.base_link_broadcaster = TransformBroadcaster(self)
         self.joint_msg = JointState()
@@ -71,17 +79,31 @@ class ros2_node(Node):
 
 
         self.urdf=None
-        self.state = None
+        self.state = {}
         self.joy_cmd = None
-        # while self.urdf is None:
-        while self.urdf is None or self.joy_cmd is None:
+        while self.urdf is None or self.joy_cmd is None or len(self.state.keys())!=5:
             rclpy.spin_once(self)
 
         self.get_logger().info(f"{name} initialization complete")
 
 
     def joint_states_callback(self, msg: JointState):
-        self.state = msg
+        self.state["joint_msg"] = msg
+        self.state["position"] = msg.position
+        self.state["velocity"] = msg.velocity
+        
+
+    def odom_callback(self, msg: SportModeState):
+        odom_quat = msg.imu_state.quaternion
+        q = np.zeros(4)
+        q[0] = odom_quat[1]
+        q[1] = odom_quat[2]
+        q[2] = odom_quat[3]
+        q[3] = odom_quat[0]
+
+
+        self.state["base_pos"] = np.concatenate((msg.position, q))
+        self.state["base_vel"] = np.concatenate((msg.velocity, msg.imu_state.gyroscope))
 
 
     def joy_callback(self, msg: Joy):
@@ -390,7 +412,7 @@ for i in range(trajopt_nodes):
     postural.setReference(q_val.copy())
     minus.append(postural)
     p1 = 1e-0*0 * postural[2]
-    p2 = 1e-3 * postural[6:]
+    p2 = 1e-9 * postural[6:]
 
     stack += AffineTask.toAffine(p1+p2, dvariables.getVariable("dq"))
 
@@ -464,7 +486,7 @@ solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-# solver.getQPSolver().getOptions().iter_max = 100
+solver.getQPSolver().getOptions().iter_max = 10
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-2
 solver.getQPSolver().getOptions().tol_eq = 1e-2
@@ -485,12 +507,12 @@ u0 = solver.getControlSolution()
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getOptions().verbose = 2
 solver.getOptions().line_search_strategy = 2
-solver.getQPSolver().getOptions().iter_max = 5
+solver.getQPSolver().getOptions().iter_max = 10
 solver.getOptions().wall_time = mpc_dt
 solver.getOptions().max_iters = 4
 
-solver.getOptions().optimize_first_state = 1
-solver.getOptions().optimize_first_state_cost = 1e6
+# solver.getOptions().optimize_first_state = 1
+# solver.getOptions().optimize_first_state_cost = 1e9
 
 
 solver.init()
@@ -523,10 +545,6 @@ msg.name = model.getJointNames()[1:]
 try:
     t= 0.
     while rclpy.ok():
-        print(msg.name)
-        print(ros2node.state.name)
-
-
         
         wz = 0.5 * ros2node.joy_cmd.axes[2]
         vx = 0.3 * ros2node.joy_cmd.axes[1]
@@ -551,8 +569,10 @@ try:
                     constraints[i]["dynamics"].removeForce(frame)
                     calctaus[i].removeForce(frame)
 
-        x0[0][7:model.nq] = ros2node.state.position
-        x0[0][model.nq+6:] = ros2node.state.velocity
+        x0[0][:7] = ros2node.state["base_pos"]
+        x0[0][7:model.nq] = ros2node.state["position"]
+        x0[0][model.nq:model.nq+6] = ros2node.state["base_vel"]
+        x0[0][model.nq+6:] = ros2node.state["velocity"]
 
         ocp.update(x0, u0)
         solve = solver.solve(x0, u0)
