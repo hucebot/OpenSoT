@@ -409,24 +409,34 @@ void swSQP::init()
         std::vector<int> idxbx0;
         Eigen::VectorXd lbx0;
         Eigen::VectorXd ubx0;
-        int nx0 = _ocp->stage(0)->dx->getM().rows();
+        int nx0 = _ocp->stage(0)->model->getNv();
+        std::cout<<"nx0:"<<nx0<<std::endl;
         if (_opt.optimize_first_state == 1)
         {
-            idxbx0.resize(nx0-6);
+            idxbx0.resize(2*(nx0-6));
             for(int i = 6; i < nx0; ++i)
+            {
                 idxbx0[i-6] = i;
-            lbx0 = Eigen::VectorXd::Zero(nx0-6);
-            ubx0 = Eigen::VectorXd::Zero(nx0-6);
+                idxbx0[nx0+i-12] = nx0 + i;
+            }
+            lbx0 = Eigen::VectorXd::Zero(2*(nx0-6));
+            ubx0 = Eigen::VectorXd::Zero(2*(nx0-6));
         }
         if (_opt.optimize_first_state == 0)
         {
-            idxbx0.resize(nx0);
+            idxbx0.resize(2*nx0);
             for(int i = 0; i < nx0; ++i)
+            {
                 idxbx0[i] = i;
-            lbx0 = Eigen::VectorXd::Zero(nx0);
-            ubx0 = Eigen::VectorXd::Zero(nx0);
+                idxbx0[nx0+i] = nx0+i;
+            }
+                
+            lbx0 = Eigen::VectorXd::Zero(2*nx0);
+            ubx0 = Eigen::VectorXd::Zero(2*nx0);
         }
         _qp_solver->setBoundsX(0, idxbx0, lbx0, ubx0);
+        for(int i=0; i<idxbx0.size(); i++)
+            std::cout<<idxbx0[i]<<std::endl;
     }
 
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)
