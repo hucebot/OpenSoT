@@ -89,7 +89,7 @@ q_weights[14]  = w_elbow * q_weights[14]
 q_weights[17]  = w_elbow * q_weights[17]
 
 
-q_val = np.concatenate((np.array([0.,0.,0.3495,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -100,13 +100,13 @@ qmin, qmax = model.getJointLimits()
 model.update()
 
 
-# print(model.getPose("RL_foot_"))
-# print(model.getPose("FL_foot_"))
-# print(model.getPose("RR_foot_"))
-# print(model.getPose("FR_foot_"))
+# print(model.getPose("RL_foot"))
+# print(model.getPose("FL_foot"))
+# print(model.getPose("RR_foot"))
+# print(model.getPose("FR_foot"))
 # input()
 
-contact_frames = ["RL_foot_","FL_foot_","RR_foot_","FR_foot_"]
+contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
 
 rclpy.init()
 ros2node = ros2_node()
@@ -162,11 +162,11 @@ for frame in contact_frames:
 DT = 0.02
 
 contact_scheduler = Scheduler()
-contact_scheduler.addContact("rl", ["RL_foot_"])
-contact_scheduler.addContact("rr", ["RR_foot_"])
-contact_scheduler.addContact("fl", ["FL_foot_"])
-contact_scheduler.addContact("fr", ["FR_foot_"])
-contact_scheduler.addContact("all", ["FR_foot_", "FL_foot_", "RR_foot_", "RL_foot_"])
+contact_scheduler.addContact("rl", ["RL_foot"])
+contact_scheduler.addContact("rr", ["RR_foot"])
+contact_scheduler.addContact("fl", ["FL_foot"])
+contact_scheduler.addContact("fr", ["FR_foot"])
+contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
 contact_scheduler.addPhase(["all"], .7)
@@ -332,6 +332,15 @@ for i in range(Ns):
     ocp.stage(i).stack = ocp.stage(i).stack << AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))
 
 
+    for frame in contact_frames:
+        contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx)
+        costs.append(contact_task)
+        if frame in frame_contact_seq[i]:
+            contact_task.activate(0.)
+        ocp.stage(i).stack = ocp.stage(i).stack << contact_task
+
+
+
     if i < Ns-1:
 # Dynamics 
         tau_lim = DynamicsConstraint(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
@@ -350,12 +359,6 @@ for i in range(Ns):
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
-        for frame in contact_frames:
-            contact_task = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-            costs.append(contact_task)
-            if frame in frame_contact_seq[i]:
-                contact_task.activate(0.)
-            ocp.stage(i).stack = ocp.stage(i).stack << contact_task
     
 
 ocp.update(x0, u0)

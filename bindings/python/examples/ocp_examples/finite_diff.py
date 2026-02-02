@@ -23,7 +23,7 @@ from utils import *
 from pyopensot.lie_utils import *
 
 
-np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=1, sign=' ')
+np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=3, sign=' ')
 
 
 urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
@@ -45,7 +45,7 @@ q_init = [
     -1.4,
 ]
 
-q_val = np.concatenate((np.array([0.,0.,0.3258,0.,0.,0.,1.]),q_init))
+q_val = np.concatenate((np.array([0.,1.,0.3258,0.,0.5,0.,0.5]),q_init))
 qdot_val = np.zeros(model.nv)
 qddot_val = np.zeros(model.nv)
 
@@ -55,7 +55,7 @@ model.setJointVelocity(qdot_val)
 model.update()
 
 
-contact_frames = ["RL_foot_","FL_foot_","RR_foot_","FR_foot_"]
+contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
 
 
 vars = list()
@@ -169,7 +169,7 @@ for i in range(Ns-1):
 
 ocp.update(x0, u0)
 
-frame = "RL_foot_"
+frame = "RL_foot"
 
 costs = []
 const = []
@@ -225,16 +225,16 @@ for i in range(Ns-1):
     # const.append(friction_const)
     # ocp.stage(i).stack << friction_const
 
-    # contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx, ocp.stage(i).du)
-    # p_cc = contact_constraint
-    # contact_constraint.activate(0.)
-    # const.append(p_cc)
-    # ocp.stage(i).stack <<  p_cc
+    contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx)
+    p_cc = contact_constraint
+    contact_constraint.deactivate()
+    const.append(p_cc)
+    ocp.stage(i).stack <<  p_cc
 
 
-    pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], frame)
-    const.append(pos_const)
-    ocp.stage(i).stack << pos_const
+    # pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], frame)
+    # const.append(pos_const)
+    # ocp.stage(i).stack << pos_const
 
 
 STAGE = 0
@@ -262,7 +262,7 @@ print(model.nv)
 x0 = list()
 u0 = []
 for i in range(Ns):
-    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.),np.random.rand(model.nv-6))), np.random.rand(model.nv))))
+    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.), q_init)), qdot_val)))
     if i<Ns-1:
         u0.append(0* np.random.rand(model.nv))
         for frame in contact_frames:
@@ -279,10 +279,10 @@ utest = unittest.TestCase()
 
 
 
-Jac = costs[STAGE].getA().copy()
+# Jac = costs[STAGE].getA().copy()
 # val = costs[STAGE].getb()
 
-# Jac = const[STAGE].getAineq().copy()
+Jac = const[STAGE].getAineq().copy()
 # print(const[STAGE].getbLowerBound())
 # print(const[STAGE].getbUpperBound())
 

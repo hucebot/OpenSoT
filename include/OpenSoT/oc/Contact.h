@@ -38,13 +38,11 @@ class ContactConstraint : public Constraint<Eigen::MatrixXd, Eigen::VectorXd>
         void _update();
     
     public:
-        ContactConstraint(XBot::ModelInterface &robot,
-                            const std::string& frame_name,
-                            const AffineHelper &dX,
-                            const AffineHelper &dU);
+     ContactConstraint(XBot::ModelInterface& robot,
+                       const std::string& frame_name, const AffineHelper& dX);
 
-        void activate(double ground_height);
-        void deactivate();
+     void activate(double ground_height);
+     void deactivate();
 
 
     };
