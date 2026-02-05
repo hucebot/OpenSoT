@@ -161,7 +161,7 @@ for frame in contact_frames:
 
 
 
-DT = 0.01
+DT = 0.05
 Ns = 20
 
 
@@ -173,7 +173,10 @@ contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
 contact_scheduler.addContact("air", [])
 
-contact_scheduler.addPhase(["all"], 2.)
+contact_scheduler.addPhase(["all"], .5)
+contact_scheduler.addPhase(["fr","fl","rr"], .5)
+contact_scheduler.addPhase(["all"], .5)
+contact_scheduler.addPhase(["fr","fl","rr"], .5)
 # contact_scheduler.addPhase(["air"], .2)
 
 # for i in range(2):
@@ -273,8 +276,8 @@ for i in range(Ns):
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
     minvel.setWeight(1e-9*0  *  np.eye(model.nv))
-    # if i==Ns-1:
-    #     minvel.setWeight(1e3  *  np.eye(model.nv))
+    if i==Ns-1:
+        minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel[:model.nv]
 
@@ -282,9 +285,9 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         minacc.append(minqddot)
-        # stack += 1e-6 * minqddot[:6]
-        # stack += 1e-9 * minqddot[6:model.nv]
-        # stack += 1e-9 * minqddot[model.nv:]
+        stack += 1e-6 * minqddot[:6]
+        stack += 1e-9 * minqddot[6:model.nv]
+        stack += 1e-9 * minqddot[model.nv:]
 
 
 # Base
@@ -316,7 +319,7 @@ for i in range(Ns):
     #     postural.setWeight(1e-0 * np.diag(q_weights))
     postural.setReference(q_val.copy())
     minus.append(postural)
-    stack += AffineTask.toAffine(postural, dvariables.getVariable("dq"))[6:]
+    stack += AffineTask.toAffine(postural[6:], dvariables.getVariable("dq"))
 
 
 #Compute Torques

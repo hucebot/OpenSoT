@@ -21,42 +21,13 @@ import time
 from utils import *
 
 import mujoco
+import mujoco.viewer
 
 np.set_printoptions(linewidth=2000, threshold=100000, suppress=True, precision=10, sign= ' ')
 
 
-class ros2_node(Node):
-    def __init__(self):
-        super().__init__('go2')
-        self.get_logger().info("go2 node has been started.")
-        self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)
-        self.base_link_broadcaster = TransformBroadcaster(self)
-        self.joint_msg = JointState()
-        self.w_T_b = TransformStamped()
-        self.w_T_b.header.frame_id = "world"
-        self.w_T_b.child_frame_id = "base"
-
-    def publish(self, q):
-        t = self.get_clock().now().to_msg()
-
-        self.joint_msg.position = q[7::]
-        self.joint_msg.header.stamp = t
-
-        self.w_T_b.header.stamp = t
-        self.w_T_b.transform.translation.x = q[0]
-        self.w_T_b.transform.translation.y = q[1]
-        self.w_T_b.transform.translation.z = q[2]
-        self.w_T_b.transform.rotation.x = q[3]
-        self.w_T_b.transform.rotation.y = q[4]
-        self.w_T_b.transform.rotation.z = q[5]
-        self.w_T_b.transform.rotation.w = q[6]
-
-        self.joint_state_publisher.publish(self.joint_msg)
-        self.base_link_broadcaster.sendTransform(self.w_T_b)
-
-roslaunch = subprocess.Popen(['ros2', 'launch', 'huro', 'go2_rviz.launch.py'], stdout=subprocess.PIPE, shell=False)
-
 urdf_string = pathlib.Path(get_package_share_directory('huro') + "/resources/description_files/urdf/go2/go2.urdf").read_text()
+
 
 model = xbi.ModelInterface2(urdf_string)
 
@@ -107,25 +78,7 @@ qmin, qmax = model.getJointLimits()
 model.update()
 
 
-# print(model.getPose("RL_foot"))
-# print(model.getPose("FL_foot"))
-# print(model.getPose("RR_foot"))
-# print(model.getPose("FR_foot"))
-# input()
-
 contact_frames = ["RL_foot","FL_foot","RR_foot","FR_foot"]
-
-rclpy.init()
-ros2node = ros2_node()
-
-forcesnode = force_node()
-forcesnode.initialize_force_publishers(contact_frames + ["base"])
-
-ros2node.joint_msg.name = model.getJointNames()[1::]
-ros2node.publish(q_val)
-# time.sleep(0.5)
-
-rclpy.spin_once(ros2node, timeout_sec=2.)
 
 
 vars = list()
@@ -176,22 +129,44 @@ contact_scheduler.addContact("rr", ["RR_foot"])
 contact_scheduler.addContact("fl", ["FL_foot"])
 contact_scheduler.addContact("fr", ["FR_foot"])
 contact_scheduler.addContact("all", ["FR_foot", "FL_foot", "RR_foot", "RL_foot"])
-contact_scheduler.addContact("air", [])
-
-# contact_scheduler.addPhase(["all"], .5)
-# contact_scheduler.addPhase(["air"], .2)
-
-contact_scheduler.addPhase(["all"], .5)
-contact_scheduler.addPhase(["rr", "fl", "fr"], .5)
-# contact_scheduler.addPhase(["all"], .1)
-# contact_scheduler.addPhase(["rl", "fr"], .2)
+contact_scheduler.addContact("fr_air", ["FL_foot", "RR_foot", "RL_foot"])
+contact_scheduler.addContact("fl_air", ["FR_foot", "RR_foot", "RL_foot"])
+contact_scheduler.addContact("rr_air", ["FR_foot", "FL_foot", "RL_foot"])
+contact_scheduler.addContact("rl_air", ["FR_foot", "FL_foot", "RR_foot"])
 
 
+gaits = ["stance", "walk", "jump", "trot"]
 
-frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns)
+contact_scheduler.addPhase(["all"], .2, sequence_name="stance")
+
+contact_scheduler.addPhase(["all"], .3, sequence_name="jump")
+contact_scheduler.addPhase(["air"], .2, sequence_name="jump")
+
+contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["fl_air"], duration=.15, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["rr_air"], duration=.15, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["fr_air"], duration=.15, sequence_name="walk")
+contact_scheduler.addPhase(["all"], .1, sequence_name="walk")
+contact_scheduler.addPhase(contacts_list=["rl_air"], duration=.15, sequence_name="walk")
+
+contact_scheduler.addPhase(["all"], .2, sequence_name="trot")
+contact_scheduler.addPhase(["rr", "fl"], .15,sequence_name="trot")
+contact_scheduler.addPhase(["all"], .2,sequence_name="trot")
+contact_scheduler.addPhase(["rl", "fr"], .15, sequence_name="trot")
 
 
-# print(f"Ns: {Ns}, tf: {tf}, dt: {DT}")
+contact_scheduler.addPhase(["all"], .5, sequence_name="oneleg")
+contact_scheduler.addPhase(["fr_air"], .5,sequence_name="oneleg")
+
+
+gait = "oneleg"
+
+
+frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns,  sequence_name=gait)
+
+
 
 
 _u = qddot
@@ -271,6 +246,7 @@ for i in range(Ns):
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
     minvel.setWeight(1e-6  *  np.eye(model.nv))
+    print(minvel.getWeight())
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
@@ -280,26 +256,26 @@ for i in range(Ns):
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-6 * minqddot[:6]
+        # stack += 1e-6 * minqddot[0:6]
         stack += 1e-9 * minqddot[6:model.nv]
         stack += 1e-7 * minqddot[model.nv:]
 
 
 # Base
     cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "base")
-    cartesian_task.setWeight(1e-1 * np.eye(6))
+    cartesian_task.setWeight(1e-4 * np.eye(6))
     target = cartesian_task.getReference()
     target.translation[2] = 0.32
     cartesian_task.setReference(target)
     costs.append(cartesian_task)
-    stack += cartesian_task[2]#%[3,4,5]
+    stack += cartesian_task%[2,3,4,5]
 
 # Base velocity
     cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "base")
     cartesian_vel_task.setReferenceVelocity([.0,.0,0.,0.,0.,0.])
     cartesian_vel_task.setWeight(1e-3 * np.eye(6))
     base_vel.append(cartesian_vel_task)
-    # stack += cartesian_vel_task
+    stack += cartesian_vel_task
 
 
     #Feet air
@@ -325,7 +301,7 @@ for i in range(Ns):
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-3 * np.diag(q_weights))
     minus.append(postural)
-    # stack +=  AffineTask.toAffine(postural[6:], dvariables.getVariable("dq"))
+    stack +=  AffineTask.toAffine(postural[6:], dvariables.getVariable("dq"))
 
 
 
@@ -334,9 +310,9 @@ for i in range(Ns):
         tau_compute = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in frame_contact_seq[i]:
             tau_compute.addForce(frame, contact_frames_vars[frame])
-        tau_compute.setWeight(1e-9*0 * np.eye(ocp.stage(i).model.nv))
+        tau_compute.setWeight(1e-9 * np.eye(ocp.stage(i).model.nv))
         calctaus.append(tau_compute)
-        stack += tau_compute
+        # stack += tau_compute
 
     ocp.stage(i).stack = pysot.AutoStack(stack)    
 
@@ -362,7 +338,7 @@ for i in range(Ns):
         for frame in frame_contact_seq[i]:
             tau_lim.addForce(frame, contact_frames_vars[frame])
         tau_lims = tau_lim.getTorqueLimit()
-        tau_lims[:6] = [0.]*6
+        tau_lims[:6] = [1e-9]*6
         tau_lim.setTorqueLimit(tau_lims)
         constraints[i]["dynamics"] = tau_lim
         ocp.stage(i).stack = ocp.stage(i).stack << tau_lim
@@ -370,7 +346,7 @@ for i in range(Ns):
         
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-            friction_const.setCoefficient(0.9)
+            friction_const.setCoefficient(0.8)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
@@ -381,14 +357,13 @@ print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = 2
-solver.getOptions().line_search_strategy = 2
+solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
 solver.getQPSolver().getOptions().iter_max = 1000
-
 solver.getQPSolver().getOptions().tol_ineq = 1e-2
 solver.getQPSolver().getOptions().tol_eq = 1e-2
 solver.getQPSolver().getOptions().tol_stat = 1e-3
@@ -403,95 +378,147 @@ print("...solver inited!")
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
-# solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getOptions().max_iters = 10
-# solver.getOptions().verbose = 2
-solver.getOptions().line_search_strategy = 2
-solver.getQPSolver().getOptions().iter_max = 100
-solver.getOptions().wall_time = 0.02
 
 solver.getOptions().optimize_first_state = 1
 solver.getOptions().optimize_first_state_cost = 1e3
 
+
+# solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
+solver.getOptions().max_iters = 4
+solver.getOptions().verbose = 1
+solver.getOptions().line_search_strategy = 2
+solver.getQPSolver().getOptions().iter_max = 100
+solver.getOptions().wall_time = 0.02
 solver.init()
 
 print("inited")
-input()
-
-force_msgs = {}
-for contact_frame in contact_frames:
-    force_msgs[contact_frame] = WrenchStamped()
-    force_msgs[contact_frame].header.frame_id = contact_frame
-    force_msgs[contact_frame].wrench.torque.x = force_msgs[contact_frame].wrench.torque.y = force_msgs[contact_frame].wrench.torque.z = 0.
 
 
 h_feet_target = cost_list[0]["feet_height"][contact_frames[0]].getReference()
 
 
-# dt_sim = 0.001
+xml_path =  "/home/ros2_ws/src/huro/resources/description_files/xml/go2/go2.xml"
+
+mj_model = mujoco.MjModel.from_xml_path(xml_path)
+sim_data = mujoco.MjData(mj_model)
+
+# Simulation and control parameters
+mj_model.opt.timestep = DT
+
+# PD control gains for tracking MPC trajectory
+kp_joints = np.ones(12) * 60  # Position gains for 12 joints (3 per leg)
+kd_joints = np.ones(12) * 0.5     # Velocity gains for 12 joints
+
+
+print( model.getJointNames()[1:])
+
 try:
     t= 0.
-    while rclpy.ok():
-        frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t)
 
-        for i in range(Ns):
-            # if t>=1.:
-            #    base_vel[i].setReferenceVelocity([.0,.0,0.,0.,0.,0.5])
+    with mujoco.viewer.launch_passive(mj_model, sim_data) as viewer:
 
-            for frame in contact_frames:
-                if frame in frame_contact_seq[i]:
-                    constraints[i]["contact"][frame].activate(0.)
-                    if i<Ns-1: 
-                        constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
-                        calctaus[i].addForce(frame, contact_frames_vars[frame])
-                    h_feet_target.translation[2] = 0.
-                    cost_list[i]["feet_height"][frame].setReference(h_feet_target)
-                else:
-                    constraints[i]["contact"][frame].deactivate()
-                    if i<Ns-1: 
-                        constraints[i]["dynamics"].removeForce(frame)
-                        calctaus[i].removeForce(frame)
-                    h_feet_target.translation[2] = 0.05
-                    cost_list[i]["feet_height"][frame].setReference(h_feet_target)
-        
-        # ocp.update(x0, u0)
-        suc = solver.solve(x0, u0)
-        x0 = solver.getStateSolution()
-        u0 = solver.getControlSolution()
+        sim_data.qpos[:] = q_val
+        sim_data.qpos[2] +=0.01
+        sim_data.qpos[3] =1
+        sim_data.qpos[6] =0
 
-        q_val = x0[1].tolist()[:model.nq]
-        ros2node.publish(q_val)
+        mujoco.mj_step(mj_model, sim_data)
+        if viewer.is_running():
+            viewer.sync()
 
-        tau_base = calctaus[0].getb()[:6]
-        print(tau_base)
+        input()
 
-        j=0
-        i=1
-        for contact_frame in contact_frames:
-            f_local = u0[i][model.nv + j*3: model.nv + j*3+3]
+        while True:
 
-            force_msgs[contact_frame].wrench.force.x = f_local[0]
-            force_msgs[contact_frame].wrench.force.y = f_local[1]
-            force_msgs[contact_frame].wrench.force.z = f_local[2]
-            j+=1
-        force_msgs["base"] = WrenchStamped()
-        force_msgs["base"].header.frame_id = "base"
-        force_msgs["base"].wrench.force.x = tau_base[0]
-        force_msgs["base"].wrench.force.y = tau_base[1]
-        force_msgs["base"].wrench.force.z = tau_base[2]
+            # Update MPC state from MuJoCo simulation
+            # MuJoCo uses different quaternion convention (w,x,y,z) vs OpenSoT (x,y,z,w)
+            q_mj = sim_data.qpos.copy()
+            qdot_mj = sim_data.qvel.copy()
 
+            # Convert quaternion from MuJoCo (w,x,y,z) to OpenSoT (x,y,z,w)
+            q_opensot = np.zeros(model.nq)
+            q_opensot[:3] = q_mj[:3]  # position
+            q_opensot[3:6] = q_mj[4:7]  # quaternion xyz
+            q_opensot[6] = q_mj[3]  # quaternion w
+            q_opensot[7:] = q_mj[7:]  # joint positions
 
-        forcesnode.publish(force_msgs)
+            # Update initial state for MPC with current simulation state
+            # x0[0] = np.concatenate((q_opensot, qdot_mj))
 
-        for i in range(len(x0)-1):
-            x0[i] = x0[i+1]
-        for i in range(len(u0)-1):
-            u0[i] = u0[i+1]    
-        # u0[-1] = u0[-1]*0.
-        
-        t += DT
-       
-        rclpy.spin_once(ros2node, timeout_sec=0.00001)
+            # Update contact sequence based on current time
+            frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t,  sequence_name=gait)
+
+            # Update MPC problem for each stage
+            for i in range(Ns):
+                # Update base velocity reference
+                if t>=1.:
+                    base_vel[i].setReferenceVelocity([.2,.0,0.,0.,0.,0.])
+
+                # Update contact constraints and cost functions
+                for frame in contact_frames:
+                    if frame in frame_contact_seq[i]:
+                        # Foot is in contact
+                        constraints[i]["contact"][frame].activate(0.)
+                        if i<Ns-1:
+                            constraints[i]["dynamics"].addForce(frame, contact_frames_vars[frame])
+                            calctaus[i].addForce(frame, contact_frames_vars[frame])
+                        h_feet_target.translation[2] = 0.
+                        cost_list[i]["feet_height"][frame].setReference(h_feet_target)
+                    else:
+                        # Foot is in the air
+                        constraints[i]["contact"][frame].deactivate()
+                        if i<Ns-1:
+                            constraints[i]["dynamics"].removeForce(frame)
+                            calctaus[i].removeForce(frame)
+                        h_feet_target.translation[2] = 0.05
+                        cost_list[i]["feet_height"][frame].setReference(h_feet_target)
+
+            # Solve MPC optimization (open-loop, no state feedback to MPC)
+            suc = solver.solve(x0, u0)
+            x0 = solver.getStateSolution()
+            u0 = solver.getControlSolution()
+
+            # Get desired joint states from MPC solution (first node)
+            q_des_opensot = x0[1][:model.nq]
+            qdot_des = x0[1][model.nq:]*DT
+
+            # Extract desired joint positions and velocities (skip base)
+            q_des_joints = q_des_opensot[7:]  # Desired joint positions from MPC
+            qdot_des_joints = qdot_des[6:]    # Desired joint velocities from MPC
+
+            # Current joint states from MuJoCo (feedback for impedance control)
+            q_curr_joints = sim_data.qpos[7:]     # Current joint positions
+            qdot_curr_joints = sim_data.qvel[6:]  # Current joint velocities
+
+            # Feedforward torques from MPC dynamics
+            tau_ff = calctaus[0].getb()[6:]
+
+            # Joint impedance control: tau = tau_ff + Kp*(q_des - q) + Kd*(qdot_des - qdot)
+            tau_impedance = kp_joints * (q_des_joints - q_curr_joints) + kd_joints * (qdot_des_joints - qdot_curr_joints)
+
+            # Combined control: feedforward + impedance feedback
+            control_torques = tau_ff + tau_impedance
+
+            # Apply control torques to MuJoCo simulation
+            sim_data.ctrl[:] = control_torques
+            # sim_data.qpos[7:] = q_des_joints
+
+            # Step MuJoCo simulation forward
+            mujoco.mj_step(mj_model, sim_data)
+
+            # Update viewer
+            if viewer.is_running():
+                viewer.sync()
+            else:
+                break
+
+            # Shift horizon for warm-starting next iteration
+            for i in range(len(x0)-1):
+                x0[i] = x0[i+1]
+            for i in range(len(u0)-1):
+                u0[i] = u0[i+1]
+
+            t += DT
         
 
 except KeyboardInterrupt:
@@ -499,9 +526,3 @@ except KeyboardInterrupt:
     pass
 finally:
     print("Stopping the node.")
-    # rviz.kill()
-    # roslaunch.kill()
-    ros2node.destroy_node()
-
-if rclpy.ok():
-    rclpy.shutdown()
