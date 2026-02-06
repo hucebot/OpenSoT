@@ -4,7 +4,8 @@ from pyopensot import AffineHelper, OptvarHelper, GenericTask, AggregatedTask, T
 import pyopensot as pysot
 from pyopensot.oc import *
 from rclpy.node import Node
-# from pyopensot.tasks.acceleration import Cartesian, CoM, Postural, AngularMomentum
+from pyopensot.tasks.acceleration import Cartesian, CoM, Postural, AngularMomentum
+from pyopensot.constraints.velocity import JointLimits
 from pyopensot.tasks.velocity import Cartesian
 
 import rclpy
@@ -46,12 +47,13 @@ q_init = [
 ]
 
 q_val = np.concatenate((np.array([0.,1.,0.3258,0.,0.5,0.,0.5]),q_init))
-qdot_val = np.zeros(model.nv)
+qdot_val = np.ones(model.nv)*0.3
 qddot_val = np.zeros(model.nv)
 
 
 model.setJointPosition(q_val)
 model.setJointVelocity(qdot_val)
+qmin, qmax = model.getJointLimits()
 model.update()
 
 
@@ -123,8 +125,6 @@ for i in range(Ns):
 
 ocp = pysot.oc.OCP()
 dd = list()
-const = list()
-minus = list()
 for i in range(Ns):
     stage = Stage()
     """ First we include information related to the state space """
@@ -199,14 +199,28 @@ for i in range(Ns-1):
     # cartesian_task.setLambda(1.)
     # cartesian_task.setWeight(1e-0 * np.eye(6))
 
-    cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
-    cartesian_task.setWeight(1. * np.eye(6))
-    pose_ref = cartesian_task.getReference().copy()
-    pose_ref.translation = random_pose(-2.,2.)[:3]
-    pose_ref.linear = R.from_quat(random_pose(-2.,2.)[3:]).as_matrix()
-    cartesian_task.setReference(pose_ref.copy())
-    costs.append(cartesian_task)
-    stack = cartesian_task[:3]
+    # minvel = MinVar("minvel", ocp.stage(i).du[model.nv:], ocp.stage(i).u[model.nv:])
+    # minvel.setWeight(1e-9 *  np.eye(model.nv))
+    # costs.append(minvel)
+    # stack = minvel
+
+    # cartesian_task = pysot.oc.PosSO3Task("Cartesian", ocp.stage(i).model, dvariables.getVariable("dq"), frame)
+    # cartesian_task.setWeight(1. * np.eye(6))
+    # pose_ref = cartesian_task.getReference().copy()
+    # pose_ref.translation = random_pose(-2.,2.)[:3]
+    # pose_ref.linear = R.from_quat(random_pose(-2.,2.)[3:]).as_matrix()
+    # cartesian_task.setReference(pose_ref.copy())
+    # costs.append(cartesian_task)
+    # stack = cartesian_task[:3]
+
+    # Postural
+    postural = Postural(ocp.stage(i).model)
+    postural.setLambda(1.)
+    # postural.setReference(q_val.copy())
+    # postural.setWeight(1e-3 * np.eye(model.nv))
+    postural = AffineTask.toAffine(postural, dvariables.getVariable("dq"))
+    costs.append(postural)
+    stack =  postural
 
 
     ocp.stage(i).stack = pysot.AutoStack(stack)
@@ -225,20 +239,24 @@ for i in range(Ns-1):
     # const.append(friction_const)
     # ocp.stage(i).stack << friction_const
 
-    contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx)
-    p_cc = contact_constraint
-    contact_constraint.deactivate()
-    const.append(p_cc)
-    ocp.stage(i).stack <<  p_cc
+    # contact_constraint = ContactConstraint(ocp.stage(i).model, frame, ocp.stage(i).dx)
+    # p_cc = contact_constraint
+    # contact_constraint.deactivate()
+    # const.append(p_cc)
+    # ocp.stage(i).stack <<  p_cc
 
+    qlims_i = JointLimits(ocp.stage(i).model, qmax, qmin)
+    qlims_i =  AffineConstraint.toAffine(qlims_i, dvariables.getVariable("dq"))[6:]
+    const.append(qlims_i)
+    ocp.stage(i).stack = ocp.stage(i).stack << qlims_i
 
     # pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], frame)
     # const.append(pos_const)
     # ocp.stage(i).stack << pos_const
 
 
-STAGE = 0
-eps   = 1e-6
+STAGE = 1
+eps   = 1e-1
 
 print("*"*200)
 
@@ -262,22 +280,20 @@ print(model.nv)
 x0 = list()
 u0 = []
 for i in range(Ns):
-    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.), q_init)), qdot_val)))
+    x0.append(np.concatenate(( np.concatenate((random_pose(-2.,2.), np.random.rand(model.nv-6))), np.random.rand(model.nv))))
     if i<Ns-1:
-        u0.append(0* np.random.rand(model.nv))
+        u0.append(np.random.rand(model.nv))
         for frame in contact_frames:
-            u0[-1] =  np.concatenate((u0[-1], 0* np.random.rand(3)))
+            u0[-1] =  np.concatenate((u0[-1],  np.random.rand(3)))
 
 
-# x0[STAGE] = x0[STAGE]
+
+print(ocp.stage(STAGE).x[model.nq:].getValue())
 
 ocp.update(x0, u0)
 
 import unittest
 utest = unittest.TestCase()
-
-
-
 
 # Jac = costs[STAGE].getA().copy()
 # val = costs[STAGE].getb()
@@ -294,14 +310,13 @@ Jac = const[STAGE].getAineq().copy()
 # input()
 
 
-print(Jac.shape)
-print(dx.getInputSize())
+print("Jac    .shape: ", Jac.shape)
 
 M = Jac.shape[0]
 N = dx.getInputSize()
 
 JacDiff = np.zeros((M, N))
-print(JacDiff.shape)
+print("JacDiff.shape: ",JacDiff.shape)
 
 # print(Jac)
 # print(val)
