@@ -22,6 +22,7 @@
 #include <OpenSoT/oc/Contact.h>
 #include <OpenSoT/oc/FrictionConeConstraint.h>
 #include <OpenSoT/oc/Scheduler.h>
+#include <OpenSoT/oc/MinVar.h>
 
 namespace py = pybind11;
 
@@ -60,10 +61,19 @@ void pyopensot_oc(py::module &m)
     py::class_<OpenSoT::oc::EulerVector, OpenSoT::oc::EulerVector::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "EulerVector")
         .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const AffineHelper &, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, std::shared_ptr<AffineHelper>, const double>());
 
-    py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "TorquesTask")
-        .def(py::init<XBot::ModelInterface &, const AffineHelper &, const AffineHelper &>())
-        .def("addForce", &OpenSoT::oc::TorquesTask::addForce)
-        .def("removeForce", &OpenSoT::oc::TorquesTask::removeForce);
+    py::class_<OpenSoT::oc::MinVar, OpenSoT::oc::MinVar::Ptr,
+               OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "MinVar")
+        .def(py::init<const std::string&, const AffineHelper&,
+                      std::shared_ptr<AffineHelper>>())
+        .def("setReference", &OpenSoT::oc::MinVar::setReference);
+
+    py::class_<OpenSoT::oc::TorquesTask, OpenSoT::oc::TorquesTask::Ptr,
+                   OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(
+            m, "TorquesTask")
+            .def(py::init<XBot::ModelInterface&, const AffineHelper&,
+                          const AffineHelper&>())
+            .def("addForce", &OpenSoT::oc::TorquesTask::addForce)
+            .def("removeForce", &OpenSoT::oc::TorquesTask::removeForce);
 
     py::class_<OpenSoT::oc::ContactConstraint,
                OpenSoT::oc::ContactConstraint::Ptr,

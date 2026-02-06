@@ -155,7 +155,8 @@ set(OPENSOT_OC_SOURCES
     src/oc/oc.cpp
     src/oc/Contact.cpp
     src/oc/FrictionConeConstraint.cpp
-    src/oc/Scheduler.cpp)
+    src/oc/Scheduler.cpp
+    src/oc/MinVar.cpp)
 
 
 ##SOLVERS

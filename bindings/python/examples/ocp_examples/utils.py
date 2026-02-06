@@ -197,34 +197,6 @@ class min_var(Task):
         obj.update()
         return obj
 
-class dynamics_derivative(Task):
-    """
-    This carries the derivative of the linear dynamics computed from euler.
-    """
-    def __init__(self, name, df):
-        super().__init__(name, df.getInputSize())
-        self.df = df
-        self._W = np.eye(df.getOutputSize())
-
-    def _update(self):
-        self.lin = self.df
-        self._A = self.lin.getM()
-        self._b = -self.lin.getq()
-
-    @classmethod
-    def create(cls, name, df):
-        obj = cls(name, df)
-        obj.update()
-        return obj
-
-#simple euler
-def euler(x, xdot, dt):
-    return x + dt * xdot
-
-#euler with defect
-def eul(dx,du, xk,uk,xk1, dt):
-    return dx + du*dt + (xk.getValue()+uk.getValue()*dt - xk1.getValue())
-
 
 
 def quaternion_trajectory_numpy(N, axis=[0, 0, 1]):
