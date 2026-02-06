@@ -275,7 +275,8 @@ for i in range(Ns):
     stack = None
 
     minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], dvariables.getVariable("dqdot"))
-    minvel.setWeight(1e-9*0  *  np.eye(model.nv))
+    # minvel = MinVar(f"minvel", dvariables.getVariable("dqdot"), ocp.stage(i).x[model.nq:])
+    minvel.setWeight(1e-3  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
@@ -283,11 +284,12 @@ for i in range(Ns):
 
     if i < Ns-1:
         minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
+        # minqddot = MinVar(f"minqddot{i}", ocp.stage(i).du, ocp.stage(i).u)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         minacc.append(minqddot)
-        stack += 1e-6 * minqddot[:6]
-        stack += 1e-9 * minqddot[6:model.nv]
-        stack += 1e-9 * minqddot[model.nv:]
+        # stack += 1e-6 * minqddot[:6]
+        stack += 1e-6 * minqddot[6:model.nv]
+        stack += 1e-5 * minqddot[model.nv:]
 
 
 # Base

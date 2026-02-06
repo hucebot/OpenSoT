@@ -182,7 +182,10 @@ contact_scheduler.addContact("air", [])
 # contact_scheduler.addPhase(["air"], .2)
 
 contact_scheduler.addPhase(["all"], .5)
-contact_scheduler.addPhase(["rr", "fl", "fr"], .5)
+contact_scheduler.addPhase(["rr", "fl", "fr"], .3)
+
+# contact_scheduler.addPhase(["all"], .1)
+# contact_scheduler.addPhase(["rr", "fl"], .2)
 # contact_scheduler.addPhase(["all"], .1)
 # contact_scheduler.addPhase(["rl", "fr"], .2)
 
@@ -248,7 +251,6 @@ ocp.update(x0, u0)
 
 
 for i in range(Ns-1):
-    print(i)
     dbase =   pysot.oc.EulerSE3(ocp.stage(i).model, dx[:6], dxdot[:6], ocp.stage(i).x[:7], ocp.stage(i).xdot[:6], ocp.stage(i+1).x[:7], DT)
     dpos = pysot.oc.EulerVector(ocp.stage(i).model, dx[6:model.nv], dxdot[6:model.nv], ocp.stage(i).x[7:model.nq], ocp.stage(i).xdot[6:model.nv], ocp.stage(i+1).x[7:model.nq], DT)
     dvel = pysot.oc.EulerVector(ocp.stage(i).model, dx[model.nv:], dxdot[model.nv:], ocp.stage(i).v, ocp.stage(i).a, ocp.stage(i+1).v, DT)
@@ -269,19 +271,23 @@ constraints = []
 for i in range(Ns):
     stack = None
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
-    minvel.setWeight(1e-6  *  np.eye(model.nv))
+    # minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
+
+    minvel = MinVar(f"minvel", ocp.stage(i).dx[model.nv:], ocp.stage(i).x[model.nq:])
+
+    minvel.setWeight(1e-8  *  np.eye(model.nv))
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
     costs.append(minvel)
     stack = minvel[:model.nv]
 
     if i < Ns-1:
-        minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
+        # minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
+        minqddot = MinVar(f"minqddot{i}", ocp.stage(i).du, ocp.stage(i).u)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        stack += 1e-6 * minqddot[:6]
-        stack += 1e-9 * minqddot[6:model.nv]
+        stack += 1e-9 * minqddot[:6]
+        stack += 1e-8 * minqddot[6:model.nv]
         stack += 1e-7 * minqddot[model.nv:]
 
 
@@ -325,7 +331,7 @@ for i in range(Ns):
     postural = Postural(ocp.stage(i).model)
     postural.setWeight(1e-3 * np.diag(q_weights))
     minus.append(postural)
-    # stack +=  AffineTask.toAffine(postural[6:], dvariables.getVariable("dq"))
+    stack +=  AffineTask.toAffine(postural[6:], dvariables.getVariable("dq"))
 
 
 
@@ -334,7 +340,7 @@ for i in range(Ns):
         tau_compute = TorquesTask(ocp.stage(i).model, ocp.stage(i).dx, ocp.stage(i).du)
         for frame in frame_contact_seq[i]:
             tau_compute.addForce(frame, contact_frames_vars[frame])
-        tau_compute.setWeight(1e-9*0 * np.eye(ocp.stage(i).model.nv))
+        tau_compute.setWeight(1e-9* np.eye(ocp.stage(i).model.nv))
         calctaus.append(tau_compute)
         stack += tau_compute
 
@@ -370,7 +376,7 @@ for i in range(Ns):
         
         for frame in frame_contact_seq[i]:
             friction_const = FrictionConeConstraint(ocp.stage(i).model, frame, contact_frames_vars[frame], ocp.stage(i).dx, ocp.stage(i).du)
-            friction_const.setCoefficient(0.9)
+            friction_const.setCoefficient(0.8)
             const.append(friction_const)
             ocp.stage(i).stack = ocp.stage(i).stack << friction_const
 
@@ -381,7 +387,7 @@ print("Initing solver...")
 solver = pysot.swSQP(ocp)
 solver.getOptions().max_iters = 1000
 solver.getOptions().verbose = 2
-solver.getOptions().line_search_strategy = 2
+solver.getOptions().line_search_strategy = 1
 solver.getOptions().beta = 1e-4
 solver.getOptions().min_abs_delta_solution = 1e-2
 solver.getOptions().hessian_scale_factor_up = 1e6
@@ -404,13 +410,13 @@ ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
 # solver.getQPSolver().getOptions().mode = pysot.HpipmMode.Speed
-solver.getOptions().max_iters = 10
-# solver.getOptions().verbose = 2
+solver.getOptions().max_iters = 4
+solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 2
 solver.getQPSolver().getOptions().iter_max = 100
-solver.getOptions().wall_time = 0.02
+solver.getOptions().wall_time = DT
 
-solver.getOptions().optimize_first_state = 1
+solver.getOptions().optimize_first_state = 0
 solver.getOptions().optimize_first_state_cost = 1e3
 
 solver.init()
@@ -435,8 +441,8 @@ try:
         frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns, current_time = t)
 
         for i in range(Ns):
-            # if t>=1.:
-            #    base_vel[i].setReferenceVelocity([.0,.0,0.,0.,0.,0.5])
+            if t>=1.:
+               base_vel[i].setReferenceVelocity([.3,.0,0.,0.,0.,0.])
 
             for frame in contact_frames:
                 if frame in frame_contact_seq[i]:
@@ -463,7 +469,7 @@ try:
         ros2node.publish(q_val)
 
         tau_base = calctaus[0].getb()[:6]
-        print(tau_base)
+        # print(tau_base)
 
         j=0
         i=1

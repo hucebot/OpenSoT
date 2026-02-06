@@ -158,10 +158,10 @@ contact_scheduler.addPhase(["rl", "fr"], .15, sequence_name="trot")
 
 
 contact_scheduler.addPhase(["all"], .5, sequence_name="oneleg")
-contact_scheduler.addPhase(["fr_air"], .5,sequence_name="oneleg")
+contact_scheduler.addPhase(["rl_air"], .3,sequence_name="oneleg")
 
 
-gait = "oneleg"
+gait = "trot"
 
 
 frame_contact_seq = contact_scheduler.getSequence(DT, nodes_number = Ns,  sequence_name=gait)
@@ -244,8 +244,9 @@ constraints = []
 for i in range(Ns):
     stack = None
 
-    minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
-    minvel.setWeight(1e-6  *  np.eye(model.nv))
+    # minvel = min_var.create(f"minvel", ocp.stage(i).x[model.nq:], ocp.stage(i).dx[model.nv:])
+    minvel = MinVar(f"minvel", ocp.stage(i).dx[model.nv:], ocp.stage(i).x[model.nq:])
+    minvel.setWeight(1e-8  *  np.eye(model.nv))
     print(minvel.getWeight())
     if i==Ns-1:
         minvel.setWeight(1e3  *  np.eye(model.nv))
@@ -253,11 +254,12 @@ for i in range(Ns):
     stack = minvel[:model.nv]
 
     if i < Ns-1:
-        minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
+        # minqddot = min_var.create(f"minqddot{i}", ocp.stage(i).u, ocp.stage(i).du)
+        minqddot = MinVar(f"minqddot{i}", ocp.stage(i).du, ocp.stage(i).u)
         minqddot.setWeight(np.eye(model.nv + 4*3))
         costs.append(minqddot)
-        # stack += 1e-6 * minqddot[0:6]
-        stack += 1e-9 * minqddot[6:model.nv]
+        stack += 1e-9 * minqddot[0:6]
+        stack += 1e-8 * minqddot[6:model.nv]
         stack += 1e-7 * minqddot[model.nv:]
 
 
@@ -268,14 +270,14 @@ for i in range(Ns):
     target.translation[2] = 0.32
     cartesian_task.setReference(target)
     costs.append(cartesian_task)
-    stack += cartesian_task%[2,3,4,5]
+    stack += cartesian_task[2]
 
 # Base velocity
     cartesian_vel_task = pysot.oc.SE3VelTask("Cartesian", ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "base")
     cartesian_vel_task.setReferenceVelocity([.0,.0,0.,0.,0.,0.])
     cartesian_vel_task.setWeight(1e-3 * np.eye(6))
     base_vel.append(cartesian_vel_task)
-    stack += cartesian_vel_task
+    # stack += cartesian_vel_task
 
 
     #Feet air
@@ -312,7 +314,7 @@ for i in range(Ns):
             tau_compute.addForce(frame, contact_frames_vars[frame])
         tau_compute.setWeight(1e-9 * np.eye(ocp.stage(i).model.nv))
         calctaus.append(tau_compute)
-        # stack += tau_compute
+        stack += tau_compute
 
     ocp.stage(i).stack = pysot.AutoStack(stack)    
 
@@ -407,7 +409,7 @@ mj_model.opt.timestep = DT
 
 # PD control gains for tracking MPC trajectory
 kp_joints = np.ones(12) * 60  # Position gains for 12 joints (3 per leg)
-kd_joints = np.ones(12) * 0.5     # Velocity gains for 12 joints
+kd_joints = np.ones(12) * .5     # Velocity gains for 12 joints
 
 
 print( model.getJointNames()[1:])
@@ -419,14 +421,14 @@ try:
 
         sim_data.qpos[:] = q_val
         sim_data.qpos[2] +=0.01
-        sim_data.qpos[3] =1
+        sim_data.qpos[3] =-1
         sim_data.qpos[6] =0
 
         mujoco.mj_step(mj_model, sim_data)
         if viewer.is_running():
             viewer.sync()
 
-        input()
+        # input()
 
         while True:
 
