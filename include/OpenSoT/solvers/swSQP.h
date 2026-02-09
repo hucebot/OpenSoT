@@ -19,6 +19,20 @@ public:
         double constraint_violation;
     };
 
+    struct iteration_statistics
+    {
+        int iter;
+        int qp_iters;
+        double cost;
+        double constraint_violation;
+        double max_dsolution;
+        double alpha;
+        int line_search_iters;
+        bool line_search_accepted;
+        double hessian_reg;
+        double iter_time;
+    };
+
     struct statistics
     {
         statistics(const unsigned int Ns)
@@ -37,13 +51,16 @@ public:
         std::string converged;
         int qp_iters;
         double hessian_reg;
-        
+
 
         //timing
         std::chrono::_V2::system_clock::time_point _iter_start;
         std::chrono::_V2::system_clock::time_point _start;
         double iter_time;
         double total_time = std::numeric_limits<double>::quiet_NaN();
+
+        // iteration history
+        std::vector<iteration_statistics> iteration_history;
 
         const std::ostringstream& toOSS(int verbose_level)
         {
@@ -175,6 +192,14 @@ public:
     void init();
 
     const statistics& getStatistics() const {return _stats;}
+
+    /**
+     * @brief exportToJSON Export solver configuration, statistics, and solution to JSON file
+     * @param filename Output JSON filename
+     * @param dt Optional time step (if available in your problem)
+     * @return true if export successful
+     */
+    bool exportToJSON(const std::string& filename, double dt = -1.0) const;
 
 private:
     

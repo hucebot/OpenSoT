@@ -1,4 +1,6 @@
 #include <OpenSoT/solvers/swSQP.h>
+#include <fstream>
+#include <iomanip>
 
 using namespace OpenSoT::solvers;
 
@@ -363,13 +365,29 @@ void swSQP::update_statistics()
         _stats.stages_statistics[i].cost = _ocp->stage(i)->stage_cost();
         _stats.stages_statistics[i].constraint_violation = _ocp->stage(i)->stage_constraint_violation();
     }
-    
+
 
     std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
     _stats.iter_time = iter_elapsed.count();
     std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - _stats._start;
     _stats.total_time = elapsed.count();
 
+    // Store iteration history
+    if(_stats.line_search_accepted)
+    {
+        swSQP::iteration_statistics iter_stats;
+        iter_stats.iter = _stats.iters;
+        iter_stats.qp_iters = _stats.qp_iters;
+        iter_stats.cost = _stats.cost;
+        iter_stats.constraint_violation = _stats.constraint_violation;
+        iter_stats.max_dsolution = _stats.max_dsolution;
+        iter_stats.alpha = _stats.alpha;
+        iter_stats.line_search_iters = _stats.line_search_iters;
+        iter_stats.line_search_accepted = _stats.line_search_accepted;
+        iter_stats.hessian_reg = _stats.hessian_reg;
+        iter_stats.iter_time = _stats.iter_time;
+        _stats.iteration_history.push_back(iter_stats);
+    }
 }
 
 
@@ -473,6 +491,143 @@ void swSQP::init()
     }
     if(_opt.verbose)
             std::cout<<"Solver inited"<<std::endl;
+}
+
+bool swSQP::exportToJSON(const std::string& filename, double dt) const
+{
+    std::ofstream file(filename);
+    if (!file.is_open())
+    {
+        std::cerr << "Failed to open file: " << filename << std::endl;
+        return false;
+    }
+
+    file << std::setprecision(16);
+    file << "{\n";
+
+    // Problem configuration
+    file << "  \"problem_config\": {\n";
+    file << "    \"num_nodes\": " << _ocp->getNumberOfNodes() << ",\n";
+    if (dt > 0.0)
+        file << "    \"dt\": " << dt << ",\n";
+    file << "    \"state_dim\": " << _x0[0].size() << ",\n";
+    if (!_u0.empty())
+        file << "    \"control_dim\": " << _u0[0].size() << ",\n";
+    else
+        file << "    \"control_dim\": 0,\n";
+    file << "    \"num_constraints\": " << (_C[0].rows() > 0 ? _C[0].rows() : 0) << "\n";
+    file << "  },\n";
+
+    // swSQP options
+    file << "  \"swsqp_options\": {\n";
+    file << "    \"max_iters\": " << _opt.max_iters << ",\n";
+    file << "    \"min_abs_delta_solution\": " << _opt.min_abs_delta_solution << ",\n";
+    file << "    \"verbose\": " << _opt.verbose << ",\n";
+    file << "    \"alpha_min\": " << _opt.alpha_min << ",\n";
+    file << "    \"beta\": " << _opt.beta << ",\n";
+    file << "    \"line_search_strategy\": " << _opt.line_search_strategy << ",\n";
+    file << "    \"initial_hessian_regularization\": " << _opt.initial_hessian_regularization << ",\n";
+    file << "    \"hessian_scale_factor_up\": " << _opt.hessian_scale_factor_up << ",\n";
+    file << "    \"max_hessian_regularization\": " << _opt.max_hessian_regularization << ",\n";
+    file << "    \"wall_time\": " << _opt.wall_time << ",\n";
+    file << "    \"optimize_first_state\": " << _opt.optimize_first_state << ",\n";
+    file << "    \"optimize_first_state_cost\": " << _opt.optimize_first_state_cost << "\n";
+    file << "  },\n";
+
+    // HPIPM options
+    auto hpipm_opts = _qp_solver->getOptions();
+    file << "  \"hpipm_options\": {\n";
+    file << "    \"mode\": " << static_cast<int>(hpipm_opts.mode) << ",\n";
+    file << "    \"iter_max\": " << hpipm_opts.iter_max << ",\n";
+    file << "    \"alpha_min\": " << hpipm_opts.alpha_min << ",\n";
+    file << "    \"mu0\": " << hpipm_opts.mu0 << ",\n";
+    file << "    \"tol_stat\": " << hpipm_opts.tol_stat << ",\n";
+    file << "    \"tol_eq\": " << hpipm_opts.tol_eq << ",\n";
+    file << "    \"tol_ineq\": " << hpipm_opts.tol_ineq << ",\n";
+    file << "    \"tol_comp\": " << hpipm_opts.tol_comp << ",\n";
+    file << "    \"reg_prim\": " << hpipm_opts.reg_prim << ",\n";
+    file << "    \"warm_start\": " << hpipm_opts.warm_start << ",\n";
+    file << "    \"pred_corr\": " << hpipm_opts.pred_corr << ",\n";
+    file << "    \"ric_alg\": " << hpipm_opts.ric_alg << ",\n";
+    file << "    \"split_step\": " << hpipm_opts.split_step << "\n";
+    file << "  },\n";
+
+    // Final solution summary
+    file << "  \"final_solution\": {\n";
+    file << "    \"converged\": \"" << _stats.converged << "\",\n";
+    file << "    \"total_iterations\": " << _stats.iters << ",\n";
+    file << "    \"total_time\": " << _stats.total_time << ",\n";
+    file << "    \"final_cost\": " << _stats.cost << ",\n";
+    file << "    \"final_constraint_violation\": " << _stats.constraint_violation << ",\n";
+    file << "    \"final_max_dsolution\": " << _stats.max_dsolution << "\n";
+    file << "  },\n";
+
+    // Iteration-wise statistics
+    file << "  \"iteration_statistics\": [\n";
+    for (size_t i = 0; i < _stats.iteration_history.size(); ++i)
+    {
+        const auto& iter_stats = _stats.iteration_history[i];
+        file << "    {\n";
+        file << "      \"iter\": " << iter_stats.iter << ",\n";
+        file << "      \"qp_iters\": " << iter_stats.qp_iters << ",\n";
+        file << "      \"cost\": " << iter_stats.cost << ",\n";
+        file << "      \"constraint_violation\": " << iter_stats.constraint_violation << ",\n";
+        file << "      \"max_dsolution\": " << iter_stats.max_dsolution << ",\n";
+        file << "      \"alpha\": " << iter_stats.alpha << ",\n";
+        file << "      \"line_search_iters\": " << iter_stats.line_search_iters << ",\n";
+        file << "      \"line_search_accepted\": " << (iter_stats.line_search_accepted ? "true" : "false") << ",\n";
+        file << "      \"hessian_reg\": " << iter_stats.hessian_reg << ",\n";
+        file << "      \"iter_time\": " << iter_stats.iter_time << "\n";
+        file << "    }";
+        if (i < _stats.iteration_history.size() - 1)
+            file << ",";
+        file << "\n";
+    }
+    file << "  ],\n";
+
+    // State trajectory
+    file << "  \"state_trajectory\": [\n";
+    for (size_t k = 0; k < _x0.size(); ++k)
+    {
+        file << "    [";
+        for (int i = 0; i < _x0[k].size(); ++i)
+        {
+            file << _x0[k](i);
+            if (i < _x0[k].size() - 1)
+                file << ", ";
+        }
+        file << "]";
+        if (k < _x0.size() - 1)
+            file << ",";
+        file << "\n";
+    }
+    file << "  ],\n";
+
+    // Control trajectory
+    file << "  \"control_trajectory\": [\n";
+    for (size_t k = 0; k < _u0.size(); ++k)
+    {
+        file << "    [";
+        for (int i = 0; i < _u0[k].size(); ++i)
+        {
+            file << _u0[k](i);
+            if (i < _u0[k].size() - 1)
+                file << ", ";
+        }
+        file << "]";
+        if (k < _u0.size() - 1)
+            file << ",";
+        file << "\n";
+    }
+    file << "  ]\n";
+
+    file << "}\n";
+    file.close();
+
+    if(_opt.verbose)
+        std::cout << "Exported solver data to: " << filename << std::endl;
+
+    return true;
 }
 
 

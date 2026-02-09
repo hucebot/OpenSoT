@@ -90,6 +90,20 @@ void pyHPIPMOC(py::module& m) {
         .def_readonly("cost", &OpenSoT::solvers::swSQP::stage_statistics::cost)
         .def_readonly("constraint_violation", &OpenSoT::solvers::swSQP::stage_statistics::constraint_violation);
 
+    // Bind swSQP::iteration_statistics
+    py::class_<OpenSoT::solvers::swSQP::iteration_statistics>(m, "swSQPIterationStatistics")
+        .def(py::init<>())
+        .def_readonly("iter", &OpenSoT::solvers::swSQP::iteration_statistics::iter)
+        .def_readonly("qp_iters", &OpenSoT::solvers::swSQP::iteration_statistics::qp_iters)
+        .def_readonly("cost", &OpenSoT::solvers::swSQP::iteration_statistics::cost)
+        .def_readonly("constraint_violation", &OpenSoT::solvers::swSQP::iteration_statistics::constraint_violation)
+        .def_readonly("max_dsolution", &OpenSoT::solvers::swSQP::iteration_statistics::max_dsolution)
+        .def_readonly("alpha", &OpenSoT::solvers::swSQP::iteration_statistics::alpha)
+        .def_readonly("line_search_iters", &OpenSoT::solvers::swSQP::iteration_statistics::line_search_iters)
+        .def_readonly("line_search_accepted", &OpenSoT::solvers::swSQP::iteration_statistics::line_search_accepted)
+        .def_readonly("hessian_reg", &OpenSoT::solvers::swSQP::iteration_statistics::hessian_reg)
+        .def_readonly("iter_time", &OpenSoT::solvers::swSQP::iteration_statistics::iter_time);
+
     // Bind swSQP::statistics
     py::class_<OpenSoT::solvers::swSQP::statistics>(m, "swSQPStatistics")
         .def(py::init<const unsigned int>())
@@ -101,7 +115,12 @@ void pyHPIPMOC(py::module& m) {
         .def_readonly("line_search_accepted", &OpenSoT::solvers::swSQP::statistics::line_search_accepted)
         .def_readonly("iter_time", &OpenSoT::solvers::swSQP::statistics::iter_time)
         .def_readonly("total_time", &OpenSoT::solvers::swSQP::statistics::total_time)
-        .def_readonly("stages_statistics", &OpenSoT::solvers::swSQP::statistics::stages_statistics);
+        .def_readonly("converged", &OpenSoT::solvers::swSQP::statistics::converged)
+        .def_readonly("qp_iters", &OpenSoT::solvers::swSQP::statistics::qp_iters)
+        .def_readonly("max_dsolution", &OpenSoT::solvers::swSQP::statistics::max_dsolution)
+        .def_readonly("hessian_reg", &OpenSoT::solvers::swSQP::statistics::hessian_reg)
+        .def_readonly("stages_statistics", &OpenSoT::solvers::swSQP::statistics::stages_statistics)
+        .def_readonly("iteration_history", &OpenSoT::solvers::swSQP::statistics::iteration_history);
         // .def("toString", [](OpenSoT::solvers::swSQP::statistics &self) -> std::string { return self.toOSS(_opt.verbose).str();});
 
     // Bind swSQP
@@ -113,6 +132,9 @@ void pyHPIPMOC(py::module& m) {
         .def("getControlSolution", &OpenSoT::solvers::swSQP::getControlSolution)
         .def("getOptions", (OpenSoT::solvers::swSQP::options & (OpenSoT::solvers::swSQP::*)()) & OpenSoT::solvers::swSQP::getOptions, py::return_value_policy::reference_internal)
         .def("getQPSolver", &OpenSoT::solvers::swSQP::getQPSolver)
-        .def("getStatistics", &OpenSoT::solvers::swSQP::getStatistics, py::return_value_policy::reference_internal);
+        .def("getStatistics", &OpenSoT::solvers::swSQP::getStatistics, py::return_value_policy::reference_internal)
+        .def("exportToJSON", &OpenSoT::solvers::swSQP::exportToJSON,
+             py::arg("filename"), py::arg("dt") = -1.0,
+             "Export solver configuration, statistics, and solution to JSON file");
 
 }
