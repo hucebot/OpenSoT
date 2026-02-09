@@ -14,10 +14,14 @@
 #include <OpenSoT/oc/EulerSE3.h>
 #include <OpenSoT/oc/EulerVector.h>
 #include <OpenSoT/oc/SE3Task.h>
+#include <OpenSoT/oc/PosSO3Task.h>
+#include <OpenSoT/oc/PosSO3Constraint.h>
+#include <OpenSoT/oc/SE3VelTask.h>
 #include <OpenSoT/oc/TorquesTask.h>
 #include <OpenSoT/oc/TorquesConstraint.h>
 #include <OpenSoT/oc/Contact.h>
 #include <OpenSoT/oc/FrictionConeConstraint.h>
+#include <OpenSoT/oc/Scheduler.h>
 
 namespace py = pybind11;
 
@@ -81,6 +85,20 @@ void pyopensot_oc(py::module &m)
         .def("setReference", &OpenSoT::oc::SE3Task::setReference)
         .def("getReference", &OpenSoT::oc::SE3Task::getReference)
         .def("getDistalFrame", &OpenSoT::oc::SE3Task::getDistalFrame);
+
+    py::class_<OpenSoT::oc::PosSO3Task, OpenSoT::oc::PosSO3Task::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "PosSO3Task")
+        .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
+        .def("getReference", &OpenSoT::oc::PosSO3Task::getReference)
+        .def("setReference", &OpenSoT::oc::PosSO3Task::setReference);
+
+    py::class_<OpenSoT::oc::PosSO3Constraint, OpenSoT::oc::PosSO3Constraint::Ptr, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "PosSO3Constraint")
+        .def(py::init<const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
+        .def("setUpperLimits", &OpenSoT::oc::PosSO3Constraint::setUpperLimits)
+        .def("setLowerLimits", &OpenSoT::oc::PosSO3Constraint::setLowerLimits);
+
+    py::class_<OpenSoT::oc::SE3VelTask, OpenSoT::oc::SE3VelTask::Ptr, OpenSoT::Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "SE3VelTask")
+        .def(py::init<const std::string &, const XBot::ModelInterface &, const AffineHelper &, const std::string &>())
+        .def("setReferenceVelocity", &OpenSoT::oc::SE3VelTask::setReferenceVelocity);
 
     py::class_<OpenSoT::Space, OpenSoT::Space::Ptr, PyStateSpaceRepresentation>(m, "Space")
         .def(py::init<unsigned int, unsigned int>(), py::arg("nq"), py::arg("nv"))
@@ -169,4 +187,20 @@ void pyopensot_oc(py::module &m)
 
         .def("update", &ocp::update)
         .def("updateDVariables", &ocp::updateDVariables);
+
+
+    py::class_<OpenSoT::oc::Scheduler>(m, "Scheduler")
+        .def(py::init<>())
+        .def("addContact", &OpenSoT::oc::Scheduler::addContact,
+             py::arg("contact_name"),
+             py::arg("contact_frame_names"))
+        .def("addPhase", &OpenSoT::oc::Scheduler::addPhase,
+             py::arg("contacts_list"),
+             py::arg("duration"),
+             py::arg("sequence_name") = "_")
+        .def("getSequence", &OpenSoT::oc::Scheduler::getSequence,
+             py::arg("sampling_rate"),
+             py::arg("sequence_name") = "_",
+             py::arg("nodes_number") = -1,
+             py::arg("current_time") = 0.0);
 }
