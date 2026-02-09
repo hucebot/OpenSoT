@@ -102,6 +102,7 @@ void swSQP::linearize()
 bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eigen::VectorXd>& u0)
 {
     _stats._start = std::chrono::high_resolution_clock::now();
+    _sigma = _opt.initial_hessian_regularization;
 
     _x0_candidate = x0;
     _u0_candidate = u0;
@@ -110,6 +111,8 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
     _u0 = u0;
 
     _ocp->update(_x0_candidate, _u0_candidate);
+    linearize();
+
 
     if (_opt.line_search_strategy!=0)
     {
@@ -126,8 +129,6 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         ddefect_dw[i] = _ocp->stage(i)->stage_ddefect_dw();
     }
 
-    // relinarize qp
-    linearize();
     for(unsigned int iter = 1; (iter <= _opt.max_iters && (_opt.wall_time ==-1 || ((std::chrono::duration<double>)(std::chrono::high_resolution_clock::now()-_stats._start)).count()<_opt.wall_time) ); ++iter)
     {
         _stats.iters = iter;
@@ -136,6 +137,9 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         _stats.line_search_accepted = false;
 
         _stats._iter_start = std::chrono::high_resolution_clock::now();
+
+        // relinarize qp
+        linearize();
 
         // solve
         if (!_qp_solver->solve())
@@ -157,6 +161,7 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
             if((this->*ls_function)())
             {
                 _stats.line_search_accepted=true;
+                _sigma = _opt.initial_hessian_regularization;
                 break;
             }
             _stats.alpha /= 2.;
@@ -169,10 +174,6 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         {
             _ocp->update(_x0, _u0); //update at previous linearization point
             _sigma *= _opt.hessian_scale_factor_up; //rise regularization
-            std::cout<<"_sigma: "<<_sigma<<std::endl;
-
-            // relinarize qp
-            linearize();
 
             if(_sigma > _opt.max_hessian_regularization)
             {
@@ -182,40 +183,27 @@ bool swSQP::solve(const std::vector<Eigen::VectorXd>& x0, const std::vector<Eige
         }
         else
         {
-            _sigma = _opt.initial_hessian_regularization;
+            // _sigma = _opt.initial_hessian_regularization;
 
             _x0 = _x0_candidate;
             _u0 = _u0_candidate;
 
-            // relinarize qp
-            linearize();
-
             // check break criteria on QP solution
             if (convergence_criteria())
-            {
-                std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
-                _stats.iter_time = iter_elapsed.count();
                 break;
-            }
 
             _prev_cost = _ocp->cost();
             _prev_defect = _ocp->dynamics_defect();
             _prev_viol = _ocp->constraint_violation();
 
-            update_statistics();
-            std::chrono::duration<double> iter_elapsed = std::chrono::high_resolution_clock::now() - _stats._iter_start;
-            _stats.iter_time = iter_elapsed.count();
-            if(_opt.verbose)
-            {
-                std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
-            }
         }
-
+        update_statistics();
+        if(_opt.verbose)
+        {
+            std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
+        }
     }
-
     update_statistics();
-    std::chrono::duration<double> elapsed = std::chrono::high_resolution_clock::now() - _stats._start;
-    _stats.total_time = elapsed.count();
     if(_opt.verbose)
     {
         std::cout<<_stats.toOSS(_opt.verbose).str()<<"\n"<<std::endl;
@@ -369,6 +357,7 @@ void swSQP::update_statistics()
 {
     _stats.cost = _ocp->cost();
     _stats.constraint_violation = _ocp->constraint_violation();
+    _stats.hessian_reg = _sigma;
     for (uint i = 0; i < _ocp->getNumberOfNodes(); i++)
     {
         _stats.stages_statistics[i].cost = _ocp->stage(i)->stage_cost();
@@ -386,7 +375,6 @@ void swSQP::update_statistics()
 
 void swSQP::init()
 {
-    _sigma = _opt.initial_hessian_regularization;
 
     _stats.line_search_accepted = false;
     _stats.line_search_iters = 0;
@@ -410,7 +398,6 @@ void swSQP::init()
         Eigen::VectorXd lbx0;
         Eigen::VectorXd ubx0;
         int nx0 = _ocp->stage(0)->model->getNv();
-        std::cout<<"nx0:"<<nx0<<std::endl;
         if (_opt.optimize_first_state == 1)
         {
             idxbx0.resize(2*(nx0-6));
@@ -435,8 +422,6 @@ void swSQP::init()
             ubx0 = Eigen::VectorXd::Zero(2*nx0);
         }
         _qp_solver->setBoundsX(0, idxbx0, lbx0, ubx0);
-        for(int i=0; i<idxbx0.size(); i++)
-            std::cout<<idxbx0[i]<<std::endl;
     }
 
     for(unsigned int k = 0; k < _ocp->getNumberOfNodes(); ++k)

@@ -36,6 +36,8 @@ public:
         bool line_search_accepted;
         std::string converged;
         int qp_iters;
+        double hessian_reg;
+        
 
         //timing
         std::chrono::_V2::system_clock::time_point _iter_start;
@@ -55,6 +57,7 @@ public:
             _oss << "  cost              : " << cost << std::endl;
             _oss << "  sum-constr-viol   : " << constraint_violation << std::endl;
             _oss << "  max-delta_state   : " << max_dsolution << std::endl;
+            _oss << "  hessian_reg       : " << hessian_reg << std::endl;
             _oss << "  iter time         : " << iter_time << std::endl;
             _oss << "  total time        : " << total_time << std::endl;
             _oss << "  converged         : " << converged <<std::endl;
@@ -117,7 +120,7 @@ public:
 
         /// LineSearch
         double alpha_min;
-        uint line_search_strategy;
+        uint line_search_strategy; // 0 no linesearch, 1 Armiho merit, 2 filter
         double beta; // multiply merit derivative in Armijo's condition in line search
 
         /// Hessian Regularization
@@ -140,10 +143,15 @@ public:
             _oss << "  verbose                : " << verbose << std::endl;
             _oss << "  max_iters              : " << max_iters << std::endl;
             _oss << "  min_abs_delta_solution : " << min_abs_delta_solution << std::endl;
+            _oss << "  opt_first_state        : " << ((optimize_first_state!=0)?((line_search_strategy==1)?"Optimize floating base ":"Optimize whole state" ) :"No optimize")  << std::endl;
+            if (optimize_first_state!=0)
+            _oss << "  opt_first_state_cost: " << optimize_first_state_cost << std::endl;
+            _oss << "  line_search_strategy   : " << ((line_search_strategy!=0)?((line_search_strategy==1)?"Merit":"Filter" ) :"No linesearch") << std::endl;
+            if (line_search_strategy!=0)
+            {
             _oss << "  alpha_min              : " << alpha_min << std::endl;
-            _oss << "  beta                   : " << beta << std::endl;
-            _oss << "  line_search_strategy   : " << line_search_strategy << std::endl;
-
+            _oss << "  beta(Armiho)           : " << beta << std::endl;
+            }
             return _oss;
         }
 
