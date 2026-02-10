@@ -72,7 +72,7 @@ rviz = subprocess.Popen(['ros2', 'run', 'rviz2', 'rviz2', '-d', f'{rviz_file_pat
 rclpy.init()
 node = ros2_node()
 
-Ns = 20 # number of nodes
+Ns = 100 # number of nodes
 tf = 2. # final time
 dt = tf/Ns
 
@@ -149,30 +149,6 @@ class min_var(Task):
         obj = cls(name, variable, dvariable)
         obj.update()
         return obj
-
-class dynamics_derivative(Task):
-    """
-    This carries the derivative of the linear dynamics computed from euler.
-    """
-    def __init__(self, name, df):
-        super().__init__(name, df.getInputSize())
-        self.df = df
-        self._W = np.eye(df.getOutputSize())
-
-    def _update(self):
-        self.lin = self.df
-        self._A = self.lin.getM()
-        self._b = -self.lin.getq()
-
-    @classmethod
-    def create(cls, name, df):
-        obj = cls(name, df)
-        obj.update()
-        return obj
-
-def euler(x, xdot, dt):
-    return x + dt * xdot  # x1 = x0 + dt * xdot0
-
 
 x = VariableXd.pile(q, qdot)
 xdot = VariableXd.pile(qdot, qddot)
@@ -277,10 +253,10 @@ for i in range(Ns+1):
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 100
-solver.getOptions().verbose = 2
-solver.getOptions().line_search_strategy = 1
-solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getOptions().max_iters = 10
+solver.getOptions().verbose = 1
+solver.getOptions().line_search_strategy = 0
+solver.getOptions().min_abs_delta_solution = 1e-2
 solver.init()
 print(f"{solver.getOptions().print()}")
 # print("...solver inited!")
@@ -301,6 +277,9 @@ cartesian_task.setReference(pose_ref)
 ocp.update(x0, u0)
 success = solver.solve(x0, u0)
 
+# Export solver data to JSON
+solver.exportToJSON("franka_traj_opt_results.json", dt)
+print("Solver results exported to franka_traj_opt_results.json")
 
 x0 = solver.getStateSolution()
 u0 = solver.getControlSolution()

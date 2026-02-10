@@ -277,8 +277,8 @@ for i in range(Ns):
 
     pos_const = PosSO3Constraint(ocp.stage(i).model, ocp.stage(i).dx[:model.nv], "fp3_link8")
     const.append(pos_const)
-    pos_const.setUpperLimits([10.,0.1,0.5], np.eye(3)) # the rotation constraint doen't work
-    pos_const.setLowerLimits([-10.,-.1,0.3], -np.eye(3))
+    pos_const.setUpperLimits([0.3119,0.1,0.7], np.eye(3)) # the rotation constraint doen't work
+    pos_const.setLowerLimits([-0.3119,-.2,0.3], -np.eye(3))
     ocp.stage(i).stack = ocp.stage(i).stack << pos_const
 
 
@@ -293,9 +293,7 @@ ocp.stage(Ns).stack = pysot.AutoStack(cartesian_task  + minvel)
 T = model.getPose("fp3_link8")
 cartesian_task.setReference(T)
 
-#
 ocp.update(x0, u0)
-#
 print("ocp updated!")
 
 #joint limits
@@ -310,11 +308,11 @@ for i in range(Ns+1):
 
 print("Initing solver...")
 solver = pysot.swSQP(ocp)
-solver.getOptions().max_iters = 10
-solver.getOptions().verbose = 0
+solver.getOptions().max_iters = 4
+solver.getOptions().verbose = 1
 solver.getOptions().line_search_strategy = 2
 solver.getOptions().beta = 1e-2
-solver.getOptions().min_abs_delta_solution = 1e-3
+solver.getOptions().min_abs_delta_solution = 1e-1
 # solver.getOptions().wall_time = 0.001
 
 solver.getQPSolver().getOptions().tol_ineq = 1e-3
@@ -348,11 +346,10 @@ u0 = solver.getControlSolution()
 np.printoptions(precision=4)
 
 last_pose_reference = pose_ref.copy()
-msg.position = x0[0][:model.nq].tolist()
 t = 0
 try:
     while rclpy.ok():
-        print(ocp.stage(0).model.getPose("fp3_link8").translation)
+        # print(ocp.stage(0).model.getPose("fp3_link8").translation)
 
         pose_ref.translation[2] = T.translation[2]-0.4 + 0.3*np.cos(np.pi*t)
         pose_ref.translation[1] = T.translation[1] + 0.3*np.sin(np.pi*t)       
