@@ -43,24 +43,8 @@ OpenSoT::solvers::BackEnd::Ptr OpenSoT::solvers::BackEndFactory(const solver_bac
                              eps_regularisation);
     }
 
-    if (be_solver == solver_back_ends::GLPK) {
-        return CreateBackend("GLPK",
-                             number_of_variables,
-                             number_of_constraints,
-                             hessian_type,
-                             eps_regularisation);
-    }
-
     if (be_solver == solver_back_ends::eiQuadProg) {
         return CreateBackend("eiQuadProg",
-                             number_of_variables,
-                             number_of_constraints,
-                             hessian_type,
-                             eps_regularisation);
-    }
-
-    if (be_solver == solver_back_ends::ODYS) {
-        return CreateBackend("ODYS",
                              number_of_variables,
                              number_of_constraints,
                              hessian_type,

@@ -125,13 +125,6 @@ if(TARGET OpenSotBackEndOSQP AND ${osqp_FOUND} AND ${OPENSOT_COMPILE_OSQP_BACKEN
 
 endif()
 
- #if(${GLPK_FOUND})
- #    ADD_EXECUTABLE(testGLPKSolver solvers/TestGLPK.cpp)
- #    TARGET_LINK_LIBRARIES(testGLPKSolver ${TestLibs} tf2_eigen::tf2_eigen)
- #    add_dependencies(testGLPKSolver   OpenSoT)
- #    add_test(NAME OpenSoT_solvers_glpk COMMAND testGLPKSolver)
- #endif()
-
 ADD_EXECUTABLE(testeiQuadProgSolver solvers/TesteiQuadProg.cpp)
 TARGET_LINK_LIBRARIES(testeiQuadProgSolver ${TestLibs})
 add_dependencies(testeiQuadProgSolver   OpenSoT)
@@ -313,6 +306,7 @@ if(${PCL_FOUND} AND ${moveit_core_FOUND})
      add_dependencies(testQPOases_AutoStack   OpenSoT)
      add_test(NAME OpenSoT_solvers_qpOases_AutoStack COMMAND testQPOases_AutoStack)
 endif()
+
 
  if(${qpSWIFT_FOUND})
      ADD_EXECUTABLE(testqpSWIFTSolver solvers/TestqpSWIFT.cpp)
