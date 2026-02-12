@@ -26,8 +26,6 @@
 #include <srdfdom/model.h>
 #include <Eigen/Dense>
 
-#include <moveit_msgs/msg/planning_scene_world.hpp>
-
 namespace OpenSoT { namespace constraints { namespace velocity {
 
 /**

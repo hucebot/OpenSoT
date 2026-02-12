@@ -23,8 +23,7 @@ set(${CMAKE_PROJECT_NAME}_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 
 add_subdirectory(doc)
 
-find_package(moveit_core QUIET)
-find_package(moveit_msgs QUIET)
+
 find_package(Qhull REQUIRED)
 find_package(PCL 1.7 QUIET COMPONENTS   common
                                         filters
@@ -94,7 +93,7 @@ set(OPENSOT_CONSTRAINTS_SOURCES src/constraints/Aggregated.cpp
     src/constraints/acceleration/JointLimitsECBF.cpp
     )
 
-if(${PCL_FOUND} AND ${moveit_core_FOUND})
+if(${PCL_FOUND})
     message("Adding src/constraints/velocity/ConvexHull.cpp to compilation")
     set(OPENSOT_CONSTRAINTS_SOURCES ${OPENSOT_CONSTRAINTS_SOURCES}
         src/constraints/velocity/ConvexHull.cpp)
@@ -185,7 +184,7 @@ ADD_LIBRARY(OpenSoT SHARED
 
 set(PRIVATE_TLL ${PRIVATE_TLL} ${eigen_conversions_LIBRARIES})
 if(${OPENSOT_COMPILE_COLLISION})
-    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision moveit_msgs::moveit_msgs__rosidl_generator_cpp)
+    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision)#  moveit_msgs::moveit_msgs__rosidl_generator_cpp)
 endif()
 if(${PCL_FOUND})
     set(PRIVATE_TLL ${PRIVATE_TLL} ${QHULL_LIBRARIES} ${PCL_LIBRARIES} tf2_eigen::tf2_eigen )

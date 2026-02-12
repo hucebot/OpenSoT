@@ -39,9 +39,7 @@ enable_testing()
 add_definitions(-DOPENSOT_TESTS_ROBOTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/robots/")
 
 SET(TestLibs OpenSoT ${GTEST_BOTH_LIBRARIES} ${qpOASES_LIBRARIES} ${catkin_LIBRARIES})
-#if(${moveit_core_FOUND})
-#    SET(TestLibs ${TestLibs} ${moveit_core_LIBRARIES})
-#endif()
+
 
 if(${OPENSOT_SOTH_FRONT_END})
     SET(TestLibs ${TestLibs} hcod_wrapper soth)
@@ -53,7 +51,7 @@ add_dependencies(testTask   OpenSoT)
 add_test(NAME OpenSoT_tasks_Task COMMAND testTask)
 
     
-if(${PCL_FOUND} AND ${moveit_core_FOUND})
+if(${PCL_FOUND})
      ADD_EXECUTABLE(testAggregatedConstraint     constraints/TestAggregated.cpp)
      TARGET_LINK_LIBRARIES(testAggregatedConstraint ${TestLibs})
      add_dependencies(testAggregatedConstraint   OpenSoT)
@@ -172,12 +170,12 @@ add_test(NAME OpenSoT_task_velocity_Postural COMMAND testPosturalVelocityTask)
 
  if(${OPENSOT_COMPILE_COLLISION})
      ADD_EXECUTABLE(testCollisionAvoidanceVelocityConstraint constraints/velocity/TestCollisionAvoidance.cpp)
-     TARGET_LINK_LIBRARIES(testCollisionAvoidanceVelocityConstraint ${TestLibs} -lccd moveit_core::moveit_collision_detection)
+     TARGET_LINK_LIBRARIES(testCollisionAvoidanceVelocityConstraint ${TestLibs} -lccd)
      add_dependencies(testCollisionAvoidanceVelocityConstraint   OpenSoT)
      add_test(NAME OpenSoT_constraints_velocity_CollisionAvoidance COMMAND testCollisionAvoidanceVelocityConstraint)
 
      ADD_EXECUTABLE(testCollisionAvoidanceEnvironmentVelocityConstraint constraints/velocity/TestCollisionAvoidanceEnvironment.cpp)
-     TARGET_LINK_LIBRARIES(testCollisionAvoidanceEnvironmentVelocityConstraint ${TestLibs} -lccd moveit_core::moveit_collision_detection)
+     TARGET_LINK_LIBRARIES(testCollisionAvoidanceEnvironmentVelocityConstraint ${TestLibs} -lccd)
      add_dependencies(testCollisionAvoidanceEnvironmentVelocityConstraint   OpenSoT)
      add_test(NAME OpenSoT_constraints_velocity_CollisionAvoidanceEnvironment COMMAND testCollisionAvoidanceEnvironmentVelocityConstraint)
 endif()
@@ -282,7 +280,7 @@ endif()
  #add_dependencies(testQPOases_FF   OpenSoT)
  #add_test(NAME OpenSoT_solvers_qpOases_FF COMMAND testQPOases_FF)
 
-if(${PCL_FOUND} AND ${moveit_core_FOUND})
+ if(${PCL_FOUND})
      ADD_EXECUTABLE(testConvexHullVelocityConstraint constraints/velocity/TestConvexHull.cpp)
      TARGET_LINK_LIBRARIES(testConvexHullVelocityConstraint ${TestLibs})
      add_dependencies(testConvexHullVelocityConstraint   OpenSoT)

@@ -6,6 +6,8 @@ set(OPENSOT_TEST_PATH "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/")
 message(STATUS "OPENSOT_TEST_PATH is ${OPENSOT_TEST_PATH}")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
 
+find_package(sensor_msgs REQUIRED)
+
 
 add_executable(example_joint_limits_psap joint_limits_psap.cpp JointLimitsPSAP.cpp)
 target_link_libraries(example_joint_limits_psap OpenSoT OpenSotBackEndQPOases)
