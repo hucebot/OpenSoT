@@ -23,14 +23,29 @@
 #define toDeg(X) (X*180.0/M_PI)
 
 
-void  cartesian_utils::computePanTiltMatrix(const Eigen::VectorXd &gaze, KDL::Frame &pan_tilt_matrix)
-{
-    double pan = std::atan2(gaze[1], gaze[0]);
-    double tilt = std::atan2(gaze[2],sqrt(gaze[1]*gaze[1] + gaze[0]*gaze[0]));
+// void  cartesian_utils::computePanTiltMatrix(const Eigen::VectorXd &gaze, KDL::Frame &pan_tilt_matrix)
+// {
+//     double pan = std::atan2(gaze[1], gaze[0]);
+//     double tilt = std::atan2(gaze[2],sqrt(gaze[1]*gaze[1] + gaze[0]*gaze[0]));
 
-    pan_tilt_matrix.Identity();
-    pan_tilt_matrix.M.DoRotZ(pan);
-    pan_tilt_matrix.M.DoRotY(-tilt);
+//     pan_tilt_matrix.Identity();
+//     pan_tilt_matrix.M.DoRotZ(pan);
+//     pan_tilt_matrix.M.DoRotY(-tilt);
+// }
+
+void cartesian_utils::computePanTiltMatrix(const Eigen::VectorXd &gaze,
+                                           Eigen::Affine3d &pan_tilt_matrix)
+{
+    double pan  = std::atan2(gaze[1], gaze[0]);
+    double tilt = std::atan2(gaze[2], std::sqrt(gaze[1]*gaze[1] + gaze[0]*gaze[0]));
+
+    pan_tilt_matrix.setIdentity();
+
+    Eigen::AngleAxisd Rz(pan,  Eigen::Vector3d::UnitZ());
+    Eigen::AngleAxisd Ry(-tilt, Eigen::Vector3d::UnitY());
+
+    pan_tilt_matrix.linear() =
+        (Rz * Ry).toRotationMatrix();
 }
 
 

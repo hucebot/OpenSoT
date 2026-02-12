@@ -22,11 +22,6 @@
 #include <iostream>
 
 
-void vectorKDLToEigen(const KDL::Vector &k, Eigen::Matrix<double, 3, 1> &e)
-{
-  for(int i = 0; i < 3; ++i)
-    e[i] = k[i];
-}
 
 #define  s                1.0
 #define  dT               0.001* s

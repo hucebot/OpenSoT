@@ -20,7 +20,6 @@
 #ifndef _CARTESIAN_UTILS_H__
 #define _CARTESIAN_UTILS_H__
 
-#include <kdl/frames.hpp>
 #include <vector>
 #include <list>
 #include <urdf/model.h>
@@ -157,7 +156,8 @@ public:
      * @param gaze vector [3x1]
      * @param pan_tilt_matrix Homogeneous Matrix [4x4] in the same reference frame of the gaze vector
      */
-    static void computePanTiltMatrix(const Eigen::VectorXd& gaze, KDL::Frame& pan_tilt_matrix);
+    static void computePanTiltMatrix(const Eigen::VectorXd& gaze, Eigen::Affine3d& pan_tilt_matrix);
+
 
 
     /**

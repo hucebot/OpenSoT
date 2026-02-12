@@ -128,7 +128,7 @@ private:
 
     XBot::ModelInterface& _robot;
 
-    KDL::Frame _gaze_goal;
+    Eigen::Affine3d _gaze_goal;
     Eigen::Affine3d _tmpEigenM;
     Eigen::Affine3d _tmpEigenM2;
 

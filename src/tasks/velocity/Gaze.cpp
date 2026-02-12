@@ -12,9 +12,9 @@ Gaze::Gaze(std::string task_id,
     _distal_link(distal_link),
     _cartesian_task(new Cartesian(task_id, robot, _distal_link, base_link)),
     _subtask(new SubTask(_cartesian_task, Indices::range(4,5))),
-    _robot(robot), _tmp_vector(3),
-    _gaze_goal()
+    _robot(robot), _tmp_vector(3)
 {
+    _gaze_goal.setIdentity();
     this->_update();
 }
 
@@ -54,24 +54,13 @@ void Gaze::setGaze(const Eigen::Affine3d &desiredGaze)
     _tmp_vector(1) = _gaze_T_obj.translation().y();
     _tmp_vector(2) = _gaze_T_obj.translation().z();
 
-    _gaze_goal = _gaze_goal.Identity();
+    _gaze_goal.setIdentity();
 
     if(_tmp_vector.norm() >= GAZE_THRESHOLD){
         cartesian_utils::computePanTiltMatrix(_tmp_vector, _gaze_goal);
     //cartesian_utils::computePanTiltMatrix(gaze_T_obj.subcol(0, 3, 3), gaze_goal);
 
-        Eigen::Affine3d gaze_goal;
-        gaze_goal.translation().x() = _gaze_goal.p.x();
-        gaze_goal.translation().y() = _gaze_goal.p.y();
-        gaze_goal.translation().z() = _gaze_goal.p.z();
-        for(unsigned int i = 0; i < 3; ++i)
-        {
-            for(unsigned int j = 0; j < 3; ++j)
-            {
-                gaze_goal.linear()(i,j) = _gaze_goal.M(i,j);
-            }
-        }
-        _cartesian_task->setReference(gaze_goal);}
+        _cartesian_task->setReference(_gaze_goal);}
 }
 
 void Gaze::setOrientationErrorGain(const double& orientationErrorGain)
