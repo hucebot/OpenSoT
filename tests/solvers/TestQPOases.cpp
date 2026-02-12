@@ -921,10 +921,14 @@ TEST_F(testiHQP, testContructor2Problems)
     OpenSoT::solvers::iHQP sot(stack_of_tasks, joint_constraints);
 
 
-    KDL::Frame T_ref_kdl;
-    T_ref_kdl.p[0] = 0.283; T_ref_kdl.p[1] = 0.156; T_ref_kdl.p[2] = 0.499;
-    T_ref_kdl.M = T_ref_kdl.M.Quaternion(0.0, 0.975, 0.0, -0.221);
-    cartesian_task->setReference(T_ref_kdl);
+    Eigen::Affine3d T_ref;
+    T_ref.translation().x() = 0.283;
+    T_ref.translation().y() = 0.156;
+    T_ref.translation().z() = 0.499;
+    Eigen::Quaterniond p(-0.221, 0.0, 0.975, 0.0);
+    p.normalize();
+    T_ref.linear() = p.toRotationMatrix();
+    cartesian_task->setReference(T_ref);
 
     //Solve SoT
     _model_ptr->setJointPosition(q);
@@ -959,10 +963,10 @@ TEST_F(testiHQP, testContructor2Problems)
 
 
     for(unsigned int i = 0; i < 3; ++i)
-        EXPECT_NEAR(T_kdl.p[i], T_ref_kdl.p[i], 1E-3);
+        EXPECT_NEAR(T_kdl.p[i], T_ref.translation()[i], 1E-3);
     for(unsigned int i = 0; i < 3; ++i)
         for(unsigned int j = 0; j < 3; ++j)
-            EXPECT_NEAR(T_kdl.M(i,j), T_ref_kdl.M(i,j), 1E-2);
+            EXPECT_NEAR(T_kdl.M(i,j), T_ref.linear()(i,j), 1E-2);
 
     OpenSoT::solvers::BackEnd::Ptr back_end_i;
     EXPECT_FALSE(sot.getBackEnd(2, back_end_i));

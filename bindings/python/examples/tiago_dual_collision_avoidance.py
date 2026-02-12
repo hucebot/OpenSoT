@@ -19,7 +19,7 @@ from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import PoseStamped, Point
 
 import pyopensot as pysot
-from pyopensot.tasks.velocity import Postural, Cartesian
+from pyopensot.tasks.velocity import Postural, Cartesian, Gaze
 from pyopensot.constraints.velocity import JointLimits, VelocityLimits
 from pyopensot_collision.constraints.velocity import CollisionAvoidance
 
@@ -262,6 +262,8 @@ Wpostural[0:6] = 0.0  # Do not penalize floating base
 Wpostural[6:10] = 0.0  # Do not penalize wheels
 postural.setWeight(Wpostural)
 
+gaze = Gaze("gaze", model, "base_link", "head_front_camera_link")
+
 # CONSTRAINTS
 qmin, qmax = model.getJointLimits()
 qlims = JointLimits(model, qmax, qmin)
@@ -350,7 +352,7 @@ collision_avoidance.setCollisionList(collision_list)
 
 
 # STACK
-stack = ( (gripper_left + gripper_right + base%[0, 1, 5]) / postural) << qlims << dqlims << collision_avoidance << base2D%[2, 3, 4]
+stack = ( (gripper_left + gripper_right + base%[0, 1, 5] + gaze) / postural) << qlims << dqlims << collision_avoidance << base2D%[2, 3, 4]
 stack.update()
 
 # SOLVER
@@ -378,6 +380,9 @@ try:
         pose_ref.linear = R.from_quat(quat).as_matrix()
 
         gripper_right.setReference(pose_ref, vel_ref)
+        
+        gaze_ref = model.getPose("gripper_right_grasping_frame", "base_link")
+        gaze.setGaze(gaze_ref)
 
         #Environment Collision
         if node.enable_external_obstacle:

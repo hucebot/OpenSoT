@@ -12,7 +12,7 @@ Gaze::Gaze(std::string task_id,
     _distal_link(distal_link),
     _cartesian_task(new Cartesian(task_id, robot, _distal_link, base_link)),
     _subtask(new SubTask(_cartesian_task, Indices::range(4,5))),
-    _robot(robot), _tmp_vector(3), _bl_T_gaze_kdl(),
+    _robot(robot), _tmp_vector(3),
     _gaze_goal()
 {
     this->_update();
@@ -27,16 +27,6 @@ void Gaze::setLambda(double lambda)
 {
     _subtask->setLambda(lambda);
     _lambda = _subtask->getLambda();
-}
-
-void Gaze::setGaze(const KDL::Frame& desiredGaze)
-{
-    _tmpEigenM2.setIdentity();
-    //Here we just need the position part
-    _tmpEigenM2.translation().x() = desiredGaze.p.x();
-    _tmpEigenM2.translation().y() = desiredGaze.p.y();
-    _tmpEigenM2.translation().z() = desiredGaze.p.z();
-    setGaze(_tmpEigenM2);
 }
 
 void Gaze::setGaze(const Eigen::MatrixXd& desiredGaze)
@@ -70,7 +60,18 @@ void Gaze::setGaze(const Eigen::Affine3d &desiredGaze)
         cartesian_utils::computePanTiltMatrix(_tmp_vector, _gaze_goal);
     //cartesian_utils::computePanTiltMatrix(gaze_T_obj.subcol(0, 3, 3), gaze_goal);
 
-        _cartesian_task->setReference(_bl_T_gaze_kdl*_gaze_goal);}
+        Eigen::Affine3d gaze_goal;
+        gaze_goal.translation().x() = _gaze_goal.p.x();
+        gaze_goal.translation().y() = _gaze_goal.p.y();
+        gaze_goal.translation().z() = _gaze_goal.p.z();
+        for(unsigned int i = 0; i < 3; ++i)
+        {
+            for(unsigned int j = 0; j < 3; ++j)
+            {
+                gaze_goal.linear()(i,j) = _gaze_goal.M(i,j);
+            }
+        }
+        _cartesian_task->setReference(gaze_goal);}
 }
 
 void Gaze::setOrientationErrorGain(const double& orientationErrorGain)

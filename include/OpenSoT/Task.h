@@ -115,11 +115,6 @@
         /** Updates the A, b, Aeq, beq, Aineq, b*Bound matrices */
         virtual void _update() = 0;
 
-        struct istrue //predicate
-        {
-           bool operator()(int val) const {return val == true;}
-        };
-
         /**
          * @brief applyActiveJointsMask apply the active joint mask to the A matrix:
          * in tasks in which b does not depend on A, this is done setting to 0 the columns

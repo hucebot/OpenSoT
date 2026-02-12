@@ -130,8 +130,7 @@ TEST_F(testCartesianTask, testCartesianTaskWorldGlobal_)
     cartesian.setReference(x_ref.matrix());
     cartesian.update();
     Eigen::Vector3d positionError, orientationError;
-    cartesian_utils::computeCartesianError(x.matrix(), x_ref.matrix(),
-                                           positionError, orientationError);
+    cartesian_utils::computeCartesianError(x, x_ref, positionError, orientationError);
 
     double orientationErrorGain = 1.0;
     cartesian.setOrientationErrorGain(orientationErrorGain);
@@ -221,8 +220,7 @@ TEST_F(testCartesianTask, testCartesianTaskWorldLocal_)
     cartesian.setReference(x_ref.matrix());
     cartesian.update();
     Eigen::Vector3d positionError, orientationError;
-    cartesian_utils::computeCartesianError(x.matrix(), x_ref.matrix(),
-                                           positionError, orientationError);
+    cartesian_utils::computeCartesianError(x, x_ref, positionError, orientationError);
 
     double orientationErrorGain = 1.0;
     cartesian.setOrientationErrorGain(orientationErrorGain);
@@ -322,8 +320,7 @@ TEST_F(testCartesianTask, testCartesianTaskRelativeUpdateWorld_)
     cartesian.setReference(x_ref.matrix());
     cartesian.update();
     Eigen::Vector3d positionError, orientationError;
-    cartesian_utils::computeCartesianError(x.matrix(), x_ref.matrix(),
-                                           positionError, orientationError);
+    cartesian_utils::computeCartesianError(x, x_ref, positionError, orientationError);
 
     double orientationErrorGain = 1.0;
     cartesian.setOrientationErrorGain(orientationErrorGain);
@@ -416,8 +413,7 @@ TEST_F(testCartesianTask, testCartesianTaskRelativeWaistUpdateWorld_)
     cartesian.setReference(x_ref.matrix());
     cartesian.update();
     Eigen::Vector3d positionError, orientationError;
-    cartesian_utils::computeCartesianError(x.matrix(), x_ref.matrix(),
-                                           positionError, orientationError);
+    cartesian_utils::computeCartesianError(x, x_ref, positionError, orientationError);
 
     double orientationErrorGain = 1.0;
     cartesian.setOrientationErrorGain(orientationErrorGain);

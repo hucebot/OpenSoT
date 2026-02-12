@@ -33,47 +33,6 @@ void  cartesian_utils::computePanTiltMatrix(const Eigen::VectorXd &gaze, KDL::Fr
     pan_tilt_matrix.M.DoRotY(-tilt);
 }
 
-void cartesian_utils::computeCartesianError(const Eigen::Matrix4d &T,
-                                  const Eigen::Matrix4d &Td,
-                                  Eigen::Vector3d& position_error,
-                                  Eigen::Vector3d& orientation_error)
-{
-    position_error.setZero(3);
-    orientation_error.setZero(3);
-
-    KDL::Frame x; // ee pose
-    x.Identity();
-    Eigen::Matrix4d tmp = T;
-    tf2::transformEigenToKDL(Eigen::Affine3d(tmp),x);
-    quaternion q;
-    x.M.GetQuaternion(q.x, q.y, q.z, q.w);
-
-    KDL::Frame xd; // ee desired pose
-    xd.Identity();
-    tmp = Td;
-    tf2::transformEigenToKDL(Eigen::Affine3d(tmp),xd);
-    quaternion qd;
-    xd.M.GetQuaternion(qd.x, qd.y, qd.z, qd.w);
-
-    //This is needed to move along the short path in the quaternion error
-    if(quaternion::dot(q, qd) < 0.0)
-        q = q.operator *(-1.0); //che cagata...
-
-    KDL::Vector xerr_p; // Cartesian position error
-    KDL::Vector xerr_o; // Cartesian orientation error
-
-    xerr_p = xd.p - x.p;
-    xerr_o = quaternion::error(q, qd);
-
-
-    position_error(0) = xerr_p.x();
-    position_error(1) = xerr_p.y();
-    position_error(2) = xerr_p.z();
-
-    orientation_error(0) = xerr_o.x();
-    orientation_error(1) = xerr_o.y();
-    orientation_error(2) = xerr_o.z();
-}
 
 void cartesian_utils::computeCartesianError(const Eigen::Affine3d &T,
                                   const Eigen::Affine3d &Td,

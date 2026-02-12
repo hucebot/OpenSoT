@@ -5,7 +5,6 @@
 #include <OpenSoT/constraints/velocity/JointLimits.h>
 #include <OpenSoT/tasks/velocity/Postural.h>
 #include <qpOASES.hpp>
-#include <fstream>
 #include <OpenSoT/solvers/iHQP.h>
 #include <xbot2_interface/xbotinterface2.h>
 #include <OpenSoT/utils/AutoStack.h>
@@ -194,13 +193,13 @@ TEST_F(testActivateStack, test_deactivate_stack)
         if(j == 1)
             sot.setActiveStack(1, false);
 
-        KDL::Frame T;
+        Eigen::Affine3d T;
         left_arm->getReference(T);
-        T.p.x(T.p.x() + 0.1);
+        T.translation().x() += 0.1;
         left_arm->setReference(T);
 
         right_arm->getReference(T);
-        T.p.x(T.p.x() - 0.1);
+        T.translation().x() -= 0.1;
         right_arm->setReference(T);
 
         Eigen::VectorXd q_ref(q.size());

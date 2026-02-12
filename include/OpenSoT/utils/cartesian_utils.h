@@ -43,7 +43,7 @@ public:
 
 
 /**
-  This class implements quaternion error as in the paper:
+  This struct implements quaternion error as in the paper:
     "Operational Space Control: A Theoretical and Empirical Comparison"
   Authors: Jun Nakanishi, Rick Cory, Michael Mistry, Jan Peters and Stefan Schaal
   The International Journal of Robotics Research, Vol. 27, No. 6, June 2008, pp. 737–757
@@ -52,95 +52,8 @@ public:
                 o_error = -Ke
             with K positive definite!
   **/
-class quaternion
+struct quaternion
 {
-public:
-    double x;
-    double y;
-    double z;
-    double w;
-
-    quaternion():
-        x(0.0),
-        y(0.0),
-        z(0.0),
-        w(1.0)
-    {
-
-    }
-
-    quaternion(double _x, double _y, double _z, double _w):
-        x(_x),
-        y(_y),
-        z(_z),
-        w(_w)
-    {
-
-    }
-
-    /**
-     * @brief dot product between two quaternions
-     * @param a first quaternion
-     * @param b second quaternion
-     * @return a scalar
-     */
-    static double dot(const quaternion& a, const quaternion& b)
-    {
-        return a.w*b.w + a.x*b.x + a.y*b.y + a.z*b.z;
-    }
-
-    /**
-     * @brief operator * product between a quaternion and a scalar
-     * @param a scalar
-     * @return a quaternion
-     */
-    quaternion operator*(const double a)
-    {
-        quaternion q(x, y, z, w);
-
-        q.x *= a;
-        q.y *= a;
-        q.z *= a;
-        q.w *= a;
-
-        return q;
-    }
-
-    /**
-     * @brief skew operator
-     * @return the skew matrix of the quaternion
-     */
-    KDL::Rotation skew()
-    {
-        KDL::Rotation s(0.0,  -z,   y,
-                          z, 0.0,  -x,
-                         -y,   x, 0.0);
-        return s;
-    }
-
-    /**
-     * @brief error compute the error between two quaternion to be usable in orientation control
-     * @param q actual quaternion
-     * @param qd desired quaternion
-     * @return an error vector [3x1]
-     *
-     * REMEMBER: if e is the quaternion error, the orientation error is defined as:
-                o_error = -Ke
-            with K positive definite!
-     *
-     */
-    static KDL::Vector error(quaternion& q, quaternion& qd)
-    {
-        KDL::Vector e(0.0, 0.0, 0.0);
-
-        KDL::Vector eps(q.x, q.y, q.z);
-        KDL::Vector epsd(qd.x, qd.y, qd.z);
-
-        e = qd.w*eps - q.w*epsd + qd.skew()*eps;
-
-        return e;
-    }
-
     static Eigen::Vector3d error(const double& qx,const double& qy,const double& qz,const double& qw,
                                  const double& qdx,const double& qdy,const double& qdz,const double& qdw)
     {
@@ -157,22 +70,6 @@ public:
         e = qdw*eps - qw*epsd + skew*eps;
 
         return e;
-    }
-
-    /**
-     * @brief normalize a given quaternion:
-     * Given q = (x, y, z, w)
-     * return q_n = (x/d, y/d, z/d, w/d)
-     * with d = sqrt(x**2 + y**2 + z**2 + w**2)
-     * @param q quaternion to normalize
-     */
-    static void normalize(quaternion& q)
-    {
-        double d = sqrt(q.x*q.x + q.y*q.y + q.z*q.z + q.w*q.w);
-        q.x = q.x/d;
-        q.y = q.y/d;
-        q.z = q.z/d;
-        q.w = q.w/d;
     }
 };
 
@@ -262,17 +159,7 @@ public:
      */
     static void computePanTiltMatrix(const Eigen::VectorXd& gaze, KDL::Frame& pan_tilt_matrix);
 
-    /**
-     * @brief computeCartesianError orientation and position error
-     * @param T actual pose Homogeneous Matrix [4x4]
-     * @param Td desired pose Homogeneous Matrix [4x4]
-     * @param position_error position error [3x1]
-     * @param orientation_error orientation error [3x1]
-     */
-    static void computeCartesianError(const Eigen::Matrix4d &T,
-                                      const Eigen::Matrix4d &Td,
-                                      Eigen::Vector3d& position_error,
-                                      Eigen::Vector3d& orientation_error);
+
     /**
      * @brief computeCartesianError orientation and position error
      * @param T actual pose

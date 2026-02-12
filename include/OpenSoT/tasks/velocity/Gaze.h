@@ -55,7 +55,6 @@ public:
     void setGaze(const Eigen::Affine3d& desiredGaze);
     [[deprecated]]
     void setGaze(const Eigen::MatrixXd& desiredGaze);
-    void setGaze(const KDL::Frame& desiredGaze);
 
     void setOrientationErrorGain(const double& orientationErrorGain);
 
@@ -129,7 +128,6 @@ private:
 
     XBot::ModelInterface& _robot;
 
-    KDL::Frame _bl_T_gaze_kdl;
     KDL::Frame _gaze_goal;
     Eigen::Affine3d _tmpEigenM;
     Eigen::Affine3d _tmpEigenM2;

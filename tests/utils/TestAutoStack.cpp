@@ -289,7 +289,8 @@ TEST_F(testAutoStack, testOperatorModulo)
     EXPECT_EQ(sub_task->getWeight().rows(), 3);
     EXPECT_EQ(sub_task->getWeight().cols(), 3);
 
-    KDL::Frame ref; ref.Identity();
+    Eigen::Affine3d ref;
+    ref.setIdentity();
     DHS->leftArm->setReference(ref);
 
     sub_task->update();

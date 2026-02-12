@@ -20,7 +20,6 @@
 
  #include <OpenSoT/Task.h>
  #include <xbot2_interface/xbotinterface2.h>
- #include <kdl/frames.hpp>
  #include <Eigen/Dense>
 
  #define WORLD_FRAME_NAME "world"
@@ -125,7 +124,6 @@
                  */
                 void setReference(const Eigen::Affine3d& desiredPose);
                 void setReference(const Eigen::Matrix4d& desiredPose);
-                void setReference(const KDL::Frame& desiredPose);
 
                 /**
                  * @brief setReference sets a new reference for the Cartesian task.
@@ -143,8 +141,6 @@
                                   const Eigen::Vector6d& desiredTwist);
                 void setReference(const Eigen::Matrix4d& desiredPose,
                                   const Eigen::Vector6d& desiredTwist);
-                void setReference(const KDL::Frame& desiredPose,
-                                  const KDL::Twist& desiredTwist);
 
                 /**
                  * @brief setVelocityLocalReference permits to set velocity expressed in local (ee) distal frame
@@ -162,7 +158,6 @@
                  */
                 void getReference(Eigen::Affine3d& desiredPose) const;
                 const Eigen::Matrix4d& getReference() const;
-                void getReference(KDL::Frame& desiredPose) const;
 
                 /**
                  * @brief getReference gets the current reference and feed-forward velocity for the Cartesian task.
@@ -175,9 +170,6 @@
                                   Eigen::Vector6d& desiredTwist) const;
                 void getReference(Eigen::Matrix4d& desiredPose,
                                   Eigen::Vector6d& desiredTwist) const;
-                void getReference(KDL::Frame& desiredPose,
-                                  KDL::Vector& desiredTwist) const;
-
 
                 /**
                  * @brief getActualPose returns the distal_link actual pose. You need to call _update(x) for the actual pose to change
@@ -186,7 +178,6 @@
                  */
                 void getActualPose(Eigen::Affine3d& actual_pose) const;
                 const Eigen::Matrix4d& getActualPose() const;
-                void getActualPose(KDL::Frame& actual_pose) const;
 
                 /**
                  * @brief getCachedVelocityReference can be used to get Velocity reference after update(), it will reset
