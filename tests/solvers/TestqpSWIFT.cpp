@@ -9,7 +9,6 @@
 #include <OpenSoT/tasks/velocity/Cartesian.h>
 #include <OpenSoT/solvers/iHQP.h>
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
-#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 #include "../common.h"
 
 
@@ -534,11 +533,13 @@ TEST_F(testqpSWIFTProblem, testContructor2Problems)
     OpenSoT::solvers::iHQP sot(stack_of_tasks, joint_constraints, 0., OpenSoT::solvers::solver_back_ends::qpSWIFT);
 
 
-    KDL::Frame T_ref_kdl;
-    T_ref_kdl.p[0] = 0.283; T_ref_kdl.p[1] = 0.156; T_ref_kdl.p[2] = 0.499;
-    T_ref_kdl.M = T_ref_kdl.M.Quaternion(0.0, 0.975, 0.0, -0.221);
     Eigen::Affine3d T_ref;
-    tf2::transformKDLToEigen(T_ref_kdl, T_ref);
+    T_ref.translation().x() = 0.283;
+    T_ref.translation().y() = 0.156;
+    T_ref.translation().z() = 0.499;
+    Eigen::Quaterniond p(-0.221, 0.0, 0.975, 0.0);
+    p.normalize();
+    T_ref.linear() = p.toRotationMatrix();
     cartesian_task->setReference(T_ref);
 
     //Solve SoT
@@ -565,17 +566,17 @@ TEST_F(testqpSWIFTProblem, testContructor2Problems)
     _model_ptr->setJointPosition(q);
     _model_ptr->update();
     std::cout<<"INITIAL CONFIG: "<<T_init.matrix()<<std::endl;
-    Eigen::Affine3d T_kdl;
-    _model_ptr->getPose("l_wrist", "Waist", T_kdl);
-    std::cout<<"FINAL CONFIG: "<<T_kdl.matrix()<<std::endl;
+    Eigen::Affine3d T;
+    _model_ptr->getPose("l_wrist", "Waist", T);
+    std::cout<<"FINAL CONFIG: "<<T.matrix()<<std::endl;
     std::cout<<"DESIRED CONFIG: "<<T_ref.matrix()<<std::endl;
 
 
     for(unsigned int i = 0; i < 3; ++i)
-        EXPECT_NEAR(T_kdl.translation()[i], T_ref.translation()[i], 1E-3);
+        EXPECT_NEAR(T.translation()[i], T_ref.translation()[i], 1E-3);
     for(unsigned int i = 0; i < 3; ++i)
         for(unsigned int j = 0; j < 3; ++j)
-            EXPECT_NEAR(T_kdl.linear()(i,j), T_ref.linear()(i,j), 1E-2);
+            EXPECT_NEAR(T.linear()(i,j), T_ref.linear()(i,j), 1E-2);
 
 
 }

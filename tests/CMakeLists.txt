@@ -4,9 +4,6 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(nav_msgs QUIET)
 find_package(tf2)
-#find_package(eigen_conversions)
-#find_package(tf_conversions)
-find_package(tf2_eigen_kdl REQUIRED)
 find_package(rclcpp QUIET)
 find_package(robot_state_publisher )
 find_package(urdf )
@@ -15,7 +12,7 @@ find_package(osqp QUIET)
 find_package(qpSWIFT QUIET)
 
 set(catkin_LIBRARIES
-    ${tf2_LIBRARIES} ${robot_state_publisher_LIBRARIES} ${urdf_LIBRARIES} ${tf2_eigen_kdl_LIBRARIES})
+    ${tf2_LIBRARIES} ${robot_state_publisher_LIBRARIES} ${urdf_LIBRARIES})
 #${tf_conversions_LIBRARIES})
 
 add_definitions(-DOPENSOT_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
@@ -41,7 +38,7 @@ enable_testing()
 
 add_definitions(-DOPENSOT_TESTS_ROBOTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/robots/")
 
-SET(TestLibs OpenSoT ${GTEST_BOTH_LIBRARIES} ${qpOASES_LIBRARIES} ${orocos_kdl_LIBRARIES} ${kdl_parser_LIBRARIES} ${catkin_LIBRARIES})
+SET(TestLibs OpenSoT ${GTEST_BOTH_LIBRARIES} ${qpOASES_LIBRARIES} ${catkin_LIBRARIES})
 #if(${moveit_core_FOUND})
 #    SET(TestLibs ${TestLibs} ${moveit_core_LIBRARIES})
 #endif()

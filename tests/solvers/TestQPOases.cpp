@@ -14,7 +14,6 @@
 #include <OpenSoT/tasks/velocity/MinimumEffort.h>
 #include <xbot2_interface/xbotinterface2.h>
 #include <OpenSoT/utils/AutoStack.h>
-#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 
 
 #include "../common.h"
@@ -954,19 +953,17 @@ TEST_F(testiHQP, testContructor2Problems)
     _model_ptr->update();
     std::cout<<"INITIAL CONFIG: "<<T_init.matrix()<<std::endl;
     Eigen::Affine3d T = _model_ptr->getPose("l_wrist", "Waist");
-    KDL::Frame T_kdl;
-    tf2::transformEigenToKDL(T, T_kdl);
-    // std::cout<<"FINAL CONFIG: "<< T_kdl<<std::endl;
-    // std::cout<<"DESIRED CONFIG: "<<T_ref_kdl<<std::endl;
+    std::cout<<"FINAL CONFIG: "<<T.matrix()<<std::endl;
+    std::cout<<"DESIRED CONFIG: "<<T_ref.matrix()<<std::endl;
 
 
 
 
     for(unsigned int i = 0; i < 3; ++i)
-        EXPECT_NEAR(T_kdl.p[i], T_ref.translation()[i], 1E-3);
+        EXPECT_NEAR(T.translation()[i], T_ref.translation()[i], 1E-3);
     for(unsigned int i = 0; i < 3; ++i)
         for(unsigned int j = 0; j < 3; ++j)
-            EXPECT_NEAR(T_kdl.M(i,j), T_ref.linear()(i,j), 1E-2);
+            EXPECT_NEAR(T.linear()(i,j), T_ref.linear()(i,j), 1E-2);
 
     OpenSoT::solvers::BackEnd::Ptr back_end_i;
     EXPECT_FALSE(sot.getBackEnd(2, back_end_i));

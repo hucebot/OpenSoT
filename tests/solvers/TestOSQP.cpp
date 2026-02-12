@@ -8,7 +8,6 @@
 #include <OpenSoT/tasks/velocity/Cartesian.h>
 #include <OpenSoT/solvers/iHQP.h>
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
-#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 #include "../common.h"
 
 #define GREEN "\033[0;32m"
@@ -508,16 +507,14 @@ TEST_F(testOSQPProblem, testContructor2Problems)
     _model_ptr->setJointPosition(q);
     _model_ptr->update();
     std::cout<<"INITIAL CONFIG: "<<T_init.matrix()<<std::endl;
-    KDL::Frame T_kdl;
-    auto Teigen = _model_ptr->getPose("l_wrist", "Waist");
-    tf2::transformEigenToKDL(Teigen, T_kdl);
+    auto T = _model_ptr->getPose("l_wrist", "Waist");
 
 
     for(unsigned int i = 0; i < 3; ++i)
-        EXPECT_NEAR(T_kdl.p[i], T_ref.translation()[i], 1E-3);
+        EXPECT_NEAR(T.translation()[i], T_ref.translation()[i], 1E-3);
     for(unsigned int i = 0; i < 3; ++i)
         for(unsigned int j = 0; j < 3; ++j)
-            EXPECT_NEAR(T_kdl.M(i,j), T_ref.linear()(i,j), 1E-2);
+            EXPECT_NEAR(T.linear()(i,j), T_ref.linear()(i,j), 1E-2);
 
 
 }

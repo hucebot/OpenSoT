@@ -7,7 +7,6 @@
 #include <OpenSoT/tasks/velocity/Cartesian.h>
 #include <OpenSoT/solvers/iHQP.h>
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
-#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 #include "../common.h"
 
 
@@ -519,18 +518,16 @@ TEST_F(testeiQuadProgProblem, testContructor2Problems)
     Eigen::Affine3d T;
     _model_ptr->getPose("l_wrist", "Waist", T);
 
-    KDL::Frame T_kdl;
-    tf2::transformEigenToKDL(T, T_kdl);
 
     std::cout<<"FINAL CONFIG: "<<T.matrix()<<std::endl;
     std::cout<<"DESIRED CONFIG: "<<T_ref.matrix()<<std::endl;
 
 
     for(unsigned int i = 0; i < 3; ++i)
-        EXPECT_NEAR(T_kdl.p[i], T_ref.translation()[i], 1E-3);
+        EXPECT_NEAR(T.translation()[i], T_ref.translation()[i], 1E-3);
     for(unsigned int i = 0; i < 3; ++i)
         for(unsigned int j = 0; j < 3; ++j)
-            EXPECT_NEAR(T_kdl.M(i,j), T_ref.linear()(i,j), 1E-2);
+            EXPECT_NEAR(T.linear()(i,j), T_ref.linear()(i,j), 1E-2);
 
 
 }

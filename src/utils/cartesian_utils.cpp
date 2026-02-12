@@ -19,7 +19,6 @@
 
 #include <OpenSoT/utils/cartesian_utils.h>
 #include <memory>
-#include <tf2_eigen_kdl/tf2_eigen_kdl.hpp>
 #define toDeg(X) (X*180.0/M_PI)
 
 
