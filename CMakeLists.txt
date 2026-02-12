@@ -135,7 +135,6 @@ set(OPENSOT_TASKS_SOURCES src/tasks/Aggregated.cpp
     src/tasks/velocity/Postural.cpp
     src/tasks/velocity/JointAdmittance.cpp #TODO: refactor to better implementation of admittance, not using filters
     src/tasks/force/Force.cpp
-    src/tasks/force/Cartesian.cpp
     src/tasks/floating_base/Contact.cpp
     src/tasks/floating_base/IMU.cpp
     )
