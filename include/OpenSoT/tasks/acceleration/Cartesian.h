@@ -23,7 +23,6 @@
 #include <xbot2_interface/xbotinterface2.h>
 #include <xbot2_interface/common/utils.h>
 #include <OpenSoT/tasks/acceleration/GainType.h>
-#include <kdl/frames.hpp>
 
 namespace OpenSoT { namespace tasks { namespace acceleration {
     
@@ -67,19 +66,13 @@ namespace OpenSoT { namespace tasks { namespace acceleration {
         void setPositionReference(const Eigen::Vector3d& pos_ref);
 
         void setReference(const Eigen::Affine3d& ref);
-        void setReference(const KDL::Frame& ref);
 
         void setReference(const Eigen::Affine3d& pose_ref,
                           const Eigen::Vector6d& vel_ref);
-        void setReference(const KDL::Frame& pose_ref,
-                          const KDL::Twist& vel_ref);
 
         void setReference(const Eigen::Affine3d& pose_ref,
                           const Eigen::Vector6d& vel_ref,
                           const Eigen::Vector6d& acc_ref);
-        void setReference(const KDL::Frame& pose_ref,
-                          const KDL::Twist& vel_ref,
-                          const KDL::Twist& acc_ref);
 
         /**
          * @brief setVirtualForce this version permits to set a virtual force which is transformed into an acceleration
@@ -101,19 +94,13 @@ namespace OpenSoT { namespace tasks { namespace acceleration {
 
 
         void getReference(Eigen::Affine3d& ref) const;
-        void getReference(KDL::Frame& ref) const;
 
         void getReference(Eigen::Affine3d& desiredPose,
                           Eigen::Vector6d& desiredTwist) const;
-        void getReference(KDL::Frame& desiredPose,
-                          KDL::Twist& desiredTwist) const;
 
         void getReference(Eigen::Affine3d& desiredPose,
                           Eigen::Vector6d& desiredTwist,
                           Eigen::Vector6d& desiredAcceleration) const;
-        void getReference(KDL::Frame& desiredPose,
-                          KDL::Twist& desiredTwist,
-                          KDL::Twist& desiredAcceleration) const;
 
         /**
          * @brief getCachedVelocityReference can be used to get Velocity reference after update(), it will reset
@@ -138,12 +125,10 @@ namespace OpenSoT { namespace tasks { namespace acceleration {
 
         const Eigen::Affine3d& getActualPose() const;
         void getActualPose(Eigen::Affine3d& actual) const;
-        void getActualPose(KDL::Frame& actual);
 
         const Eigen::Vector6d& getActualTwist() const;
         void getActualTwist(Eigen::Vector6d& actual) const;
-        void getActualTwist(KDL::Twist& actual);
-        
+
         bool reset();
 
         void setLambda(double lambda1, double lambda2);
