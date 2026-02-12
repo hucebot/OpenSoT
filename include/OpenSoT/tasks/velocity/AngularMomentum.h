@@ -20,7 +20,6 @@
 
 #include <OpenSoT/Task.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <kdl/frames.hpp>
 #include <Eigen/Dense>
 
 namespace OpenSoT {
@@ -68,14 +67,12 @@ namespace OpenSoT {
             * NOTE: the input desired angular momentum has to be multiplied by \f$ \text{dT} \f$!
             */
            void setReference(const Eigen::Vector3d& desiredAngularMomentum);
-           void setReference(const KDL::Vector& desiredAngularMomentum);
 
            /**
             * @brief getReference get the desired angular momentum at CoM
             * @param desiredAngularMomentum vector 3x1
             */
            void getReference(Eigen::Vector3d& desiredAngularMomentum) const;
-           void getReference(KDL::Vector& desiredAngularMomentum) const;
            const Eigen::Vector3d& getReference() const;
 
            /**

@@ -52,24 +52,14 @@ void LinearMomentum::setReference(const Eigen::Vector3d& desiredLinearMomentum)
     _desiredLinearMomentum = desiredLinearMomentum;
 }
 
-void LinearMomentum::setReference(const KDL::Vector& desiredLinearMomentum)
-{
-    _desiredLinearMomentum[0] = desiredLinearMomentum[0];
-    _desiredLinearMomentum[1] = desiredLinearMomentum[1];
-    _desiredLinearMomentum[2] = desiredLinearMomentum[2];
-}
+
 
 void LinearMomentum::getReference(Eigen::Vector3d& desiredLinearMomentum) const
 {
     desiredLinearMomentum = _desiredLinearMomentum;
 }
 
-void LinearMomentum::getReference(KDL::Vector& desiredLinearMomentum) const
-{
-    desiredLinearMomentum[0] = _desiredLinearMomentum[0];
-    desiredLinearMomentum[1] = _desiredLinearMomentum[1];
-    desiredLinearMomentum[2] = _desiredLinearMomentum[2];
-}
+
 
 std::string LinearMomentum::getBaseLink()
 {

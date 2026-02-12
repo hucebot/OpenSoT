@@ -73,31 +73,6 @@ void CoM::_update()
     /**********************************************************************/
 }
 
-void CoM::setReference(const KDL::Vector& desiredPosition,
-                  const KDL::Vector& desiredVelocity)
-{
-    _desiredPosition(0) = desiredPosition.x();
-    _desiredPosition(1) = desiredPosition.y();
-    _desiredPosition(2) = desiredPosition.z();
-
-    _desiredVelocity(0) = desiredVelocity.x();
-    _desiredVelocity(1) = desiredVelocity.y();
-    _desiredVelocity(2) = desiredVelocity.z();
-
-    _desiredVelocityRef = _desiredVelocity;
-    this->update_b();
-}
-
-void CoM::setReference(const KDL::Vector& desiredPosition)
-{
-    _desiredPosition(0) = desiredPosition.x();
-    _desiredPosition(1) = desiredPosition.y();
-    _desiredPosition(2) = desiredPosition.z();
-
-    _desiredVelocity.setZero(3);
-    _desiredVelocityRef = _desiredVelocity;
-    this->update_b();
-}
 
 void CoM::setReference(const Eigen::Vector3d& desiredPosition)
 {

@@ -20,7 +20,6 @@
 
 #include <OpenSoT/Task.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <kdl/frames.hpp>
 #include <Eigen/Dense>
 
 
@@ -84,7 +83,6 @@
                  * in the world coordinate frame
                  */
                 virtual void setReference(const Eigen::Vector3d& desiredPosition);
-                virtual void setReference(const KDL::Vector& desiredPosition);
 
                 /**
                  * @brief setReference sets a new reference for the CoM task.
@@ -99,8 +97,6 @@
                  */
                 virtual void setReference(const Eigen::Vector3d& desiredPosition,
                                   const Eigen::Vector3d& desiredVelocity);
-                virtual void setReference(const KDL::Vector& desiredPosition,
-                                  const KDL::Vector& desiredVelocity);
 
 
                 /**

@@ -67,14 +67,12 @@ namespace OpenSoT {
             * NOTE: the input desired linear momentum has to be multiplied by \f$ \text{dT} \f$!
             */
            void setReference(const Eigen::Vector3d& desiredLinearMomentum);
-           void setReference(const KDL::Vector& desiredLinearMomentum);
 
            /**
             * @brief getReference get the desired linear momentum at CoM
             * @param desiredLinearMomentum vector 3x1
             */
            void getReference(Eigen::Vector3d& desiredLinearMomentum) const;
-           void getReference(KDL::Vector& desiredLinearMomentum) const;
 
            /**
             * @brief getBaseLink

@@ -55,12 +55,6 @@ void AngularMomentum::setReference(const Eigen::Vector3d& desiredAngularMomentum
     _desiredAngularMomentum = desiredAngularMomentum;
 }
 
-void AngularMomentum::setReference(const KDL::Vector& desiredAngularMomentum)
-{
-    _desiredAngularMomentum[0] = desiredAngularMomentum[0];
-    _desiredAngularMomentum[1] = desiredAngularMomentum[1];
-    _desiredAngularMomentum[2] = desiredAngularMomentum[2];
-}
 
 void AngularMomentum::getReference(Eigen::Vector3d& desiredAngularMomentum) const
 {
@@ -72,12 +66,6 @@ const Eigen::Vector3d& AngularMomentum::getReference() const
     return _desiredAngularMomentum;
 }
 
-void AngularMomentum::getReference(KDL::Vector& desiredAngularMomentum) const
-{
-    desiredAngularMomentum[0] = _desiredAngularMomentum[0];
-    desiredAngularMomentum[1] = _desiredAngularMomentum[1];
-    desiredAngularMomentum[2] = _desiredAngularMomentum[2];
-}
 
 const std::string& AngularMomentum::getBaseLink() const
 {
