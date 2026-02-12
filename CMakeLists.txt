@@ -144,8 +144,7 @@ set(OPENSOT_SOLVERS_SOURCES src/solvers/BackEnd.cpp
     src/solvers/BackEndFactory.cpp
     src/solvers/iHQP.cpp
     src/solvers/nHQP.cpp
-    src/solvers/eHQP.cpp
-    src/solvers/l1HQP.cpp)
+    src/solvers/eHQP.cpp)
 
 option(OPENSOT_SOTH_FRONT_END "Add to compilation soth and HCOD front-end" OFF)
 if(${OPENSOT_SOTH_FRONT_END})
