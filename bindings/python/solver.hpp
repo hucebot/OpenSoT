@@ -38,9 +38,7 @@ void pySolver(py::module& m, const std::string& className) {
     py::enum_<OpenSoT::solvers::solver_back_ends>(m, "solver_back_ends")
             .value("qpOASES", OpenSoT::solvers::solver_back_ends::qpOASES)
             .value("OSQP", OpenSoT::solvers::solver_back_ends::OSQP)
-            .value("GLPK", OpenSoT::solvers::solver_back_ends::GLPK)
             .value("eiQuadProg", OpenSoT::solvers::solver_back_ends::eiQuadProg)
-            .value("ODYS", OpenSoT::solvers::solver_back_ends::ODYS)
             .value("qpSWIFT", OpenSoT::solvers::solver_back_ends::qpSWIFT)
             .value("proxQP", OpenSoT::solvers::solver_back_ends::proxQP)
             .export_values();
