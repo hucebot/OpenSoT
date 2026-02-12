@@ -7,6 +7,7 @@ message(STATUS "OPENSOT_TEST_PATH is ${OPENSOT_TEST_PATH}")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
 
 find_package(sensor_msgs REQUIRED)
+find_package(tf2_eigen REQUIRED)
 
 
 add_executable(example_joint_limits_psap joint_limits_psap.cpp JointLimitsPSAP.cpp)

@@ -24,14 +24,10 @@ set(${CMAKE_PROJECT_NAME}_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 add_subdirectory(doc)
 
 
-find_package(Qhull REQUIRED)
 find_package(PCL 1.7 QUIET COMPONENTS   common
                                         filters
                                         surface)
-                                        #search
-                                        #io)
                                                                                 
-find_package(tf2_eigen REQUIRED)
 find_package(xbot2_interface REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(matlogger2 REQUIRED)
@@ -184,10 +180,10 @@ ADD_LIBRARY(OpenSoT SHARED
 
 set(PRIVATE_TLL ${PRIVATE_TLL} ${eigen_conversions_LIBRARIES})
 if(${OPENSOT_COMPILE_COLLISION})
-    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision)#  moveit_msgs::moveit_msgs__rosidl_generator_cpp)
+    target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision)
 endif()
 if(${PCL_FOUND})
-    set(PRIVATE_TLL ${PRIVATE_TLL} ${QHULL_LIBRARIES} ${PCL_LIBRARIES} tf2_eigen::tf2_eigen )
+    set(PRIVATE_TLL ${PRIVATE_TLL} ${PCL_LIBRARIES})
 endif()
 
 

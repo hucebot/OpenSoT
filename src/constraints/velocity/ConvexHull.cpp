@@ -17,7 +17,6 @@
 
 #include <OpenSoT/constraints/velocity/ConvexHull.h>
 #include <OpenSoT/utils/convex_hull_utils.h>
-#include <exception>
 #include <cmath>
 
 using namespace OpenSoT::constraints::velocity;
