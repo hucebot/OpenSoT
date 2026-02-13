@@ -8,6 +8,7 @@
 - Python bindings for ConvexHull constraint
 
 ### Changed
+- Algorithm for Convex Hull computation
 
 ### Fixed
 
@@ -22,3 +23,4 @@
 - force tasks: CoM, FloatingBase, Cartesian
 - Optimal Control and MPC development
 - PCL dependency
+- HSOT interface support and dependency

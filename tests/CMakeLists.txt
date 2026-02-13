@@ -41,9 +41,7 @@ add_definitions(-DOPENSOT_TESTS_ROBOTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/robots/"
 SET(TestLibs OpenSoT ${GTEST_BOTH_LIBRARIES} ${qpOASES_LIBRARIES} ${catkin_LIBRARIES})
 
 
-if(${OPENSOT_SOTH_FRONT_END})
-    SET(TestLibs ${TestLibs} hcod_wrapper soth)
-endif()
+
 
 ADD_EXECUTABLE(testTask     tasks/TestTask.cpp)
 TARGET_LINK_LIBRARIES(testTask ${TestLibs})
@@ -63,13 +61,6 @@ add_test(NAME OpenSoT_tasks_Task COMMAND testTask)
  add_test(NAME OpenSoT_task_Aggregated COMMAND testAggregatedTask)
 
 
-
-if(${OPENSOT_SOTH_FRONT_END})
-    ADD_EXECUTABLE(testSOTH     solvers/TestSOTH.cpp)
-    TARGET_LINK_LIBRARIES(testSOTH ${TestLibs})
-    add_dependencies(testSOTH OpenSoT)
-    add_test(NAME OpenSoT_solvers_soth COMMAND testSOTH)
-endif()
 
 ADD_EXECUTABLE(testBilateralConstraint     constraints/TestBilateralConstraint.cpp)
 TARGET_LINK_LIBRARIES(testBilateralConstraint ${TestLibs})

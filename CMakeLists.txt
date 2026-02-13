@@ -132,17 +132,6 @@ set(OPENSOT_SOLVERS_SOURCES src/solvers/BackEnd.cpp
     src/solvers/nHQP.cpp
     src/solvers/eHQP.cpp)
 
-option(OPENSOT_SOTH_FRONT_END "Add to compilation soth and HCOD front-end" OFF)
-if(${OPENSOT_SOTH_FRONT_END})
-    message("Internal soth will be used!")
-    add_subdirectory(external/soth-ext/)
-    include_directories(external/soth-ext/include)
-    message("Adding src/solvers/HCOD.cpp to compilation")
-    set(OPENSOT_SOLVERS_SOURCES ${OPENSOT_SOLVERS_SOURCES} src/solvers/HCOD.cpp)
-    set(PRIVATE_TLL hcod_wrapper soth)
-endif()
-
-
 ##UTILS
 set(OPENSOT_UTILS_SOURCES src/utils/AutoStack.cpp
     src/utils/Affine.cpp
@@ -183,12 +172,6 @@ TARGET_LINK_LIBRARIES(OpenSoT
     matlogger2::matlogger2
     PRIVATE
     ${PRIVATE_TLL})
-
-if(${OPENSOT_SOTH_FRONT_END})
-    target_compile_definitions(OpenSoT
-            PUBLIC
-            -DOPENSOT_HAS_SOTH_FRONT_END)
-endif()
 
 
 ########################################################################
