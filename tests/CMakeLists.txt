@@ -6,13 +6,11 @@ find_package(tf2)
 find_package(rclcpp QUIET)
 find_package(robot_state_publisher )
 find_package(urdf )
-find_package(srdfdom)
 find_package(osqp QUIET)
 find_package(qpSWIFT QUIET)
 
 set(catkin_LIBRARIES
     ${tf2_LIBRARIES} ${robot_state_publisher_LIBRARIES} ${urdf_LIBRARIES})
-#${tf_conversions_LIBRARIES})
 
 add_definitions(-DOPENSOT_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")

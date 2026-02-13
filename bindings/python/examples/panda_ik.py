@@ -99,11 +99,7 @@ print(f"vel_ref: {vel_ref}")
 # Creates iHQP solver with stack (using qpOASES as backend)
 #
 solver = pysot.iHQP(s)
-#try:
-#    import pyopensot_hcod
-#    solver = pyopensot_hcod.HCOD(s, 1e-3)
-#except ImportError:
-#    raise ImportError('hcod solver not found. If you want to try it please compile with `-DOPENSOT_SOTH_FRONT_END=ON` option.')
+
 
 #
 msg = JointState()
