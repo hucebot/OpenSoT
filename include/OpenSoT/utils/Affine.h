@@ -175,29 +175,14 @@ public:
     {
         return segment(_M.rows() - size, size);
     }
- 
+
 
     
     template <typename Derived>
-    void getValue(const Eigen::VectorXd& x, Eigen::MatrixBase<Derived>& value)
+    void getValue(const Eigen::VectorXd& x, Eigen::MatrixBase<Derived>& value) const
     {
         value.noalias() = _M*x;
         value += _q;
-
-        _value = value;
-    }
-
-    const Eigen::VectorXd& getValue(const Eigen::VectorXd& x)
-    {
-        _value.noalias() = _M*x;
-        _value += _q;
-
-        return _value;
-    }
-
-    const Eigen::VectorXd& getValue() const
-    {
-        return _value;
     }
     
     virtual void update () {}
@@ -216,8 +201,6 @@ protected:
     
     DerivedM _M;
     DerivedQ _q;
-
-    Eigen::VectorXd _value;
 
 };
 

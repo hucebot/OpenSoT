@@ -49,28 +49,6 @@ inline std::string print(const AffineHelper& affine)
     return os.str();
 }
 
-inline AffineHelper subVariable(const AffineHelper& affine, const std::vector<size_t>& slice)
-{
-    Eigen::MatrixXd M;
-    M.setZero(slice.size(), affine.getM().rows());
-
-    unsigned int row = 0;
-    for(size_t index : slice)
-    {
-        M(row, index) = 1.;
-        row++;
-    }
-
-    return M*affine;
-}
-
-inline AffineHelper subVariable(const AffineHelper& affine, const size_t& id)
-{
-    std::vector<size_t> slice;
-    slice.push_back(id);
-    return subVariable(affine, slice);
-}
-
 
 
 class OptvarHelperWrapper
@@ -157,8 +135,15 @@ void pyAffineHelper(py::module& m, const std::string& className) {
         .def("setZero", py::overload_cast<int, int>(&AffineHelper::setZero))
 
 
-        .def("getValue", [](AffineHelperBase<Eigen::MatrixXd, Eigen::VectorXd>& self, const Eigen::VectorXd& x) -> const Eigen::VectorXd& { return self.getValue(x);})
-        .def("getValue", [](AffineHelperBase<Eigen::MatrixXd, Eigen::VectorXd>& self) -> const Eigen::VectorXd& { return self.getValue();})
+        .def("getValue",
+             [](const AffineHelperBase<Eigen::MatrixXd, Eigen::VectorXd>& self,
+                const Eigen::VectorXd& x)
+             {
+                 Eigen::VectorXd value(self.getOutputSize());  // or self.rows(), etc.
+                 self.getValue(x, value);
+                 return value;
+             },
+             py::arg("x"))
 
         .def("__sub__", [](const AffineHelper &a, const AffineHelper &b) { return diff(a, b); })
         .def("__add__", [](const AffineHelper &a, const AffineHelper &b) { return sum(a, b); })
@@ -175,28 +160,7 @@ void pyAffineHelper(py::module& m, const std::string& className) {
         .def_readwrite("_M", &PyAffineHeplerTrampoline::_M)
         .def_readwrite("_q", &PyAffineHeplerTrampoline::_q)
 
-        .def("__getitem__", [](const AffineHelper& a, const size_t i) {
-            if(i >= a.getM().rows())
-                throw py::index_error();
-            return subVariable(a, i);
-        })
 
-        .def("__getitem__", [](const AffineHelper& a, py::slice slice) {
-            size_t start, stop, step, slicelength;
-            if (!slice.compute(a.getM().rows(), &start, &stop, &step, &slicelength))
-                throw py::error_already_set();
-
-            std::vector<size_t> slice_vector;
-            slice_vector.reserve(slicelength);
-            for(size_t i = 0; i < slicelength; ++i)
-            {
-                unsigned int id = start + i * step;
-                if(id >= a.getM().rows())
-                    throw py::index_error();
-                slice_vector.push_back(id);
-            }
-            return subVariable(a, slice_vector);
-        })
 
         .def("update", &AffineHelper::update)
 
