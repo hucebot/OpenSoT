@@ -4,12 +4,10 @@ set(CMAKE_CXX_STANDARD 20)
 
 find_package(tf2)
 find_package(rclcpp QUIET)
-#find_package(robot_state_publisher )
-#find_package(urdf )
 find_package(osqp QUIET)
 find_package(qpSWIFT QUIET)
 
-set(catkin_LIBRARIES ${tf2_LIBRARIES})# ${robot_state_publisher_LIBRARIES} ${urdf_LIBRARIES})
+set(catkin_LIBRARIES ${tf2_LIBRARIES})
 
 add_definitions(-DOPENSOT_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
@@ -116,18 +114,6 @@ ADD_EXECUTABLE(testAffineHelper utils/TestAffineHelper.cpp)
 TARGET_LINK_LIBRARIES(testAffineHelper ${TestLibs})
 add_dependencies(testAffineHelper   OpenSoT)
 add_test(NAME OpenSoT_utils_affineHelper COMMAND testAffineHelper)
-
-# if(${rclcpp_FOUND})
-#     ADD_EXECUTABLE(testEigenSVD_StaticWalk_FloatingBase solvers/TestEigenSVD_StaticWalk_FloatingBase.cpp trajectory_utils.cpp path_circle_fix.cpp)
-#     TARGET_LINK_LIBRARIES(testEigenSVD_StaticWalk_FloatingBase ${TestLibs} rclcpp::rclcpp tf2_eigen::tf2_eigen)
-#     add_dependencies(testEigenSVD_StaticWalk_FloatingBase   OpenSoT)
-#     add_test(NAME OpenSoT_solvers_EigenSVD_StaticWalk_FloatingBase COMMAND testEigenSVD_StaticWalk_FloatingBase)
-# endif()
-
-# ADD_EXECUTABLE(testFrictionConeForceConstraint constraints/force/TestFrictionCones.cpp)
-# TARGET_LINK_LIBRARIES(testFrictionConeForceConstraint ${TestLibs} ${catkin_LIBRARIES})
-# add_dependencies(testFrictionConeForceConstraint   OpenSoT)
-# add_test(NAME OpenSoT_constraint_force_FrictionCones COMMAND testFrictionConeForceConstraint)
 
  ADD_EXECUTABLE(testManipulabilityTask tasks/velocity/TestManipulability.cpp)
  TARGET_LINK_LIBRARIES(testManipulabilityTask ${TestLibs})
@@ -261,12 +247,6 @@ endif()
  TARGET_LINK_LIBRARIES(testPiler ${TestLibs})
  add_dependencies(testPiler   OpenSoT)
  add_test(NAME OpenSoT_utils_testPiler COMMAND testPiler)
-
- #ADD_EXECUTABLE(testQPOases_FF solvers/TestQPOases_FF.cpp)
- #TARGET_LINK_LIBRARIES(testQPOases_FF ${TestLibs})
- #add_dependencies(testQPOases_FF   OpenSoT)
- #add_test(NAME OpenSoT_solvers_qpOases_FF COMMAND testQPOases_FF)
-
 
  ADD_EXECUTABLE(testConvexHullVelocityConstraint constraints/velocity/TestConvexHull.cpp)
  TARGET_LINK_LIBRARIES(testConvexHullVelocityConstraint ${TestLibs})
