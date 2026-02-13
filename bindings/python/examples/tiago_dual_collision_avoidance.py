@@ -359,7 +359,6 @@ stack.update()
 solver = pysot.iHQP(stack)
 
 
-#SIMPLE CARTESIAN TRAJECTORY
 pose_ref, vel_ref = gripper_right.getReference()
 print(f"pose_ref: {pose_ref}")
 print(f"vel_ref: {vel_ref}")

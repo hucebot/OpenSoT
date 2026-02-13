@@ -51,17 +51,17 @@ add_dependencies(testTask   OpenSoT)
 add_test(NAME OpenSoT_tasks_Task COMMAND testTask)
 
     
-if(${PCL_FOUND})
-     ADD_EXECUTABLE(testAggregatedConstraint     constraints/TestAggregated.cpp)
-     TARGET_LINK_LIBRARIES(testAggregatedConstraint ${TestLibs})
-     add_dependencies(testAggregatedConstraint   OpenSoT)
-     add_test(NAME OpenSoT_constraints_Aggregated COMMAND testAggregatedConstraint)
 
-     ADD_EXECUTABLE(testAggregatedTask tasks/TestAggregated.cpp)
-     TARGET_LINK_LIBRARIES(testAggregatedTask ${TestLibs})
-     add_dependencies(testAggregatedTask   OpenSoT)
-     add_test(NAME OpenSoT_task_Aggregated COMMAND testAggregatedTask)
-endif()
+ ADD_EXECUTABLE(testAggregatedConstraint     constraints/TestAggregated.cpp)
+ TARGET_LINK_LIBRARIES(testAggregatedConstraint ${TestLibs})
+ add_dependencies(testAggregatedConstraint   OpenSoT)
+ add_test(NAME OpenSoT_constraints_Aggregated COMMAND testAggregatedConstraint)
+
+ ADD_EXECUTABLE(testAggregatedTask tasks/TestAggregated.cpp)
+ TARGET_LINK_LIBRARIES(testAggregatedTask ${TestLibs})
+ add_dependencies(testAggregatedTask   OpenSoT)
+ add_test(NAME OpenSoT_task_Aggregated COMMAND testAggregatedTask)
+
 
 
 if(${OPENSOT_SOTH_FRONT_END})
@@ -143,7 +143,7 @@ add_test(NAME OpenSoT_utils_affineHelper COMMAND testAffineHelper)
 # add_test(NAME OpenSoT_constraint_force_FrictionCones COMMAND testFrictionConeForceConstraint)
 
  ADD_EXECUTABLE(testManipulabilityTask tasks/velocity/TestManipulability.cpp)
- TARGET_LINK_LIBRARIES(testManipulabilityTask ${TestLibs} ${QHULL_LIBRARIES} ${PCL_LIBRARIES})
+ TARGET_LINK_LIBRARIES(testManipulabilityTask ${TestLibs})
  add_dependencies(testManipulabilityTask   OpenSoT)
  add_test(NAME OpenSoT_task_velocity_Manipulability COMMAND testManipulabilityTask)
 
@@ -280,22 +280,22 @@ endif()
  #add_dependencies(testQPOases_FF   OpenSoT)
  #add_test(NAME OpenSoT_solvers_qpOases_FF COMMAND testQPOases_FF)
 
- if(${PCL_FOUND})
-     ADD_EXECUTABLE(testConvexHullVelocityConstraint constraints/velocity/TestConvexHull.cpp)
-     TARGET_LINK_LIBRARIES(testConvexHullVelocityConstraint ${TestLibs})
-     add_dependencies(testConvexHullVelocityConstraint   OpenSoT)
-     add_test(NAME OpenSoT_constraints_velocity_ConvexHull COMMAND testConvexHullVelocityConstraint)
 
-     ADD_EXECUTABLE(testQPOases_ConvexHull solvers/TestQPOases_ConvexHull.cpp)
-     TARGET_LINK_LIBRARIES(testQPOases_ConvexHull ${TestLibs})
-     add_dependencies(testQPOases_ConvexHull   OpenSoT)
-     add_test(NAME OpenSoT_solvers_qpOases_ConvexHull COMMAND testQPOases_ConvexHull)
+ ADD_EXECUTABLE(testConvexHullVelocityConstraint constraints/velocity/TestConvexHull.cpp)
+ TARGET_LINK_LIBRARIES(testConvexHullVelocityConstraint ${TestLibs})
+ add_dependencies(testConvexHullVelocityConstraint   OpenSoT)
+ add_test(NAME OpenSoT_constraints_velocity_ConvexHull COMMAND testConvexHullVelocityConstraint)
 
-     ADD_EXECUTABLE(testQPOases_AutoStack solvers/TestQPOases_AutoStack.cpp DefaultHumanoidStack.cpp)
-     TARGET_LINK_LIBRARIES(testQPOases_AutoStack ${TestLibs})
-     add_dependencies(testQPOases_AutoStack   OpenSoT)
-     add_test(NAME OpenSoT_solvers_qpOases_AutoStack COMMAND testQPOases_AutoStack)
-endif()
+ ADD_EXECUTABLE(testQPOases_ConvexHull solvers/TestQPOases_ConvexHull.cpp)
+ TARGET_LINK_LIBRARIES(testQPOases_ConvexHull ${TestLibs})
+ add_dependencies(testQPOases_ConvexHull   OpenSoT)
+ add_test(NAME OpenSoT_solvers_qpOases_ConvexHull COMMAND testQPOases_ConvexHull)
+
+ ADD_EXECUTABLE(testQPOases_AutoStack solvers/TestQPOases_AutoStack.cpp DefaultHumanoidStack.cpp)
+ TARGET_LINK_LIBRARIES(testQPOases_AutoStack ${TestLibs})
+ add_dependencies(testQPOases_AutoStack   OpenSoT)
+ add_test(NAME OpenSoT_solvers_qpOases_AutoStack COMMAND testQPOases_AutoStack)
+
 
 
  if(${qpSWIFT_FOUND})

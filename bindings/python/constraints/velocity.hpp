@@ -4,9 +4,46 @@
 #include <OpenSoT/constraints/velocity/JointLimits.h>
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
 #include <OpenSoT/constraints/velocity/OmniWheels4X.h>
+#include <OpenSoT/constraints/velocity/ConvexHull.h>
 
 namespace py = pybind11;
 using namespace OpenSoT::constraints::velocity;
+
+void pyVelocityConvexHull(py::module& m) {
+py::class_<ConvexHull, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>, std::shared_ptr<ConvexHull>>(m, "ConvexHull")
+    .def(py::init<XBot::ModelInterface&, const std::list<std::string>&, const double>(), py::arg("robot"), py::arg("links_in_contact"), py::arg("safety_margin") = BOUND_SCALING, py::keep_alive<1, 2>())
+
+        .def_static("getConstraints",
+                [](const std::vector<Eigen::Vector3d>& points, double boundScaling)
+                {
+                    Eigen::MatrixXd A;
+                    Eigen::VectorXd b;
+
+                    ConvexHull::getConstraints(points, A, b, boundScaling);
+                    return std::make_pair(A, b);
+                }, py::arg("points"), py::arg("bound_scaling") = BOUND_SCALING)
+
+    .def_static("getLineCoefficients",
+                [](const Eigen::Vector3d& p0, const Eigen::Vector3d& p1)
+                {
+                    double a, b, c;
+                    ConvexHull::getLineCoefficients(p0, p1, a, b, c);
+                    return std::make_tuple(a, b, c);
+                }, py::arg("p0"), py::arg("p1"))
+
+    .def("getConvexHull",
+         [](ConvexHull& self)
+         {
+             std::vector<Eigen::Vector3d> ch;
+             bool success = self.getConvexHull(ch);
+             return std::make_pair(success, ch);
+         })
+
+    .def("setSafetyMargin", &ConvexHull::setSafetyMargin, py::arg("safety_margin"))
+    .def("getLinksInContact", &ConvexHull::getLinksInContact)
+    .def("setLinksInContact", &ConvexHull::setLinksInContact, py::arg("links_in_contact"));
+}
+
 
 void pyVelocityJointLimits(py::module& m) {
     py::class_<JointLimits, std::shared_ptr<JointLimits>, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "JointLimits")

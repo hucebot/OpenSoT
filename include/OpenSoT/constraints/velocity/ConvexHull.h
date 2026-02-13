@@ -20,10 +20,8 @@
 
  #include <OpenSoT/Constraint.h>
  #include <OpenSoT/tasks/velocity/CoM.h>
- #include <kdl/frames.hpp>
  #include <Eigen/Dense>
  #include <xbot2_interface/xbotinterface2.h>
- #include <OpenSoT/utils/convex_hull_utils.h>
 
 #define BOUND_SCALING 0.01
 
@@ -39,20 +37,20 @@
              * @brief The ConvexHull class implements a constraint of the type
              * \f$A_{\text{CH}}J_{\text{CoM}}\dot{q} \leq b_{\text{CH}}\f$, where every row in
              * \f$\left[ A_{\text{CH}} , -b_{\text{CH}}\right]\f$
-            */
+             *
+             *  using Andrew's monotone chain algorithm
+            **/
             class ConvexHull: public Constraint<Eigen::MatrixXd, Eigen::VectorXd> {
             public:
                 typedef std::shared_ptr<ConvexHull> Ptr;
             private:
                 XBot::ModelInterface &_robot;
                 double _boundScaling;
-                std::shared_ptr<convex_hull> _convex_hull;
                 std::vector<Eigen::Vector3d> _ch;
                 std::list<std::string> _links_in_contact;
                 Eigen::MatrixXd _JCoM;
                 Eigen::MatrixXd _C;
                 std::list<Eigen::Vector3d> _points;
-                std::vector<Eigen::Vector3d> _tmp_ch;
                 void _update();
 
             public:
@@ -87,6 +85,11 @@
                 static void getLineCoefficients(const Eigen::Vector3d &p0, const Eigen::Vector3d &p1,
                                                 double &a, double& b, double &c);
 
+                /**
+                 * @brief getConvexHull return convex hull points expressed w.r.t. com position
+                 * @param ch points w.r.t. com position
+                 * @return false if ch can not be computed
+                 */
                 bool getConvexHull(std::vector<Eigen::Vector3d>& ch);
 
                 /**

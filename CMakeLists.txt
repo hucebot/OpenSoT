@@ -23,10 +23,6 @@ set(${CMAKE_PROJECT_NAME}_CMAKE_BUILD_TYPE ${CMAKE_BUILD_TYPE})
 
 add_subdirectory(doc)
 
-
-find_package(PCL 1.7 QUIET COMPONENTS   common
-                                        filters
-                                        surface)
                                                                                 
 find_package(xbot2_interface REQUIRED)
 find_package(PkgConfig REQUIRED)
@@ -57,10 +53,10 @@ endif()
 
 # add include directories
 INCLUDE_DIRECTORIES(include ${EIGEN3_INCLUDE_DIR}
-    ${PCL_INCLUDE_DIRS} ${XBotInterface_INCLUDE_DIRS} ${eigen_conversions_INCLUDE_DIRS}
+    ${XBotInterface_INCLUDE_DIRS} ${eigen_conversions_INCLUDE_DIRS}
     )
 
-ADD_DEFINITIONS(${PCL_DEFINITIONS})
+
 
 
 # for every file in sot_INCLUDES CMake already sets the property HEADER_FILE_ONLY
@@ -79,6 +75,7 @@ set(OPENSOT_CONSTRAINTS_SOURCES src/constraints/Aggregated.cpp
     src/constraints/velocity/JointLimitsInvariance.cpp
     src/constraints/velocity/VelocityLimits.cpp
     src/constraints/velocity/OmniWheels4X.cpp
+    src/constraints/velocity/ConvexHull.cpp
     src/constraints/force/FrictionCone.cpp
     src/constraints/force/WrenchLimits.cpp
     src/constraints/force/CoP.cpp
@@ -89,11 +86,6 @@ set(OPENSOT_CONSTRAINTS_SOURCES src/constraints/Aggregated.cpp
     src/constraints/acceleration/JointLimitsECBF.cpp
     )
 
-if(${PCL_FOUND})
-    message("Adding src/constraints/velocity/ConvexHull.cpp to compilation")
-    set(OPENSOT_CONSTRAINTS_SOURCES ${OPENSOT_CONSTRAINTS_SOURCES}
-        src/constraints/velocity/ConvexHull.cpp)
-endif()
 
 if(${OPENSOT_COMPILE_COLLISION})
     message("Adding src/constraints/velocity/SelfCollisionAvoidance.cpp to compilation")
@@ -160,12 +152,6 @@ set(OPENSOT_UTILS_SOURCES src/utils/AutoStack.cpp
     src/utils/InverseDynamics.cpp)
 
 
-if(${PCL_FOUND})
-    message("Adding src/utils/convex_hull_utils.cpp to compilation")
-    set(OPENSOT_UTILS_SOURCES ${OPENSOT_UTILS_SOURCES}
-        src/utils/convex_hull_utils.cpp)
-endif()
-
 ##VARIABLES
 set(OPENSOT_VARIABLES_SOURCES src/variables/Torque.cpp)
 
@@ -181,9 +167,7 @@ set(PRIVATE_TLL ${PRIVATE_TLL} ${eigen_conversions_LIBRARIES})
 if(${OPENSOT_COMPILE_COLLISION})
     target_link_libraries(OpenSoT PUBLIC xbot2_interface::collision)
 endif()
-if(${PCL_FOUND})
-    set(PRIVATE_TLL ${PRIVATE_TLL} ${PCL_LIBRARIES})
-endif()
+
 
 
 configure_file(version.h.in include/OpenSoT/version.h)
