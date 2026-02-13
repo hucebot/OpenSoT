@@ -2,7 +2,6 @@ include(ExternalProject)
 
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(nav_msgs QUIET)
 find_package(tf2)
 find_package(rclcpp QUIET)
 find_package(robot_state_publisher )
