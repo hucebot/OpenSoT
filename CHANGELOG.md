@@ -5,6 +5,7 @@
 ### Breaking
 
 ### Added
+- Python bindings for ConvexHull constraint
 
 ### Changed
 
@@ -20,3 +21,4 @@
 - L1HQP solver
 - force tasks: CoM, FloatingBase, Cartesian
 - Optimal Control and MPC development
+- PCL dependency
