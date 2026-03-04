@@ -18,7 +18,7 @@
 */
 
 #include <OpenSoT/utils/cartesian_utils.h>
-#include <memory>
+#include <cmath>
 #define toDeg(X) (X*180.0/M_PI)
 
 

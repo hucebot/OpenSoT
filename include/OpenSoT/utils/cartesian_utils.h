@@ -20,11 +20,8 @@
 #ifndef _CARTESIAN_UTILS_H__
 #define _CARTESIAN_UTILS_H__
 
-#include <vector>
-#include <list>
-#include <urdf/model.h>
+#include <limits>
 #include <Eigen/Dense>
-#include <Eigen/Cholesky>
 
 /**
  * @brief The CostFunction class pure virtual function used to describe functions for computeGradient method.
