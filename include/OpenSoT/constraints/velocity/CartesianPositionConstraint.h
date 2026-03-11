@@ -59,32 +59,28 @@
             public:
                 /**
                  * @brief CartesianPositionConstraint
-                 * @param x the current joint position of the robot
                  * @param cartesianTask the cartesian task which we want to bound
                  * @param A_Cartesian a matrix nx3 specifying the cartesian limits
                  * @param b_Cartesian a vector of size n specifying the cartesian limits
                  * @param boundScaling a parameter which is inversely proportional to the number of steps
                  * needed to reach the cartesian task limits.
                  */
-                CartesianPositionConstraint(const Eigen::VectorXd& x,
-                                             OpenSoT::tasks::velocity::Cartesian::Ptr cartesianTask,
-                                             const Eigen::MatrixXd& A_Cartesian,
-                                             const Eigen::VectorXd& b_Cartesian,
+                CartesianPositionConstraint(OpenSoT::tasks::velocity::Cartesian::Ptr cartesianTask,
+                                            const Eigen::MatrixXd& A_Cartesian,
+                                            const Eigen::VectorXd& b_Cartesian,
                                             const double boundScaling = 1.0);
 
                 /**
                  * @brief CartesianPositionConstraint
-                 * @param x the current joint position of the robot
                  * @param comTask
                  * @param A_Cartesian a matrix nx3 specifying the cartesian limits
                  * @param b_Cartesian a vector of size n specifying the cartesian limits
                  * @param boundScaling a parameter which is inversely proportional to the number of steps
                  * needed to reach the cartesian task limits.
                  */
-                CartesianPositionConstraint(const Eigen::VectorXd& x,
-                                             OpenSoT::tasks::velocity::CoM::Ptr comTask,
-                                             const Eigen::MatrixXd& A_Cartesian,
-                                             const Eigen::VectorXd& b_Cartesian,
+                CartesianPositionConstraint(OpenSoT::tasks::velocity::CoM::Ptr comTask,
+                                            const Eigen::MatrixXd& A_Cartesian,
+                                            const Eigen::VectorXd& b_Cartesian,
                                             const double boundScaling = 1.0);
 
                 /**

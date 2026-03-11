@@ -5,9 +5,28 @@
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
 #include <OpenSoT/constraints/velocity/OmniWheels4X.h>
 #include <OpenSoT/constraints/velocity/ConvexHull.h>
+#include <OpenSoT/constraints/velocity/CartesianPositionConstraint.h>
 
 namespace py = pybind11;
 using namespace OpenSoT::constraints::velocity;
+
+void pyVelocityCartesianPositionConstraint(py::module& m) {
+    py::class_<CartesianPositionConstraint, std::shared_ptr<CartesianPositionConstraint>, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "CartesianPositionConstraint")
+        .def(py::init<OpenSoT::tasks::velocity::Cartesian::Ptr, const Eigen::MatrixXd&, const Eigen::VectorXd&, const double>(), py::arg("cartesian_task"), py::arg("A_cartesian"), py::arg("b_cartesian"), py::arg("bound_scaling") = 1.0)
+
+        .def(py::init<OpenSoT::tasks::velocity::CoM::Ptr, const Eigen::MatrixXd&, const Eigen::VectorXd&, const double>(), py::arg("com_task"), py::arg("A_cartesian"), py::arg("b_cartesian"), py::arg("bound_scaling") = 1.0)
+
+        .def("getCurrentPosition",
+             [](CartesianPositionConstraint& self)
+             {
+                 Eigen::VectorXd pos;
+                 self.getCurrentPosition(pos);
+                 return pos;
+             })
+
+        .def("setAbCartesian",
+             &CartesianPositionConstraint::setAbCartesian, py::arg("A_cartesian"), py::arg("b_cartesian"));
+}
 
 void pyVelocityConvexHull(py::module& m) {
 py::class_<ConvexHull, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>, std::shared_ptr<ConvexHull>>(m, "ConvexHull")

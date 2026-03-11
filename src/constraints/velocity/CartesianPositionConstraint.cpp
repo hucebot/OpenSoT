@@ -22,8 +22,7 @@
 using namespace OpenSoT::constraints::velocity;
 
 
-CartesianPositionConstraint::CartesianPositionConstraint(const Eigen::VectorXd &x,
-                                                         OpenSoT::tasks::velocity::Cartesian::Ptr cartesianTask,
+CartesianPositionConstraint::CartesianPositionConstraint(OpenSoT::tasks::velocity::Cartesian::Ptr cartesianTask,
                                                          const Eigen::MatrixXd &A_Cartesian,
                                                          const Eigen::VectorXd &b_Cartesian,
                                                          const double boundScaling) :
@@ -44,11 +43,10 @@ CartesianPositionConstraint::CartesianPositionConstraint(const Eigen::VectorXd &
 }
 
 
-CartesianPositionConstraint::CartesianPositionConstraint(const Eigen::VectorXd& x,
-                             OpenSoT::tasks::velocity::CoM::Ptr comTask,
-                             const Eigen::MatrixXd& A_Cartesian,
-                             const Eigen::VectorXd& b_Cartesian,
-                             const double boundScaling  ):
+CartesianPositionConstraint::CartesianPositionConstraint(OpenSoT::tasks::velocity::CoM::Ptr comTask,
+                                                         const Eigen::MatrixXd& A_Cartesian,
+                                                         const Eigen::VectorXd& b_Cartesian,
+                                                         const double boundScaling  ):
     Constraint("position_constraint", comTask->getXSize()),
     _comTask(comTask),
     _A_Cartesian(A_Cartesian),
@@ -84,15 +82,12 @@ void CartesianPositionConstraint::_update() {
         _cartesianTask->update();
         /************************ COMPUTING BOUNDS ****************************/
         J = _cartesianTask->getA().block(0,0,3,_x_size);
-        assert(J.rows() == 3 && "Jacobian doesn't have 3 rows. Something went wrong.");
 
         _Aineq = _A_Cartesian * J;
 
         currentPosition(0) = _cartesianTask->getActualPose()(0,3);
         currentPosition(1) = _cartesianTask->getActualPose()(1,3);
         currentPosition(2) = _cartesianTask->getActualPose()(2,3);
-        assert(currentPosition.size() == 3 && "Current position doesn't have size 3. Something went wrong.");
-
         /**********************************************************************/
     }else{
         _comTask->update();
