@@ -11,9 +11,9 @@ from tf2_ros import TransformBroadcaster
 import subprocess
 import time
 from pyopensot.tasks.velocity import Cartesian
-from pyopensot.constraints.velocity import JointLimits, VelocityLimits, ConvexHull
+from pyopensot.constraints.velocity import JointLimits, VelocityLimits, ConvexHull, CartesianPositionConstraint
 import array
-from visualization_msgs.msg import InteractiveMarkerControl, InteractiveMarker, Marker
+from visualization_msgs.msg import InteractiveMarkerControl, InteractiveMarker, Marker, MarkerArray
 from interactive_markers.interactive_marker_server import InteractiveMarkerServer
 from scipy.spatial.transform import Rotation as R
 from geometry_msgs.msg import PoseStamped, Point
@@ -48,6 +48,10 @@ class ros2_node(Node):
 
         self.server = InteractiveMarkerServer(self, 'six_dof_marker_server')
         self.marker_pose = PoseStamped()
+
+        self.com_publisher = self.create_publisher(Marker, '/com', 10)
+        self.ch_publisher = self.create_publisher(Marker, '/ch', 10)
+        self.planes_publisher = self.create_publisher(MarkerArray, '/planes', 10)
 
     def make_6dof_marker(self, name, pose, frame_id):
         int_marker = InteractiveMarker()
@@ -91,8 +95,6 @@ class ros2_node(Node):
         self.server.insert(marker=int_marker, feedback_callback=self.process_feedback)
         self.server.applyChanges()
 
-        self.com_publisher = self.create_publisher(Marker, '/com', 10)
-        self.ch_publisher = self.create_publisher(Marker, '/ch', 10)
     def process_feedback(self, feedback):
         self.marker_pose.header = feedback.header
         self.marker_pose.pose = feedback.pose
@@ -196,6 +198,74 @@ class ros2_node(Node):
 
         self.ch_publisher.publish(marker)
 
+    def create_plane_marker(self, normal, b, frame_id, marker_id):
+        n = normal
+        norm = np.linalg.norm(n)
+        # point on plane
+        p0 = b * n / (norm**2)
+        # build basis vectors in plane
+        v1 = np.cross(n, [1,0,0])
+        if np.linalg.norm(v1) < 1e-6:
+            v1 = np.cross(n, [0,1,0])
+
+        v1 = v1 / np.linalg.norm(v1)
+        v2 = np.cross(n, v1)
+        v2 = v2 / np.linalg.norm(v2)
+
+        s = 1.
+
+        p1 = p0 + s*v1 + s*v2
+        p2 = p0 + s*v1 - s*v2
+        p3 = p0 - s*v1 - s*v2
+        p4 = p0 - s*v1 + s*v2
+
+        marker = Marker()
+
+        marker.header.frame_id = frame_id
+        marker.header.stamp = self.get_clock().now().to_msg()
+
+        marker.ns = "planes"
+        marker.id = marker_id
+
+        marker.type = Marker.TRIANGLE_LIST
+        marker.action = Marker.ADD
+
+        marker.pose.orientation.w = 1.0
+
+        marker.scale.x = 1.0
+        marker.scale.y = 1.0
+        marker.scale.z = 1.0
+
+        marker.color.r = 1.
+        marker.color.g = 0.
+        marker.color.b = 0.
+        marker.color.a = 0.6
+
+        def pt(p):
+            P = Point()
+            P.x, P.y, P.z = p.tolist()
+            return P
+
+        marker.points = [
+            pt(p1), pt(p2), pt(p3),
+            pt(p1), pt(p3), pt(p4)
+        ]
+
+        return marker
+
+
+    def publish_planes(self, A, b, frame_id):
+        msg = MarkerArray()
+        for i in range(A.shape[0]):
+            normal = A[i]
+            bi = b[i]
+
+            marker = self.create_plane_marker(normal, bi, frame_id, i+100)
+            msg.markers.append(marker)
+
+        self.planes_publisher.publish(msg)
+
+
 
 package_path = None
 try:
@@ -247,8 +317,13 @@ dqlims = VelocityLimits(model, dqmax, dt)
 
 convex_hull = ConvexHull(model, contact_frames)
 
+# Planes to constraint the base movement on z
+A = np.array([[0., 0., 1.], [0., 0., -1.]])
+b = np.array([q[2] + 0.01, -q[2] + 0.05])
+base_pos_limits = CartesianPositionConstraint(base_task, A, b)
+
 # STACK
-stack = ((contact_tasks[contact_frames[0]][0:3] + contact_tasks[contact_frames[1]][0:3] + contact_tasks[contact_frames[2]][0:3] + contact_tasks[contact_frames[3]][0:3])/base_task) << qlims << dqlims << convex_hull
+stack = ((contact_tasks[contact_frames[0]][0:3] + contact_tasks[contact_frames[1]][0:3] + contact_tasks[contact_frames[2]][0:3] + contact_tasks[contact_frames[3]][0:3])/base_task) << qlims << dqlims << convex_hull << base_pos_limits
 stack.update()
 
 # SOLVER
@@ -257,7 +332,6 @@ solver = pysot.iHQP(stack)
 pose_ref, vel_ref = base_task.getReference()
 node.make_6dof_marker(name="body", pose=pose_ref, frame_id="world")
 
-object_in_scene = False
 try:
     while rclpy.ok():
         # Update actual position in the model
@@ -307,6 +381,8 @@ try:
             node.publish_ch(ch)
         else:
             print("Convex Hull computation failed.")
+
+        node.publish_planes(A, b, "world")
 
         rclpy.spin_once(node, timeout_sec=0.0)
         node.publish(msg, w_T_b)
