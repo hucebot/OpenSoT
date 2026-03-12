@@ -20,7 +20,6 @@ XBot::ModelInterface::Ptr GetTestModel(std::string name)
 
     return XBot::ModelInterface::getModel(
         ReadFile(robot_folder + "/" + name + ".urdf"),
-        ReadFile(robot_folder + "/" + name + ".srdf"),
         OPENSOT_TEST_MODEL_TYPE);
 }
 
