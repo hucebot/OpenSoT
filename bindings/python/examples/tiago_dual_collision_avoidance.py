@@ -20,7 +20,7 @@ from geometry_msgs.msg import PoseStamped, Point
 
 import pyopensot as pysot
 from pyopensot.tasks.velocity import Postural, Cartesian, Gaze
-from pyopensot.constraints.velocity import JointLimits, VelocityLimits
+from pyopensot.constraints.velocity import JointLimits, VelocityLimits, OmniWheels4X
 from pyopensot_collision.constraints.velocity import CollisionAvoidance
 
 from std_srvs.srv import SetBool
@@ -154,10 +154,10 @@ class ros2_node(Node):
             marker.controls.append(control)
 
     def toJointStateMsg(self, joint_state_msg, q):
-        joint_state_msg.position[0] = np.arctan2(np.sin(q[8]), np.cos(q[7]))
-        joint_state_msg.position[1] = np.arctan2(np.sin(q[10]), np.cos(q[9]))
-        joint_state_msg.position[2] = np.arctan2(np.sin(q[12]), np.cos(q[11]))
-        joint_state_msg.position[3] = np.arctan2(np.sin(q[14]), np.cos(q[13]))
+        joint_state_msg.position[0] = np.arctan2(q[8], q[7])
+        joint_state_msg.position[1] = np.arctan2(q[10], q[9])
+        joint_state_msg.position[2] = np.arctan2(q[12], q[11])
+        joint_state_msg.position[3] = np.arctan2(q[14], q[13])
         joint_state_msg.position[4:] = array.array('d', q[15:])
 
     def publish(self, joint_state_msg, transform_msg):
@@ -267,6 +267,7 @@ gaze = Gaze("gaze", model, "base_link", "head_front_camera_link")
 # CONSTRAINTS
 qmin, qmax = model.getJointLimits()
 qlims = JointLimits(model, qmax, qmin)
+qlims.update()
 #
 dqmax = model.getVelocityLimits()
 dqlims = VelocityLimits(model, dqmax, dt)
@@ -349,10 +350,16 @@ collision_list = {
 }
 collision_avoidance.setCollisionList(collision_list)
 
-
+# MechanumWheels4X constraint
+joint_wheels_name = ["wheel_front_left_joint", "wheel_front_right_joint", "wheel_rear_left_joint", "wheel_rear_right_joint"]
+l1 = 0.223
+l2 = 0.244
+wheel_radius = 0.08
+MechanumWheels4X = OmniWheels4X(l1, l2, wheel_radius, joint_wheels_name, "base_link", model)
+#MechanumWheels4X.setIsGlobalVelocity(True)
 
 # STACK
-stack = ( (gripper_left + gripper_right + base%[0, 1, 5] + gaze) / postural) << qlims << dqlims << collision_avoidance << base2D%[2, 3, 4]
+stack = ( (gripper_left + gripper_right + base%[0, 1, 5] + gaze) / postural) << qlims[10:] << dqlims << collision_avoidance << base2D%[2, 3, 4] << MechanumWheels4X
 stack.update()
 
 # SOLVER
@@ -363,6 +370,7 @@ pose_ref, vel_ref = gripper_right.getReference()
 print(f"pose_ref: {pose_ref}")
 print(f"vel_ref: {vel_ref}")
 node.make_6dof_marker(name="gripper_right_marker", pose=pose_ref, frame_id=manipulation_base_frame)
+
 
 object_in_scene = False
 try:
