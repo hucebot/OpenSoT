@@ -16,6 +16,7 @@
 */
 
 #include <OpenSoT/constraints/velocity/OmniWheels4X.h>
+#include <OpenSoT/utils/cartesian_utils.h>
 
 using namespace OpenSoT::constraints::velocity;
 
@@ -25,6 +26,9 @@ OmniWheels4X::OmniWheels4X(const double l1, const double l2, const double r,
                          XBot::ModelInterface &robot):
     Constraint("OmniWheels4X", robot.getNv()), _robot(robot), _base_link(base_link), _is_global_velocity(false)
 {
+    Eigen::MatrixXd J = cartesian_utils::Mechanum4XJacobian(l1, l2, r); // this return qdot_wheels = J*v_b
+    Eigen::MatrixXd Ji = (J.transpose() * J).inverse() * J.transpose(); // this computes Ji*qdot_wheels = v_b, we use this one to design the task!
+
     _J.resize(3, _x_size);
     _J.setZero();
 
@@ -36,27 +40,18 @@ OmniWheels4X::OmniWheels4X(const double l1, const double l2, const double r,
     if(joint_wheels_name.size() != 4)
         throw std::runtime_error("joint_wheels_name != 4");
 
+    // note: in Ji the order is [fl, fr, hl, hr]
     int fl_id = _robot.getDofIndex(joint_wheels_name[0]);
-    _J(0, fl_id) -= 1.;
-    _J(1, fl_id) -= -1.;
-    _J(2, fl_id) -= -1./(l1 + l2);
+    _J.col(fl_id) -= Ji.col(0);
 
     int fr_id = _robot.getDofIndex(joint_wheels_name[1]);
-    _J(0, fr_id) -= 1.;
-    _J(1, fr_id) -= 1.;
-    _J(2, fr_id) -= 1./(l1 + l2);
+    _J.col(fr_id) -= Ji.col(1);
 
     int hl_id = _robot.getDofIndex(joint_wheels_name[2]);
-    _J(0, hl_id) -= 1.;
-    _J(1, hl_id) -= 1.;
-    _J(2, hl_id) -= -1./(l1 + l2);
+    _J.col(hl_id) -= Ji.col(2);
 
     int hr_id = _robot.getDofIndex(joint_wheels_name[3]);
-    _J(0, hr_id) -= 1.;
-    _J(1, hr_id) -= -1.;
-    _J(2, hr_id) -= 1./(l1 + l2);
-
-    _J.rightCols(_x_size-6) *= r/4.;
+    _J.col(hr_id) -= Ji.col(3);
 
     _bLowerBound.setZero(3);
     _bUpperBound.setZero(3);
