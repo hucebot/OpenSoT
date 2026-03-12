@@ -15,8 +15,8 @@
  * Public License for more details
 */
 
-#ifndef __BOUNDS_OMNIWHEEL4X_H__
-#define __BOUNDS_OMNIWHEEL4X_H__
+#ifndef __BOUNDS_MECHANUMWHEELS4X_H__
+#define __BOUNDS_MECHANUMWHEELS4X_H__
 
  #include <OpenSoT/Constraint.h>
  #include <xbot2_interface/xbotinterface2.h>
@@ -25,17 +25,14 @@ namespace OpenSoT {
    namespace constraints {
        namespace velocity {
        /**
-        * @brief The OmniWheels4X class implements a constraint to map base velocities into (omni-)wheels for a 4 drive case.
-        * The kinematic model is based on: "An admittance-controlled wheeled mobile manipulator for mobility assistance:
-        * Human–robot interaction estimation and redundancy resolution for enhanced force exertion ability" by Hongjun Xing et al.,
-        * Mechatronics, April 2021
+        * @brief The MechanumWheels4X class implements a constraint to map base velocities into (omni-)wheels for a 4 drive case.
         */
-       class OmniWheels4X: public Constraint<Eigen::MatrixXd, Eigen::VectorXd> {
+       class MechanumWheels4X: public Constraint<Eigen::MatrixXd, Eigen::VectorXd> {
        public:
-           typedef std::shared_ptr<OmniWheels4X> Ptr;
+           typedef std::shared_ptr<MechanumWheels4X> Ptr;
 
            /**
-            * @brief OmniWheel4X maps base velocities (XY-YAW) into wheels velocities
+            * @brief MechanumWheels4X maps base velocities (XY-YAW) into wheels velocities
             *
             *                                 | x
             *                                 |
@@ -65,7 +62,7 @@ namespace OpenSoT {
             * @param x initial configuration of the robot when creating the constraint
             * @param robot the robot model
             */
-           OmniWheels4X(const double l1, const double l2, const double r,
+           MechanumWheels4X(const double l1, const double l2, const double r,
                        const std::vector<std::string> joint_wheels_name,
                        const std::string base_link,
                        XBot::ModelInterface& robot);

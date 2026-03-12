@@ -20,7 +20,7 @@ from geometry_msgs.msg import PoseStamped, Point
 
 import pyopensot as pysot
 from pyopensot.tasks.velocity import Postural, Cartesian, Gaze
-from pyopensot.constraints.velocity import JointLimits, VelocityLimits, OmniWheels4X
+from pyopensot.constraints.velocity import JointLimits, VelocityLimits, MechanumWheels4X
 from pyopensot_collision.constraints.velocity import CollisionAvoidance
 
 from std_srvs.srv import SetBool
@@ -355,7 +355,7 @@ joint_wheels_name = ["wheel_front_left_joint", "wheel_front_right_joint", "wheel
 l1 = 0.223
 l2 = 0.244
 wheel_radius = 0.08
-MechanumWheels4X = OmniWheels4X(l1, l2, wheel_radius, joint_wheels_name, "base_link", model)
+MechanumWheels4X = MechanumWheels4X(l1, l2, wheel_radius, joint_wheels_name, "base_link", model)
 #MechanumWheels4X.setIsGlobalVelocity(True)
 
 # STACK
@@ -387,7 +387,7 @@ try:
         pose_ref.linear = R.from_quat(quat).as_matrix()
 
         gripper_right.setReference(pose_ref, vel_ref)
-        
+
         gaze_ref = model.getPose("gripper_right_grasping_frame", "base_link")
         gaze.setGaze(gaze_ref)
 

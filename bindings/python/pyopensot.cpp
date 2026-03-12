@@ -56,7 +56,7 @@ PYBIND11_MODULE(pyopensot, m) {
     auto m_cv = m_c.def_submodule("velocity");
     pyVelocityJointLimits(m_cv);
     pyVelocityLimits(m_cv);
-    pyVelocityOmniWheels4X(m_cv);
+    pyVelocityMechanumWheels4X(m_cv);
     pyVelocityConvexHull(m_cv);
     pyVelocityCartesianPositionConstraint(m_cv);
 
