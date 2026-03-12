@@ -103,6 +103,7 @@ void pyTask(py::module& m, const std::string& className) {
         .def("__add__", [](const std::shared_ptr<Base>& task1, const std::shared_ptr<Base>& task2) {
             return task1 + task2;
         })
+
         .def("__mod__", [](const std::shared_ptr<Base>& task, const std::list<unsigned int>& rowIndices) {
             return task % rowIndices;
         })
@@ -188,5 +189,32 @@ void pyConstraint(py::module& m, const std::string& className) {
 
         .def("__mod__", [](const std::shared_ptr<Base>& constraint, const std::list<unsigned int>& rowIndices) {
             return constraint % rowIndices;
+        })
+
+        .def("__getitem__", [](const std::shared_ptr<Base>& constraint, const size_t i) {
+        std::list<unsigned int> indices;
+        indices.push_back(static_cast<unsigned int>(i));
+        return constraint % indices;
+        })
+
+        .def("__getitem__", [](const std::shared_ptr<Base>& constraint, py::slice slice) {
+            size_t start, stop, step, slicelength;
+            if(constraint->getAineq().rows() > 0)
+            {
+                if (!slice.compute(static_cast<size_t>(constraint->getAineq().rows()), &start, &stop, &step, &slicelength))
+                    throw py::error_already_set();
+            }
+            else
+            {
+                if (!slice.compute(static_cast<size_t>(constraint->getLowerBound().size()), &start, &stop, &step, &slicelength))
+                    throw py::error_already_set();
+            }
+
+            std::list<unsigned int> slice_vector;
+            for (size_t i = 0; i < slicelength; ++i) {
+                unsigned int id = static_cast<unsigned int>(start + i * step);
+                slice_vector.push_back(id);
+            }
+            return constraint % slice_vector;
         });
 }
