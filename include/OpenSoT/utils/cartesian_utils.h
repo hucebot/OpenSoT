@@ -168,6 +168,73 @@ public:
                                       const Eigen::Affine3d &Td,
                                       Eigen::Vector3d& position_error,
                                       Eigen::Vector3d& orientation_error);
+
+    /**
+     * @brief wheelJacobianTranspose computes the vector which maps base velocities expressed in local base frame into wheen velocities:
+     *
+     *                                                                                     -   -
+     *                                           -                   -    -           -   | vbx |
+     *                                          | cos(beta)  sin(beta)|  | 1   0   -py |  |     |
+     *          qdot = (1/r) * [1   tan(gamma)] |                     |  |             |  | vby |
+     *                                          |-sin(beta)  cos(beta)|  | 0   1    px |  |     |
+     *                                           -                   -    -           -   |  w  |
+     *                                                                                     -   -
+     * @param beta angle between the x direction in base and the wheel driving diretion (e.g. 0 means the wheel is aligned with the x in base)
+     * @param gamma angle of the small wheels between the orthogonal axis w.r.t. beta (0 for mecanum-wheel, +/- 45 for omni-wheel)
+     * @param px x position of the center of the wheel w.r.t. base
+     * @param py y position of the center of the wheel w.r.t. base
+     * @param r radius of the wheel
+     * @return 3x1 vector, its transpose maps velocity of the base in base frame to wheel velocity
+     */
+    static Eigen::Vector3d wheelJacobianTranspose(const double beta, const double gamma, const double px, const double py, const double r)
+    {
+        Eigen::Vector2d a;
+        a[0] = 1.;
+        a[1] = tan(gamma);
+
+        Eigen::Matrix2d B;
+        B(0,0) = cos(beta);
+        B(0,1) = sin(beta);
+        B(1,0) = -sin(beta);
+        B(1,1) = cos(beta);
+
+        Eigen::MatrixXd C(2,3);
+        C.setZero();
+        C(0,0) = 1.;
+        C(1,1) = 1.;
+        C(0,2) = -py;
+        C(1,2) = px;
+
+        Eigen::Vector3d J = (1./r) * a.transpose() * B * C;
+        return J;
+    }
+
+    /**
+     * @brief Mechanum4XJacobian computes the Jacobian associated to 4 mechanum wheels mounted with beta = 0.
+     * @note: Order is [front_left, front_right, hind_left, hind_right]^T
+     *
+     * @param px x position of the center of the wheel w.r.t. base
+     * @param py y position of the center of the wheel w.r.t. base
+     * @param r radius of the wheel
+     * @return 4x3 Jacobian mapping base velocities to wheels
+     */
+    static Eigen::MatrixXd Mechanum4XJacobian(const double px, const double py, const double r)
+    {
+        double beta = 0.;
+        double gamma = M_PI_4;
+        Eigen::Vector3d j1 = wheelJacobianTranspose(beta, -gamma,  px,  py, r); // front left
+        Eigen::Vector3d j2 = wheelJacobianTranspose(beta,  gamma,  px, -py, r); // front right
+        Eigen::Vector3d j3 = wheelJacobianTranspose(beta,  gamma, -px,  py, r); // hind left
+        Eigen::Vector3d j4 = wheelJacobianTranspose(beta, -gamma, -px, -py, r); // hind right
+
+        Eigen::MatrixXd J(4, 3);
+        J.row(0) = j1.transpose();
+        J.row(1) = j2.transpose();
+        J.row(2) = j3.transpose();
+        J.row(3) = j4.transpose();
+
+        return J;
+    }
 };
 
 
