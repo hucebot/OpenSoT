@@ -3,7 +3,7 @@
 #include <pybind11/stl.h>
 #include <OpenSoT/constraints/velocity/JointLimits.h>
 #include <OpenSoT/constraints/velocity/VelocityLimits.h>
-#include <OpenSoT/constraints/velocity/OmniWheels4X.h>
+#include <OpenSoT/constraints/velocity/MechanumWheels4X.h>
 #include <OpenSoT/constraints/velocity/ConvexHull.h>
 #include <OpenSoT/constraints/velocity/CartesianPositionConstraint.h>
 
@@ -83,12 +83,12 @@ void pyVelocityLimits(py::module& m) {
         .def("update", &VelocityLimits::update);
 }
 
-void pyVelocityOmniWheels4X(py::module& m) {
-    py::class_<OmniWheels4X, std::shared_ptr<OmniWheels4X>, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "OmniWheels4X")
+void pyVelocityMechanumWheels4X(py::module& m) {
+    py::class_<MechanumWheels4X, std::shared_ptr<MechanumWheels4X>, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "MechanumWheels4X")
         .def(py::init<const double, const double, const double, const std::vector<std::string>, const std::string, XBot::ModelInterface&>())
-        .def("update", &OmniWheels4X::update)
-        .def("setIsGlobalVelocity", &OmniWheels4X::setIsGlobalVelocity)
-        .def("getIsGlobalVelocity", &OmniWheels4X::getIsGlobalVelocity);
+        .def("update", &MechanumWheels4X::update)
+        .def("setIsGlobalVelocity", &MechanumWheels4X::setIsGlobalVelocity)
+        .def("getIsGlobalVelocity", &MechanumWheels4X::getIsGlobalVelocity);
 
 }
 

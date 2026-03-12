@@ -15,16 +15,16 @@
  * Public License for more details
 */
 
-#include <OpenSoT/constraints/velocity/OmniWheels4X.h>
+#include <OpenSoT/constraints/velocity/MechanumWheels4X.h>
 #include <OpenSoT/utils/cartesian_utils.h>
 
 using namespace OpenSoT::constraints::velocity;
 
-OmniWheels4X::OmniWheels4X(const double l1, const double l2, const double r,
+MechanumWheels4X::MechanumWheels4X(const double l1, const double l2, const double r,
                          const std::vector<std::string> joint_wheels_name,
                          const std::string base_link,
                          XBot::ModelInterface &robot):
-    Constraint("OmniWheels4X", robot.getNv()), _robot(robot), _base_link(base_link), _is_global_velocity(false)
+    Constraint("MechanumWheels4X", robot.getNv()), _robot(robot), _base_link(base_link), _is_global_velocity(false)
 {
     Eigen::MatrixXd J = cartesian_utils::Mechanum4XJacobian(l1, l2, r); // this return qdot_wheels = J*v_b
     Eigen::MatrixXd Ji = (J.transpose() * J).inverse() * J.transpose(); // this computes Ji*qdot_wheels = v_b, we use this one to design the task!
@@ -62,7 +62,7 @@ OmniWheels4X::OmniWheels4X(const double l1, const double l2, const double r,
 
 }
 
-void OmniWheels4X::_update()
+void MechanumWheels4X::_update()
 {
     _w_T_b.setIdentity();
 
