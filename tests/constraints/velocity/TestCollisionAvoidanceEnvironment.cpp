@@ -13,15 +13,6 @@
 #include <chrono>
 #include <OpenSoT/utils/AutoStack.h>
 #include <fstream>
-#define ENABLE_ROS false
-
-#if ENABLE_ROS
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/joint_state.hpp>
-#include <visualization_msgs/msg/marker.hpp>
-#include <tf2_eigen/tf2_eigen.hpp>
-
-#endif
 
 #define STATIC_POINTER_CAST std::static_pointer_cast
 #define DYNAMIC_POINTER_CAST std::dynamic_pointer_cast
@@ -29,23 +20,6 @@
 #define MAKE_SHARED std::make_shared
 
 namespace {
-#if ENABLE_ROS
-class ros2_node: public rclcpp::Node
-{
-public:
-    ros2_node():
-        Node("ros2_node")
-    {
-        joint_state_pub = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 1000);
-        marker_pub = this->create_publisher<visualization_msgs::msg::Marker>("link_distances", 1);
-    }
-    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub;
-};
-
-#endif
-
-
 class testCollisionAvoidanceConstraint : public ::testing::Test
 {
 
@@ -86,9 +60,6 @@ public:
 
   testCollisionAvoidanceConstraint()
   {
-#if ENABLE_ROS
-      n.reset(new ros2_node());
-#endif
 
       std::string urdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman_capsules.rviz";
       std::ifstream f(urdf_capsule_path);
@@ -162,15 +133,6 @@ TEST_F(testCollisionAvoidanceConstraint, testEnvironmentCollisionAvoidance){
     _model_ptr->setJointPosition(q);
     _model_ptr->update();
 
-#if ENABLE_ROS
-        this->publishJointStates(q);
-        this->publishJointStates(q);
-        this->publishJointStates(q);
-
-
-
-    sleep(1);
-#endif
 
     string base_link = "torso";
     string left_arm_link = "LSoftHandLink";
@@ -263,25 +225,6 @@ TEST_F(testCollisionAvoidanceConstraint, testEnvironmentCollisionAvoidance){
                      solver_backend );
 
 
-#if ENABLE_ROS
-    /* visualization */
-        visualization_msgs::msg::Marker cube;
-        cube.header.frame_id = "world";
-        cube.header.stamp = rclcpp::Clock().now();
-        cube.ns = "environment";
-        cube.action = visualization_msgs::msg::Marker::ADD;
-        cube.id = 0;
-        cube.type = visualization_msgs::msg::Marker::CUBE;
-
-        cube.scale.x = 0.1;
-        cube.scale.y = 0.6;
-        cube.scale.z = 1.4;
-
-        cube.color.g = 1.0;
-        cube.color.a = 0.5;
-
-        cube.pose = tf2::toMsg(w_T_c);
-#endif
 
 
     double dt = 0.005; //[s]
@@ -313,11 +256,6 @@ TEST_F(testCollisionAvoidanceConstraint, testEnvironmentCollisionAvoidance){
         EXPECT_TRUE(solver->solve ( dq ));
         q = _model_ptr->sum(q, dq);
 
-#if ENABLE_ROS
-        this->publishJointStates(q);
-        this->n->marker_pub->publish(cube);
-        usleep(30000);
-#endif
 
     }
 
@@ -342,9 +280,6 @@ TEST_F(testCollisionAvoidanceConstraint, testEnvironmentCollisionAvoidance){
 }
 
 int main(int argc, char **argv) {
-#if ENABLE_ROS
-    rclcpp::init(argc, argv);
-#endif
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }

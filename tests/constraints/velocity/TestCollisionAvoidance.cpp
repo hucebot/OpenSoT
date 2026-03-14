@@ -10,13 +10,6 @@
 #include <OpenSoT/tasks/Aggregated.h>
 #include <OpenSoT/utils/cartesian_utils.h>
 #include <chrono>
-#define ENABLE_ROS false
-
-#if ENABLE_ROS
-#include <rclcpp/rclcpp.hpp>
-#include <sensor_msgs/msg/joint_state.hpp>
-#include <visualization_msgs/msg/marker.hpp>
-#endif
 
 #include <fstream>
 #include <iostream>
@@ -57,52 +50,10 @@ Eigen::VectorXd getGoodInitialPosition(const XBot::ModelInterface::Ptr _model_pt
 
 namespace{
 
-#if ENABLE_ROS
-class ros2_node: public rclcpp::Node
-{
-public:
-    ros2_node():
-        Node("ros2_node")
-    {
-        joint_state_pub = this->create_publisher<sensor_msgs::msg::JointState>("joint_states", 1000);
-        marker_pub = this->create_publisher<visualization_msgs::msg::Marker>("link_distances", 1);
-    }
-    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr joint_state_pub;
-    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr marker_pub;
-};
-
-#endif
 
 
 class testSelfCollisionAvoidanceConstraint : public ::testing::Test{
 public:
-
-#if ENABLE_ROS
-
-std::shared_ptr<ros2_node> n;
-
-
-void publishJointStates(const Eigen::VectorXd& q)
-{
-
-    sensor_msgs::msg::JointState msg;
-    for(unsigned int i = 0; i < this->_model_ptr->getNq(); ++i){
-        msg.name.push_back(this->_model_ptr->getJointNames()[i]);
-        msg.position.push_back(0.0);
-    }
-
-
-    std::map<std::string, double> joint_map;
-    for(unsigned int i = 0; i < q.size(); ++i){
-        msg.position[i] = q[i];
-        joint_map[msg.name[i]] = msg.position[i];
-    }
-    msg.header.stamp = rclcpp::Clock().now();
-
-    n->joint_state_pub->publish(msg);
-}
-#endif
-
 
 
  protected:
@@ -116,9 +67,6 @@ std::string ReadFile(std::string path)
 
   testSelfCollisionAvoidanceConstraint()
   {
-#if ENABLE_ROS
-      n.reset(new ros2_node());
-#endif
 
       std::string urdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman_capsules.rviz";
       std::ifstream f(urdf_capsule_path);
@@ -396,55 +344,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testCartesianTaskWithSC){
             dq.setZero(dq.size());}
         this->q = _model_ptr->sum(this->q, dq);
 
-#if ENABLE_ROS
-    visualization_msgs::msg::Marker marker;
-    marker.header.frame_id = "world";
-    marker.header.stamp = rclcpp::Clock().now();
-    marker.id = 0;
-    marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-    marker.action = visualization_msgs::msg::Marker::ADD;
-    marker.pose.position.x = 0.;
-    marker.pose.position.y = 0.;
-    marker.pose.position.z = 0.;
-    marker.pose.orientation.x = 0.;
-    marker.pose.orientation.y = 0.;
-    marker.pose.orientation.z = 0.;
-    marker.pose.orientation.w = 1.;
-    marker.color.r = 0.;
-    marker.color.g = 1.;
-    marker.color.b = 0.;
-    marker.color.a = 1.;
-    marker.scale.x = 0.005;
-    marker.scale.y = 0.;
-    marker.scale.z = 0.;
-
-
-    std::vector<std::pair<Eigen::Vector3d, Eigen::Vector3d>> points;
-    this->sc_constraint->getCollisionModel().getWitnessPoints(points);
-
-    for(const auto& point : points)
-    {
-        auto e2p = [](const Eigen::Vector3d &k)->geometry_msgs::msg::Point{
-            geometry_msgs::msg::Point p;
-            p.x = k[0]; p.y = k[1]; p.z = k[2];
-            return p;
-        };
-
-
-
-        // closest point on first link
-        marker.points.push_back(e2p(point.first));
-        // closest point on second link
-        marker.points.push_back(e2p(point.second));
-    }
-
-
-    n->marker_pub->publish(marker);
-    this->publishJointStates(this->q);
-    usleep(100000);
-#endif
-
-
 
     }
 
@@ -486,14 +385,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testMultipleCapsulePairsSC){
     this->_model_ptr->setJointPosition(this->q);
     this->_model_ptr->update();
 
-#if ENABLE_ROS
-    this->publishJointStates(this->q);
-    this->publishJointStates(this->q);
-    this->publishJointStates(this->q);
-
-
-    sleep(1);
-#endif
 
     std::string linkA = "LSoftHandLink";
     std::string linkB = "RSoftHandLink";
@@ -621,10 +512,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testMultipleCapsulePairsSC){
             std::cout<<"error"<<std::endl;
             dq.setZero(dq.size());}
         this->q = _model_ptr->sum(this->q, dq);
-#if ENABLE_ROS
-        this->publishJointStates(this->q);
-        usleep(50000);
-#endif
     }
 
     std::cout << "Q_final: " << this->q.transpose() << std::endl;
@@ -812,10 +699,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testChangeWhitelistOnline){
             std::cout<<"error"<<std::endl;
             dq.setZero(dq.size());}
         this->q = _model_ptr->sum(this->q, dq);
-#if ENABLE_ROS
-        this->publishJointStates(this->q);
-        usleep(10000);
-#endif
     }
 
     std::cout << "Q_final: " << this->q.transpose() << std::endl;
@@ -892,10 +775,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testChangeWhitelistOnline){
             std::cout<<"error"<<std::endl;
             dq.setZero(dq.size());}
         this->q = _model_ptr->sum(this->q, dq);
-#if ENABLE_ROS
-        this->publishJointStates(this->q);
-        usleep(10000);
-#endif
     }
 
     std::cout << "Q_final 2: " << this->q.transpose() << std::endl;
@@ -968,9 +847,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testChangeWhitelistOnline){
 }
 
 int main(int argc, char **argv) {
-#if ENABLE_ROS
-    rclcpp::init(argc, argv);
-#endif
   ::testing::InitGoogleTest(&argc, argv);
   return RUN_ALL_TESTS();
 }
