@@ -24,31 +24,6 @@ class testCollisionAvoidanceConstraint : public ::testing::Test
 {
 
 public:
-#if ENABLE_ROS
-
-    std::shared_ptr<ros2_node> n;
-
-
-    void publishJointStates(const Eigen::VectorXd& q)
-    {
-
-        sensor_msgs::msg::JointState msg;
-        for(unsigned int i = 0; i < this->_model_ptr->getNq(); ++i){
-            msg.name.push_back(this->_model_ptr->getJointNames()[i]);
-            msg.position.push_back(0.0);
-        }
-
-        std::map<std::string, double> joint_map;
-        for(unsigned int i = 0; i < q.size(); ++i){
-            msg.position[i] = q[i];
-            joint_map[msg.name[i]] = msg.position[i];
-        }
-        msg.header.stamp = rclcpp::Clock().now();
-
-        n->joint_state_pub->publish(msg);
-    }
-#endif
-
     std::string ReadFile(std::string path)
     {
         std::ifstream t(path);
