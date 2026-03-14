@@ -2,20 +2,14 @@ include(ExternalProject)
 
 set(CMAKE_CXX_STANDARD 20)
 
-find_package(tf2)
-find_package(rclcpp QUIET)
 find_package(osqp QUIET)
 find_package(qpSWIFT QUIET)
 
-set(catkin_LIBRARIES ${tf2_LIBRARIES})
 
 add_definitions(-DOPENSOT_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
 message(STATUS "DOPENSOT_TEST_PATH is ${CMAKE_CURRENT_SOURCE_DIR}")
 
-if(${rclcpp_FOUND})
-    set(TEST_INCLUDES ${TEST_INCLUDES} ${GTEST_INCLUDE_DIRS} ${rclcpp_INCLUDE_DIRS})
-endif()
 
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
 
