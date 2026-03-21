@@ -12,6 +12,7 @@
 #include "constraints/acceleration.hpp"
 #include "constraints/force.hpp"
 #include "variables/torque.hpp"
+#include "resources_utils.hpp"
 
 PYBIND11_MODULE(pyopensot, m) {
     pyTask<Eigen::MatrixXd, Eigen::VectorXd>(m, "Task");
@@ -25,6 +26,8 @@ PYBIND11_MODULE(pyopensot, m) {
     pyGenericTask(m);
     pyGenericConstraint(m);
     pyAutostack(m);
+
+    pyResourcesUtils(m);
 
     pySolver<Eigen::MatrixXd, Eigen::VectorXd>(m, "Solver");
     pyeHQP(m);

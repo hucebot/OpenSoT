@@ -59,6 +59,9 @@ if(${pybind11_FOUND})
     endif()
 
 
+    INSTALL(PROGRAMS examples/viser/replay
+            DESTINATION bin)
+
 else()
     message(STATUS "pybind not found")
 endif()

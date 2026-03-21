@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+
+import time
+import numpy as np
+import viser
+from viser.extras import ViserUrdf
+import argparse
+import pyopensot as pysot
+import h5py
+from yourdfpy import URDF
+
+class joint_plot:
+    def __init__(self, title, size, legend_label, server, dt, max_len=1000):
+        self.size = size
+        self.max_len = max_len
+        self.dt = dt
+
+        # One shared time axis
+        self.x = self.dt * np.arange(max_len, dtype=np.float64)
+
+        # Y series: one array per joint
+        self.ys = [np.zeros(max_len, dtype=float) for _ in range(size)]
+
+        # uPlot data format: (x, y0, y1, ..., yN)
+        self.data = (self.x, *self.ys)
+
+        # Series definition: one series per array in data
+
+        self.series = (
+            viser.uplot.Series(label="t"),
+            *[viser.uplot.Series(label=f"{legend_label}{i}", stroke=self.make_color(i, size), width=2) for i in range(size)])
+
+        self.plot_handle = server.gui.add_uplot(
+            data=self.data,
+            series=self.series,
+            title=title,
+            scales={"x": viser.uplot.Scale(time=False, auto=True), "y": viser.uplot.Scale(auto=True)},
+            legend=viser.uplot.Legend(show=True),
+            aspect=2.0,
+        )
+
+    def make_color(self, i, n):
+        # HSV equally spaced around the hue circle
+        h = i / n
+        s = 0.65
+        v = 0.85
+        import colorsys
+        r, g, b = colorsys.hsv_to_rgb(h, s, v)
+        return f"rgb({int(r * 255)}, {int(g * 255)}, {int(b * 255)})"
+
+    def update(self, new_data):
+        # Append new data
+        self.x = np.roll(self.x, -1)
+        self.x[-1] = self.x[-2] + self.dt
+
+        for i in range(self.size):
+            self.ys[i] = np.roll(self.ys[i], -1)
+            self.ys[i][-1] = new_data[i]
+
+        self.plot_handle.data = (self.x.tolist(), *[y.tolist() for y in self.ys])
+
+def play_robot_log(MAT_FILE, urdf, VAR_NAME="q", FPS=30):
+    """
+    Play a robot trajectory from a .mat log in the browser using Viser.
+
+    Parameters
+    ----------
+    MAT_FILE : str
+        Path to the .mat file containing joint trajectories.
+    URDF : robot URDF
+    VAR_NAME : str, optional
+        Variable name in the .mat file containing joint arrays. Default 'q_list'
+    FPS : int, optional
+        Frames per second for playback. Default 30
+    """
+    # ---- Load .mat file ----
+    with h5py.File(MAT_FILE, "r") as f:
+        if VAR_NAME not in f:
+            raise ValueError(f"Variable '{VAR_NAME}' not found in {MAT_FILE}")
+        q_list = np.array(f[VAR_NAME])
+
+    num_frames, dof = q_list.shape
+    print(f"Loaded {num_frames} frames, DOF = {dof}")
+
+    # ---- Start Viser server ----
+    server = viser.ViserServer(verbose=True)
+    scene = server.scene
+
+    # ---- Load URDF ----
+    base = scene.add_frame("/robot_base", show_axes=False)
+    viser_urdf = ViserUrdf(
+        server,
+        urdf_or_path=urdf,
+        root_node_name="/robot_base"
+    )
+
+    # ---- Add ground grid ----
+    scene.add_grid(
+        "/ground_grid",
+        width=5.0,
+        height=5.0,
+        width_segments=20,
+        height_segments=20,
+    )
+
+    # Camera setup
+    # Set the initial camera pose before showing the scene
+    server.initial_camera.position = (1.5, 1.5, 1.5)
+    server.initial_camera.look_at = (0.0, 0.0, 0.5)
+    # Optionally adjust up direction
+    server.initial_camera.up = (0.0, 0.0, 1.0)
+
+    # ---- GUI widgets (manual polling) ----
+    gui = server.gui
+    slider = gui.add_slider("/Timeline", min=0.0, max=1.0, step=1.0/num_frames, initial_value=0.0)
+    checkbox = gui.add_checkbox("/Play", initial_value=True)
+
+    # ---- Animation loop ----
+    frame_dt = 1.0 / FPS
+    current_frame = 0
+    current_frame_float = 0.0
+
+    q_plot = joint_plot(title="Joint positions", size=dof, legend_label="q", server=server, dt=frame_dt)
+
+    while True:
+        play = checkbox.value
+        slider_value = slider.value
+
+        # Only overwrite if user moved the slider
+        slider_frame = round(slider_value * (num_frames - 1))
+        if slider_frame != int(current_frame_float):
+            current_frame_float = slider_frame
+
+        current_frame = int(current_frame_float)
+
+        # Update robot
+        q = q_list[current_frame]
+        viser_urdf.update_cfg(np.array(q))
+
+        # Advance if playing
+        if play:
+            current_frame_float += 1
+            if current_frame_float >= num_frames:
+                current_frame_float = 0.0
+
+            # Update slider position
+            slider.value = current_frame_float / (num_frames - 1)
+
+        # Update plot
+        q_plot.update(q)
+
+        time.sleep(frame_dt)
+
+
+# ---------------- Command-line interface ----------------
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Play a robot trajectory from a .mat log in the browser using Viser.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument("--mat_file", type=str, required=True,
+                        help="Path to the .mat file with joint data")
+    parser.add_argument("--urdf_file", type=str, required=True,
+                        help="Name of URDF file, e.g., panda.urdf")
+    parser.add_argument("--var_name", type=str, default="q_list",
+                        help="Variable name in .mat file containing joint arrays")
+    parser.add_argument("--fps", type=int, default=30,
+                        help="Frames per second for playback")
+
+    args = parser.parse_args()
+
+    urdf_path = pysot.find(args.urdf_file)
+    if not urdf_path:
+        print(f"{args.urdf_file} not found, exiting.")
+    else:
+        # Load the URDF file into a yourdfpy.URDF object
+        robot_urdf = URDF.load(urdf_path)
+        # Call helper function
+        play_robot_log(MAT_FILE=args.mat_file,
+                   urdf=robot_urdf,
+                   VAR_NAME=args.var_name,
+                   FPS=args.fps)
