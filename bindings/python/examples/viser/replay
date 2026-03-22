@@ -9,6 +9,7 @@ import pyopensot as pysot
 import h5py
 from yourdfpy import URDF
 
+
 class joint_plot:
     def __init__(self, title, size, legend_label, server, dt, max_len=1000):
         self.size = size
@@ -59,7 +60,7 @@ class joint_plot:
 
         self.plot_handle.data = (self.x.tolist(), *[y.tolist() for y in self.ys])
 
-def play_robot_log(MAT_FILE, urdf, VAR_NAME="q", FPS=30):
+def play_robot_log(MAT_FILE, URDF_PATH, VAR_NAME="q", FPS=30):
     """
     Play a robot trajectory from a .mat log in the browser using Viser.
 
@@ -87,11 +88,24 @@ def play_robot_log(MAT_FILE, urdf, VAR_NAME="q", FPS=30):
     scene = server.scene
 
     # ---- Load URDF ----
+    urdf = URDF.load(
+            URDF_PATH,
+            load_meshes=True,
+            build_scene_graph=True,
+            load_collision_meshes=True,
+            build_collision_scene_graph=True,
+        )
+
+
+
     base = scene.add_frame("/robot_base", show_axes=False)
     viser_urdf = ViserUrdf(
         server,
         urdf_or_path=urdf,
-        root_node_name="/robot_base"
+        root_node_name="/robot_base",
+        load_meshes=True,
+        load_collision_meshes=True,
+        collision_mesh_color_override=(1.0, 0.0, 0.0, 0.5),
     )
 
     # ---- Add ground grid ----
@@ -114,6 +128,28 @@ def play_robot_log(MAT_FILE, urdf, VAR_NAME="q", FPS=30):
     gui = server.gui
     slider = gui.add_slider("/Timeline", min=0.0, max=1.0, step=1.0/num_frames, initial_value=0.0)
     checkbox = gui.add_checkbox("/Play", initial_value=True)
+
+    # ---- Visualization ---- #
+    # Add visibility checkboxes.
+    with server.gui.add_folder("Visibility"):
+        show_meshes_cb = server.gui.add_checkbox(
+            "Show meshes",
+            initial_value=True
+        )
+
+        show_collision_meshes_cb = server.gui.add_checkbox(
+            "Show collision meshes",
+            initial_value=False
+        )
+        viser_urdf.show_collision = False
+
+    @show_meshes_cb.on_update
+    def _(_):
+        viser_urdf.show_visual = show_meshes_cb.value
+
+    @show_collision_meshes_cb.on_update
+    def _(_):
+        viser_urdf.show_collision = show_collision_meshes_cb.value
 
     # ---- Animation loop ----
     frame_dt = 1.0 / FPS
@@ -173,10 +209,8 @@ if __name__ == "__main__":
     if not urdf_path:
         print(f"{args.urdf_file} not found, exiting.")
     else:
-        # Load the URDF file into a yourdfpy.URDF object
-        robot_urdf = URDF.load(urdf_path)
         # Call helper function
         play_robot_log(MAT_FILE=args.mat_file,
-                   urdf=robot_urdf,
+                   URDF_PATH=urdf_path,
                    VAR_NAME=args.var_name,
                    FPS=args.fps)
