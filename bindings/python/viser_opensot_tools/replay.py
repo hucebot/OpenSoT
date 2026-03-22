@@ -5,6 +5,7 @@ import pyopensot as pysot
 import h5py
 from plot import joint_plot
 from visualization import rvizer
+from interactive_marker import interactive_marker
 
 
 def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):

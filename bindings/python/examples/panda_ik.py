@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-
 import os
 from xbot2_interface import pyxbot2_interface as xbi
 from pyopensot.tasks.velocity import Postural, Cartesian, Manipulability, MinimumEffort
@@ -8,6 +6,7 @@ import pyopensot as pysot
 import numpy as np
 import time
 import replay
+import threading
 
 resource = "panda.urdf";
 urdf_path = pysot.find(resource)
@@ -64,23 +63,18 @@ rviz = replay.rvizer(urdf_path)
 q_plot = replay.joint_plot(title="Joint Positions", size=model.nq, legend_label="q", server=rviz.server, dt=dt)
 v_plot = replay.joint_plot(title="Joint Velocities", size=model.nv, legend_label="v", server=rviz.server, dt=dt)
 
+# Markers
+lock = threading.Lock()
+replay.interactive_marker(rviz.server, c, lock)
+
 # IK loop
 t = 0.
-alpha = 0.01
 try:
     while True:
         # Update actual position in the model
         model.setJointPosition(q)
         model.update()
-#
-        # Compute new reference for Cartesian task
-        pose_ref.translation[0] += alpha * np.sin(2.*3.1415 * t)
-        pose_ref.translation[1] += alpha * np.cos(2.*3.1415 * t)
-        t = t + alpha
-        if t > 1.:
-            t = 0
-        c.setReference(pose_ref)
-#
+
         # Update Stack
         s.update()
 #
