@@ -99,6 +99,7 @@ int main(int argc, char **argv)
         auto now = std::chrono::steady_clock::now();
 
         logger->add("q", q);
+        logger->add("qdot", dq/dT);
 
         model->setJointPosition(q);
         model->update();
@@ -130,7 +131,7 @@ int main(int argc, char **argv)
     input_thread.join();
 
     std::cout<<"log saved at: "<<logger->get_filename()<<std::endl;
-    std::cout<<"To replay the trajectory runs:\n \n     replay --urdf_file panda.urdf --mat_file "<<logger->get_filename()<<" --q_var_name q --fps "<<int(1/dT)<<std::endl;
+    std::cout<<"To replay the trajectory runs:\n \n     replay --urdf_file panda.urdf --mat_file "<<logger->get_filename()<<" --q_var_name q --v_var_name qdot --fps "<<int(1/dT)<<std::endl;
 
     return 0;
 }
