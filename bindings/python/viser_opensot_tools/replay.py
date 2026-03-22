@@ -1,13 +1,10 @@
 import time
 import numpy as np
-import viser
-from viser.extras import ViserUrdf
 import argparse
 import pyopensot as pysot
 import h5py
-from yourdfpy import URDF
 from plot import joint_plot
-from visualization import robot_visualization
+from visualization import rvizer
 
 
 def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
@@ -41,68 +38,26 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
     print(f"Loaded {num_frames} frames, DOF = {dof}")
 
     # ---- Start Viser server ----
-    server = viser.ViserServer(verbose=True)
-    scene = server.scene
-
-    # ---- Load URDF ----
-    urdf = URDF.load(
-            URDF_PATH,
-            load_meshes=True,
-            build_scene_graph=True,
-            load_collision_meshes=True,
-            build_collision_scene_graph=True,
-        )
-
-
-
-    base = scene.add_frame("/robot_base", show_axes=False)
-    viser_urdf = ViserUrdf(
-        server,
-        urdf_or_path=urdf,
-        root_node_name="/robot_base",
-        load_meshes=True,
-        load_collision_meshes=True,
-        collision_mesh_color_override=(1.0, 0.0, 0.0, 0.5),
-    )
-
-    # ---- Add ground grid ----
-    scene.add_grid(
-        "/ground_grid",
-        width=5.0,
-        height=5.0,
-        width_segments=20,
-        height_segments=20,
-    )
-
-    # Camera setup
-    # Set the initial camera pose before showing the scene
-    server.initial_camera.position = (1.5, 1.5, 1.5)
-    server.initial_camera.look_at = (0.0, 0.0, 0.5)
-    # Optionally adjust up direction
-    server.initial_camera.up = (0.0, 0.0, 1.0)
+    rviz = rvizer(URDF_PATH)
 
     # ---- GUI widgets (manual polling) ----
-    gui = server.gui
+    gui = rviz.server.gui
     slider = gui.add_slider("/Timeline", min=0.0, max=1.0, step=1.0/num_frames, initial_value=0.0)
     checkbox = gui.add_checkbox("/Play", initial_value=True)
-
-    # ---- Visualization ---- #
-    # Add visibility checkboxes.
-    robot_visualization(server, viser_urdf)
 
     # ---- Animation loop ----
     frame_dt = 1.0 / FPS
     current_frame = 0
     current_frame_float = 0.0
 
-    with server.gui.add_folder("Positions"):
-        q_plot = joint_plot(title="", size=dof, legend_label="q", server=server, dt=frame_dt)
+    with rviz.server.gui.add_folder("Positions"):
+        q_plot = joint_plot(title="", size=dof, legend_label="q", server=rviz.server, dt=frame_dt)
 
     v_plot = None
     if len(v_list) > 0:
-        with server.gui.add_folder("Velocities"):
+        with rviz.server.gui.add_folder("Velocities"):
             num_frames, vdof = v_list.shape
-            v_plot = joint_plot(title="", size=vdof, legend_label="v", server=server, dt=frame_dt)
+            v_plot = joint_plot(title="", size=vdof, legend_label="v", server=rviz.server, dt=frame_dt)
 
     update_plots = False # this is used only when play is false!
     while True:
@@ -122,7 +77,7 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
         v = None
         if len(v_list) > 0:
             v = v_list[current_frame]
-        viser_urdf.update_cfg(np.array(q))
+        rviz.viser_urdf.update_cfg(np.array(q))
 
         # Advance if playing
         if play:
