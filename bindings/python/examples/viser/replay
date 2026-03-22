@@ -60,7 +60,7 @@ class joint_plot:
 
         self.plot_handle.data = (self.x.tolist(), *[y.tolist() for y in self.ys])
 
-def play_robot_log(MAT_FILE, URDF_PATH, VAR_NAME="q", FPS=30):
+def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", FPS=30):
     """
     Play a robot trajectory from a .mat log in the browser using Viser.
 
@@ -76,9 +76,9 @@ def play_robot_log(MAT_FILE, URDF_PATH, VAR_NAME="q", FPS=30):
     """
     # ---- Load .mat file ----
     with h5py.File(MAT_FILE, "r") as f:
-        if VAR_NAME not in f:
-            raise ValueError(f"Variable '{VAR_NAME}' not found in {MAT_FILE}")
-        q_list = np.array(f[VAR_NAME])
+        if Q_VAR_NAME not in f:
+            raise ValueError(f"Variable '{Q_VAR_NAME}' not found in {MAT_FILE}")
+        q_list = np.array(f[Q_VAR_NAME])
 
     num_frames, dof = q_list.shape
     print(f"Loaded {num_frames} frames, DOF = {dof}")
@@ -198,7 +198,7 @@ if __name__ == "__main__":
                         help="Path to the .mat file with joint data")
     parser.add_argument("--urdf_file", type=str, required=True,
                         help="Name of URDF file, e.g., panda.urdf")
-    parser.add_argument("--var_name", type=str, default="q_list",
+    parser.add_argument("--q_var_name", type=str, default="q",
                         help="Variable name in .mat file containing joint arrays")
     parser.add_argument("--fps", type=int, default=30,
                         help="Frames per second for playback")
@@ -212,5 +212,5 @@ if __name__ == "__main__":
         # Call helper function
         play_robot_log(MAT_FILE=args.mat_file,
                    URDF_PATH=urdf_path,
-                   VAR_NAME=args.var_name,
+                   Q_VAR_NAME=args.q_var_name,
                    FPS=args.fps)

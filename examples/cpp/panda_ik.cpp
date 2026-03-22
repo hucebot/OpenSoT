@@ -130,7 +130,7 @@ int main(int argc, char **argv)
     input_thread.join();
 
     std::cout<<"log saved at: "<<logger->get_filename()<<std::endl;
-    std::cout<<"To replay the trajectory runs:\n \n     replay --urdf_file panda.urdf --mat_file "<<logger->get_filename()<<" --var_name q --fps "<<int(1/dT)<<std::endl;
+    std::cout<<"To replay the trajectory runs:\n \n     replay --urdf_file panda.urdf --mat_file "<<logger->get_filename()<<" --q_var_name q --fps "<<int(1/dT)<<std::endl;
 
     return 0;
 }
