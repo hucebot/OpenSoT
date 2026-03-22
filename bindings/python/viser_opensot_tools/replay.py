@@ -7,6 +7,7 @@ import pyopensot as pysot
 import h5py
 from yourdfpy import URDF
 from plot import joint_plot
+from visualization import robot_visualization
 
 
 def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
@@ -87,25 +88,7 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
 
     # ---- Visualization ---- #
     # Add visibility checkboxes.
-    with server.gui.add_folder("Visibility"):
-        show_meshes_cb = server.gui.add_checkbox(
-            "Show meshes",
-            initial_value=True
-        )
-
-        show_collision_meshes_cb = server.gui.add_checkbox(
-            "Show collision meshes",
-            initial_value=False
-        )
-        viser_urdf.show_collision = False
-
-    @show_meshes_cb.on_update
-    def _(_):
-        viser_urdf.show_visual = show_meshes_cb.value
-
-    @show_collision_meshes_cb.on_update
-    def _(_):
-        viser_urdf.show_collision = show_collision_meshes_cb.value
+    robot_visualization(server, viser_urdf)
 
     # ---- Animation loop ----
     frame_dt = 1.0 / FPS
