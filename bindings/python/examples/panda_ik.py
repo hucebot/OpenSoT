@@ -56,7 +56,7 @@ print(f"vel_ref: {vel_ref}")
 #
 # Creates iHQP solver with stack (using qpOASES as backend)
 #
-solver = pysot.iHQP(s, eps_regularisation=1e6)
+solver = pysot.iHQP(s, eps_regularisation=1e6, be_solver=pysot.solver_back_ends.qpOASES)
 
 # Visualization
 rviz = replay.rvizer(urdf_path)
@@ -66,6 +66,9 @@ v_plot = replay.joint_plot(title="Joint Velocities", size=model.nv, legend_label
 # Markers
 lock = threading.Lock()
 replay.interactive_marker(rviz.server, c, lock)
+
+# Solver tuning
+replay.iHQP_sliders(rviz.server, solver, lock)
 
 # IK loop
 t = 0.
