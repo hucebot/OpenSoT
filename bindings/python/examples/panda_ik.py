@@ -42,7 +42,7 @@ ref = c.getActualPose().copy()
 # 1st priority Cartesian position
 # 2nd priority Cartesian orientation
 # 3rd priority postural
-s = ( (c%[0,1,2]) / (c%[3,4,5]) / p) << qlims
+s =  (c / p) << qlims
 s<<dqlims
 s.update()
 #
