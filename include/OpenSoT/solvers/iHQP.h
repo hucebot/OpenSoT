@@ -184,6 +184,8 @@ namespace OpenSoT{
          */
         bool setEpsRegularisation(const double eps);
 
+        double getEpsRegularisaiton();
+
         /**
          * @brief getBackEnd retrieve the back-end associated to the i-th qp problem
          * @param i priority level
