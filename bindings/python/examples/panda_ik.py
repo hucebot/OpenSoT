@@ -68,7 +68,7 @@ lock = threading.Lock()
 replay.interactive_marker(rviz.server, c, lock)
 
 # Solver tuning
-replay.iHQP_sliders(rviz.server, solver, lock)
+#replay.iHQP_sliders(rviz.server, solver, lock)
 
 # IK loop
 t = 0.
