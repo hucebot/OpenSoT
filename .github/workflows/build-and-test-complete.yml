@@ -1,0 +1,30 @@
+name: manual complete build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Build Docker Image
+        run: |
+          cd docker
+          docker build -t test-opensot .
+
+      - name: Run Build and Tests
+        run: |
+          docker run --rm \
+            -v ${{ github.workspace }}:/OpenSoT:ro \
+            -w /tmp/build \
+            test-opensot \
+            /bin/bash -c "
+                cmake -DCMAKE_INSTALL_PREFIX:STRING=/tmp/install \
+                        -DCMAKE_BUILD_TYPE:STRING=Release \
+                        /OpenSoT && \
+                        make -j$(nproc) && \
+              ctest --output-on-failure
+                         "
