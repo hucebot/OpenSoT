@@ -27,10 +27,11 @@ jobs:
             /bin/bash -c "
                     source /opt/ros/jazzy/setup.bash && \
                     source /home/forest_ws/setup.bash && \
-                    cmake -DCMAKE_INSTALL_PREFIX:STRING=/tmp/install \
+                    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install \
                         -DCMAKE_BUILD_TYPE:STRING=Release \
                         -DOPENSOT_COMPILE_TESTS=True \
                         /OpenSoT && \
                     make -j$(nproc) && \
+                    cmake --install . && \
                     ctest --output-on-failure
                          "
