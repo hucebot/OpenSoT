@@ -25,9 +25,11 @@ jobs:
             -w /tmp/build \
             test-opensot \
             /bin/bash -c "
-                cmake -DCMAKE_INSTALL_PREFIX:STRING=/tmp/install \
+                    source /opt/ros/jazzy/setup.bash && \
+                    source /home/forest_ws/setup.bash && \
+                    cmake -DCMAKE_INSTALL_PREFIX:STRING=/tmp/install \
                         -DCMAKE_BUILD_TYPE:STRING=Release \
                         /OpenSoT && \
                         make -j$(nproc) && \
-              ctest --output-on-failure
+                    ctest --output-on-failure
                          "
