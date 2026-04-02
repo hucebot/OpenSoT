@@ -29,7 +29,8 @@ jobs:
                     source /home/forest_ws/setup.bash && \
                     cmake -DCMAKE_INSTALL_PREFIX:STRING=/tmp/install \
                         -DCMAKE_BUILD_TYPE:STRING=Release \
+                        -DOPENSOT_COMPILE_TESTS=True \
                         /OpenSoT && \
-                        make -j$(nproc) && \
+                    make -j$(nproc) && \
                     ctest --output-on-failure
                          "
