@@ -2,9 +2,9 @@ name: manual complete build
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - 3_refactor_ci
+  push:
+    branches:
+      - 3_refactor_ci
 
 jobs:
   build-and-test:
