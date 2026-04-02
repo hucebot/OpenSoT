@@ -4,6 +4,8 @@ find_package(Python ${PYBIND11_PYTHON_VERSION} COMPONENTS Development Interprete
 find_package(pybind11 QUIET)
 find_package(Eigen3 REQUIRED)
 
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+
 message(STATUS "check for pybind11")
 if(${pybind11_FOUND})
 
@@ -58,6 +60,16 @@ if(${pybind11_FOUND})
             RUNTIME DESTINATION "bin")
     endif()
 
+
+    install(
+        DIRECTORY viser_opensot_tools/
+        DESTINATION ${Python3_SITEARCH}
+    )
+
+    install(
+        PROGRAMS viser_opensot_tools/replay
+        DESTINATION bin
+    )
 
 else()
     message(STATUS "pybind not found")

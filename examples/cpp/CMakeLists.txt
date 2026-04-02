@@ -16,7 +16,7 @@ target_link_libraries(example_joint_limits_psap OpenSoT OpenSotBackEndQPOases)
 
     
 add_executable(example_panda_ik panda_ik.cpp)
-target_link_libraries(example_panda_ik OpenSoT ${qpOASES_LIBRARIES} rclcpp::rclcpp tf2_eigen::tf2_eigen tf2_ros::tf2_ros sensor_msgs::sensor_msgs_library)
+target_link_libraries(example_panda_ik OpenSoT ${qpOASES_LIBRARIES})
 
 add_executable(example_coman_ik coman_ik.cpp)
 target_link_libraries(example_coman_ik OpenSoT ${catkin_LIBRARIES} ${qpOASES_LIBRARIES} rclcpp::rclcpp tf2_eigen::tf2_eigen tf2_ros::tf2_ros sensor_msgs::sensor_msgs_library)

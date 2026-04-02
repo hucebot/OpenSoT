@@ -84,8 +84,9 @@ void pyiHQP(py::module& m) {
         .def("setActiveStack", &solvers::iHQP::setActiveStack)
         .def("activateAllStacks", &solvers::iHQP::activateAllStacks)
         .def("getBackEndName", &solvers::iHQP::getBackEndName)
-        .def("setEpsRegularisation", py::overload_cast<const double, const unsigned int>(&solvers::iHQP::setEpsRegularisation))
+        //.def("setEpsRegularisation", py::overload_cast<const double, const unsigned int>(&solvers::iHQP::setEpsRegularisation))
         .def("setEpsRegularisation", py::overload_cast<const double>(&solvers::iHQP::setEpsRegularisation))
+        .def("getEpsRegularisation", &solvers::iHQP::getEpsRegularisaiton)
         .def("getBackEnd", &solvers::iHQP::getBackEnd);
 }
 

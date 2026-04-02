@@ -1,0 +1,15 @@
+[project]
+name = "replay"
+version = "0.1.0"
+dependencies = [
+    "numpy",
+    "viser",
+    "h5py",
+]
+
+[project.scripts]
+replay = "replay.replay:main"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"

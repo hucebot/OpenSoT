@@ -41,6 +41,13 @@ std::tuple<Eigen::Affine3d, Eigen::Vector6d> cartesian_get_reference(const Carte
     return std::make_tuple(pose_ref, vel_ref);
 }
 
+Eigen::Affine3d cartesian_get_actual_pose(const Cartesian& cartesian)
+{
+    Eigen::Affine3d pose;
+    cartesian.getActualPose(pose);
+    return pose;
+}
+
 void pyVelocityCartesian(py::module& m) {
     py::class_<Cartesian, std::shared_ptr<Cartesian>, Task<Eigen::MatrixXd, Eigen::VectorXd>>(m, "Cartesian")
           .def(py::init<std::string, XBot::ModelInterface&, const std::string&, const std::string&>())
@@ -48,7 +55,7 @@ void pyVelocityCartesian(py::module& m) {
           .def("setReference", py::overload_cast<const Eigen::Affine3d&, const Eigen::Vector6d&>(&Cartesian::setReference))
           .def("getReference", cartesian_get_reference)
           .def("getCachedVelocityReference", &Cartesian::getCachedVelocityReference)
-          .def("getActualPose", py::overload_cast<>(&Cartesian::getActualPose, py::const_))
+          .def("getActualPose", cartesian_get_actual_pose)
           .def("getError", &Cartesian::getError)
           .def("reset", &Cartesian::reset)
           .def("setVelocityLocalReference", &Cartesian::setVelocityLocalReference)

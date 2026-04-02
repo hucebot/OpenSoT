@@ -456,5 +456,11 @@ bool iHQP::setEpsRegularisation(const double eps)
             return false;
         }
     }
+    _epsRegularisation = eps;
     return true;
+}
+
+double iHQP::getEpsRegularisaiton()
+{
+    return _epsRegularisation;
 }
