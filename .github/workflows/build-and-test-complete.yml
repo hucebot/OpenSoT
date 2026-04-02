@@ -19,14 +19,15 @@ jobs:
         uses: actions/checkout@v6
 
       - name: Build and Test
+        shell: bash
         run: |
-            source /opt/ros/jazzy/setup.bash && \
-            source /home/forest_ws/setup.bash && \
+            source /opt/ros/jazzy/setup.bash
+            source /home/forest_ws/setup.bash
             mkdir build && cd build
             cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install \
                 -DCMAKE_BUILD_TYPE:STRING=Release \
                 -DOPENSOT_COMPILE_TESTS=True \
-                .. && \
-            make -j$(nproc) && \
-            cmake --install . && \
+                ..
+            make -j$(nproc)
+            cmake --install .
             ctest --output-on-failure
