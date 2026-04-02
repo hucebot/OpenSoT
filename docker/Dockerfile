@@ -29,7 +29,7 @@ RUN git clone -b devel https://github.com/coal-library/coal.git && \
     cd /home/forest_ws/build/coal && \
     source /opt/ros/jazzy/setup.bash && \
     source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_PYTHON_INTERFACE=OFF ../../src/coal && \
+    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_PYTHON_INTERFACE=OFF -DBUILD_TESTING=OFF -DBUILD_DOCUMENTATION=OFF ../../src/coal && \
     make -j$(nproc)  && \
     make install &&  rm -r /home/forest_ws/build/coal /home/forest_ws/src/coal
 
@@ -88,8 +88,6 @@ RUN git clone https://github.com/Simple-Robotics/proxsuite.git && \
     make -j$(nproc)  && \
     make install &&  rm -r /home/forest_ws/build/proxsuite /home/forest_ws/src/proxsuite
     
-RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y libxcb-cursor0 gdb
-
 # qpSWIFT
 RUN git clone https://github.com/qpSWIFT/qpSWIFT.git && \
     mkdir -p /home/forest_ws/build/qpSWIFT && \
@@ -113,44 +111,6 @@ RUN git clone https://github.com/giaf/blasfeo && \
     cp /home/forest_ws/install/lib/libblasfeo.so /home/forest_ws/install/share/cmake/lib && \
     rm -r /home/forest_ws/build/blasfeo /home/forest_ws/src/blasfeo
 
-
-
-# HPIPM # this version is compatible with hpipm-cpp
-RUN git clone https://github.com/giaf/hpipm && \
-    cd /home/forest_ws/src/hpipm && \
-    git checkout 5dd34e66ae884ae7c8cecad8863949380643c168 && \ 
-    mkdir -p /home/forest_ws/build/hpipm && \
-    cd /home/forest_ws/build/hpipm && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS=ON -DHPIPM_TESTING=OFF -DHPIPM_FIND_BLASFEO=ON ../../src/hpipm && \
-    make -j8 && \
-    make install && make clean
-    
-# HPIPM C++
-RUN git clone https://github.com/hucebot/hpipm-cpp.git && \
-    mkdir -p /home/forest_ws/build/hpipm-cpp && \
-    cd /home/forest_ws/build/hpipm-cpp && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release ../../src/hpipm-cpp && \
-    make -j8 && \
-    make install && make clean
-    
-# mujoco
-RUN git clone https://github.com/deepmind/mujoco.git && \
-    mkdir -p /home/forest_ws/build/mujoco && \
-    cd /home/forest_ws/build/mujoco && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    #cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DMUJOCO_BUILD_EXAMPLES=OFF -DMUJOCO_BUILD_TESTS=OFF ../../src/mujoco && \
-    cmake -DMUJOCO_BUILD_EXAMPLES=OFF -DMUJOCO_BUILD_TESTS=OFF ../../src/mujoco && \
-    make -j8 && \
-    make install && make clean
-
-
-WORKDIR /home 
-RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y ros-jazzy-xacro ros-jazzy-joint-state-publisher-gui libglpk-dev libopenblas-dev ros-jazzy-rosidl-generator-dds-idl
 RUN echo "export PYTHONPATH=${PYTHONPATH}:/root/.local/lib/python3.12/site-packages:/usr/lib/python3/dist-packages/" >> ~/.bashrc
 
 RUN cd /home/forest_ws/src && git clone https://github.com/ADVRHumanoids/MatLogger2.git && \
