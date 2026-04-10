@@ -58,9 +58,11 @@ try:
         e = c.getb()
         q += c.getLambda() * np.matmul(J.transpose(), e)
 
-        rviz.viser_urdf.update_cfg(q)
-
-        q_plot.update(q)
+        with rviz.server.atomic():
+                rviz.viser_urdf.update_cfg(q)
+                q_plot.update(q)
+                rviz.update()
+        rviz.server.flush()
 
         time.sleep(dt)
 except KeyboardInterrupt:

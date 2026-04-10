@@ -84,10 +84,14 @@ try:
         # Solve
         dq = solver.solve()
         q += dq # Is fixed base so we can simply sum the result
-        rviz.viser_urdf.update_cfg(q)
 
-        q_plot.update(q)
-        v_plot.update(dq/dt)
+        with rviz.server.atomic():
+                rviz.viser_urdf.update_cfg(q)
+                q_plot.update(q)
+                v_plot.update(dq/dt)
+                rviz.update()
+        rviz.server.flush()
+
 #
         time.sleep(dt)
 #
