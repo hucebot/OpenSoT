@@ -71,11 +71,6 @@ model.setJointPosition(q)
 model.update()
 
 rviz = replay.rvizer(urdf_path)
-
-# w_T_b = TransformStamped()
-# w_T_b.header.frame_id = "world"
-# w_T_b.child_frame_id = "body"
-
 dt = 1./100.
 
 contact_frames = ["FL_foot", "FR_foot", "RL_foot", "RR_foot"]
