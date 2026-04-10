@@ -9,6 +9,48 @@ from scipy.spatial.transform import Rotation as R
 import replay
 import threading
 
+def add_planes(server, A, b, size=0.5):
+    planes = []
+    for i in range(A.shape[0]):
+        a = A[i]
+        bi = b[i]
+
+        # normal
+        n = a / np.linalg.norm(a)
+
+        # point on plane
+        p0 = n * (bi / np.linalg.norm(a))
+
+        # basis of the plane
+        tmp = np.array([1., 0., 0.])
+        if abs(np.dot(tmp, n)) > 0.9:
+            tmp = np.array([0., 1., 0.])
+
+        u = np.cross(n, tmp)
+        u /= np.linalg.norm(u)
+
+        v = np.cross(n, u)
+
+        # plane corners
+        corners = np.array([
+            p0 + size*( u + v),
+            p0 + size*( u - v),
+            p0 + size*(-u - v),
+            p0 + size*(-u + v),
+        ])
+
+        plane = server.scene.add_mesh_simple(
+            f"/planes/plane_{i}",
+            vertices=corners,
+            faces=np.array([[0,1,2],[0,2,3]]),
+            color=(120,180,255),
+            opacity= 0.5
+        )
+
+        planes.append(plane)
+
+    return planes
+
 
 resource = "go2.urdf";
 urdf_path = pysot.find(resource)
@@ -53,13 +95,13 @@ dqlims = VelocityLimits(model, dqmax, dt)
 
 convex_hull = ConvexHull(model, contact_frames)
 
-# # Planes to constraint the base movement on z
-# A = np.array([[0., 0., 1.], [0., 0., -1.]])
-# b = np.array([q[2] + 0.01, -q[2] + 0.05])
-# base_pos_limits = CartesianPositionConstraint(base_task, A, b)
+# Planes to constraint the base movement on z
+A = np.array([[0., 0., 1.], [0., 0., -1.]])
+b = np.array([q[2] + 0.01, -q[2] + 0.05])
+base_pos_limits = CartesianPositionConstraint(base_task, A, b)
 
 # STACK
-stack = ((contact_tasks[contact_frames[0]][0:3] + contact_tasks[contact_frames[1]][0:3] + contact_tasks[contact_frames[2]][0:3] + contact_tasks[contact_frames[3]][0:3])/base_task) << qlims << dqlims << convex_hull# << base_pos_limits
+stack = ((contact_tasks[contact_frames[0]][0:3] + contact_tasks[contact_frames[1]][0:3] + contact_tasks[contact_frames[2]][0:3] + contact_tasks[contact_frames[3]][0:3])/base_task) << qlims << dqlims << convex_hull << base_pos_limits
 stack.update()
 
 # SOLVER
@@ -77,6 +119,7 @@ com_marker = rviz.server.scene.add_icosphere(
 )
 
 convex_hull_marker = replay.convex_hull_marker(rviz.server)
+planes = add_planes(rviz.server, A, b)
 
 try:
     while True:
@@ -100,7 +143,6 @@ try:
         else:
                 print("Convex Hull computation failed.")
 
-
         with rviz.server.atomic():
                 rviz.viser_urdf.update_cfg(np.append(0., q[7:])) # this is needed because the model contains the floating joint which is seen by viser as an actuated dof
                 rviz.base.position = q[:3]
@@ -110,12 +152,6 @@ try:
                 convex_hull_marker.update(ch)
         rviz.server.flush()
 
-
-
-#         node.publish_planes(A, b, "world")
-
-
-#         #
         time.sleep(dt)
 
 except KeyboardInterrupt:
