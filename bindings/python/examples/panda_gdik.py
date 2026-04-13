@@ -39,7 +39,7 @@ dt = 1./1000.
 
 # Visualization
 rviz = replay.rvizer(urdf_path)
-q_plot = replay.joint_plot(title="Joint Positions", size=model.nq, legend_label="q", server=rviz.server, dt=dt)
+q_plot = replay.plot(title="Joint Positions", size=model.nq, legend_label="q", server=rviz.server, dt=dt)
 
 # Markers
 lock = threading.Lock()
@@ -58,11 +58,10 @@ try:
         e = c.getb()
         q += c.getLambda() * np.matmul(J.transpose(), e)
 
-        with rviz.server.atomic():
-                rviz.viser_urdf.update_cfg(q)
-                q_plot.update(q)
-                rviz.update()
-        rviz.server.flush()
+
+        q_plot.update(q)
+        rviz.update(q)
+
 
         time.sleep(dt)
 except KeyboardInterrupt:

@@ -138,14 +138,9 @@ try:
         else:
                 print("Convex Hull computation failed.")
 
-        with rviz.server.atomic():
-                rviz.viser_urdf.update_cfg(np.append(0., q[7:])) # this is needed because the model contains the floating joint which is seen by viser as an actuated dof
-                rviz.base.position = q[:3]
-                rviz.base.wxyz = np.array([q[6], q[3], q[4], q[5]])
-                rviz.update()
-                com_marker.position = np.array([com[0], com[1], 0.])
-                convex_hull_marker.update(ch)
-        rviz.server.flush()
+        rviz.update(q=np.append(0., q[7:]), base=q[:7]) # this is needed because the URDF model contains the floating joint which is seen by viser as an actuated dof
+        com_marker.position = np.array([com[0], com[1], 0.])
+        convex_hull_marker.update(ch)
 
         time.sleep(dt)
 

@@ -3,9 +3,9 @@ import numpy as np
 import argparse
 import pyopensot as pysot
 import h5py
-from plot import joint_plot
+from plot import plot
 from visualization import rvizer
-from interactive_marker import interactive_marker
+from interactive_marker import interactive_marker, com_marker
 from convex_hull_marker import convex_hull_marker
 #from solvers_sliders import iHQP_sliders
 
