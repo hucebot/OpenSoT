@@ -8,12 +8,6 @@ add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
 
 find_package(sensor_msgs REQUIRED)
 find_package(tf2_eigen REQUIRED)
-
-
-add_executable(example_joint_limits_psap joint_limits_psap.cpp JointLimitsPSAP.cpp)
-target_link_libraries(example_joint_limits_psap OpenSoT OpenSotBackEndQPOases)
-
-
     
 add_executable(example_panda_ik panda_ik.cpp)
 target_link_libraries(example_panda_ik OpenSoT ${qpOASES_LIBRARIES})
