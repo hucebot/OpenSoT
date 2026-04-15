@@ -1,6 +1,4 @@
-#include "../../tests/common.h"
 #include <string>
-#include <random>
 #include <thread>
 #include <xbot2_interface/xbotinterface2.h>
 #include <OpenSoT/tasks/velocity/Cartesian.h>

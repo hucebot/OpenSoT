@@ -6,12 +6,11 @@
     <color rgba="0.7 0.7 0.7 1"/>
   </material>
 
-  <!-- [CAUTION] uncomment when convert to mujoco -->
-  <!-- <link name="world"></link>
+  <link name="world"/>
   <joint name="floating_base_joint" type="floating">
     <parent link="world"/>
     <child link="pelvis"/>
-  </joint> -->
+  </joint>
 
   <link name="pelvis">
     <inertial>

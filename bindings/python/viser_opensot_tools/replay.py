@@ -36,6 +36,10 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
         else:
             v_list = np.array(f[V_VAR_NAME])
 
+        floating_base = False
+        if "floating_base" in f:
+            floating_base = True
+
 
     num_frames, dof = q_list.shape
     print(f"Loaded {num_frames} frames, DOF = {dof}")
@@ -54,13 +58,13 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
     current_frame_float = 0.0
 
     with rviz.server.gui.add_folder("Positions"):
-        q_plot = joint_plot(title="", size=dof, legend_label="q", server=rviz.server, dt=frame_dt)
+        q_plot = plot(title="", size=dof, legend_label="q", server=rviz.server, dt=frame_dt)
 
     v_plot = None
     if len(v_list) > 0:
         with rviz.server.gui.add_folder("Velocities"):
             num_frames, vdof = v_list.shape
-            v_plot = joint_plot(title="", size=vdof, legend_label="v", server=rviz.server, dt=frame_dt)
+            v_plot = plot(title="", size=vdof, legend_label="v", server=rviz.server, dt=frame_dt)
 
     update_plots = False # this is used only when play is false!
     while True:
@@ -80,7 +84,11 @@ def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
         v = None
         if len(v_list) > 0:
             v = v_list[current_frame]
-        rviz.viser_urdf.update_cfg(np.array(q))
+
+        if not floating_base:
+            rviz.update(q)
+        else:
+            rviz.update(q=np.append(0., q[7:]), base=q[:7])
 
         # Advance if playing
         if play:
