@@ -215,8 +215,8 @@ q = np.array([0., 0., 0., .0, 0., 0., 1., # floating_base
      np.cos(0.), np.sin(0.),     # 'wheel_rear_left_joint'
      np.cos(0.), np.sin(0.),     # 'wheel_rear_right_joint'
      0.00,                # 'torso_lift_joint'
-     0.00, .5, 0., -np.pi/2., 0.00, 0.00, 0., # 'arm_left_1_joint', 'arm_left_2_joint', 'arm_left_3_joint', 'arm_left_4_joint', 'arm_left_5_joint', 'arm_left_6_joint', 'arm_left_7_joint'
-     0.00, .5, 0., -np.pi/2., 0.00, 0.00, 0., # 'arm_right_1_joint', 'arm_right_2_joint', 'arm_right_3_joint', 'arm_right_4_joint', 'arm_right_5_joint', 'arm_right_6_joint', 'arm_right_7_joint'
+     0.00, .5, 0., -np.pi/2., 0.00, np.pi/2., 0., # 'arm_left_1_joint', 'arm_left_2_joint', 'arm_left_3_joint', 'arm_left_4_joint', 'arm_left_5_joint', 'arm_left_6_joint', 'arm_left_7_joint'
+     0.00, .5, 0., -np.pi/2., 0.00, np.pi/2., 0., # 'arm_right_1_joint', 'arm_right_2_joint', 'arm_right_3_joint', 'arm_right_4_joint', 'arm_right_5_joint', 'arm_right_6_joint', 'arm_right_7_joint'
      0., 0.]) # 'head_1_joint', 'head_2_joint'
 model.setJointPosition(q)
 model.update()
@@ -260,16 +260,11 @@ dqlims = VelocityLimits(model, dqmax, dt)
 base2D = Cartesian("Cartesian", model, "base_link", "world")
 base2D.setLambda(0.1)
 
-# # Collision Avoidance
-# urdf_string = node.urdf
-# srdf_path = package_path + "/capsules/srdf/tiago_dual_capsules.srdf"
-# srfd_string = None
-# with open(srdf_path, 'r') as f:
-#     srdf_string = f.read()
-# collision_avoidance = CollisionAvoidance(model, max_pairs=100, collision_urdf=urdf_string, collision_srdf=srdf_string)
-# collision_avoidance.setBoundScaling(0.1)
-# collision_avoidance.setLinkPairThreshold(0.01)
-# collision_avoidance.setDetectionThreshold(-1)
+# Collision Avoidance
+collision_avoidance = CollisionAvoidance(model, max_pairs=100, collision_urdf=urdf_string)
+collision_avoidance.setBoundScaling(0.1)
+collision_avoidance.setLinkPairThreshold(0.01)
+collision_avoidance.setDetectionThreshold(-1)
 # collision_list = {
 #     ("arm_left_3_link", "base_link"),
 #     ("arm_left_5_link", "base_link"),
@@ -350,9 +345,9 @@ stack.update()
 solver = pysot.iHQP(stack)
 
 lock = threading.Lock()
-replay.interactive_marker(rviz.server, gripper_left, lock, slider_max=1000, slider_step=10)
-replay.interactive_marker(rviz.server, gripper_right, lock, slider_max=1000, slider_step=10)
-replay.interactive_marker(rviz.server, base, lock, slider_max=1000, slider_step=10)
+replay.interactive_marker(rviz.server, gripper_left, lock, slider_max=1., slider_step=0.1)
+replay.interactive_marker(rviz.server, gripper_right, lock, slider_max=1., slider_step=0.1)
+replay.interactive_marker(rviz.server, base, lock, slider_max=1., slider_step=0.1)
 
 
 object_in_scene = False

@@ -67,8 +67,8 @@ v_plot = replay.plot(title="Joint Velocities", size=model.nv, legend_label="v", 
 lock = threading.Lock()
 replay.interactive_marker(rviz.server, c, lock)
 
-# Solver tuning
-#replay.iHQP_sliders(rviz.server, solver, lock)
+# Postural Gui
+replay.postural_gui(rviz.server, rviz.viser_urdf, p)
 
 # IK loop
 t = 0.

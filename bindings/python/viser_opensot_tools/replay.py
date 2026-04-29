@@ -7,7 +7,7 @@ from plot import plot
 from visualization import rvizer
 from interactive_marker import interactive_marker, com_marker
 from convex_hull_marker import convex_hull_marker
-#from solvers_sliders import iHQP_sliders
+from postural_gui import postural_gui
 
 
 def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):
