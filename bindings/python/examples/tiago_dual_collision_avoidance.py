@@ -12,6 +12,8 @@ from pyopensot_collision.constraints.velocity import CollisionAvoidance
 
 import replay
 import threading
+import json
+from pathlib import Path
 
 
 # class ros2_node(Node):
@@ -265,69 +267,12 @@ collision_avoidance = CollisionAvoidance(model, max_pairs=100, collision_urdf=ur
 collision_avoidance.setBoundScaling(0.1)
 collision_avoidance.setLinkPairThreshold(0.01)
 collision_avoidance.setDetectionThreshold(-1)
-# collision_list = {
-#     ("arm_left_3_link", "base_link"),
-#     ("arm_left_5_link", "base_link"),
-#     ("gripper_left_left_finger_link", "base_link"),
-#     ("gripper_left_right_finger_link", "base_link"),
-#     ("gripper_left_link", "base_link"),
+collision_pairs_path = pysot.find("pairs_tiago_pro.json")
+with Path(collision_pairs_path).open("r") as f:
+    collision_pairs = json.load(f)
 
-#     ("arm_left_3_link", "head_2_link"),
-#     ("arm_left_5_link", "head_2_link"),
-#     ("gripper_left_left_finger_link", "head_2_link"),
-#     ("gripper_left_right_finger_link", "head_2_link"),
-#     ("gripper_left_link", "head_2_link"),
-
-#     ("arm_left_3_link", "torso_lift_link"),
-#     ("arm_left_5_link", "torso_lift_link"),
-#     ("gripper_left_left_finger_link", "torso_lift_link"),
-#     ("gripper_left_right_finger_link", "torso_lift_link"),
-#     ("gripper_left_link", "torso_lift_link"),
-
-#     ("arm_right_3_link", "base_link"),
-#     ("arm_right_5_link", "base_link"),
-#     ("gripper_right_left_finger_link", "base_link"),
-#     ("gripper_right_right_finger_link", "base_link"),
-#     ("gripper_right_link", "base_link"),
-
-#     ("arm_right_3_link", "head_2_link"),
-#     ("arm_right_5_link", "head_2_link"),
-#     ("gripper_right_left_finger_link", "head_2_link"),
-#     ("gripper_right_right_finger_link", "head_2_link"),
-#     ("gripper_right_link", "head_2_link"),
-
-#     ("arm_right_3_link", "torso_lift_link"),
-#     ("arm_right_5_link", "torso_lift_link"),
-#     ("gripper_right_left_finger_link", "torso_lift_link"),
-#     ("gripper_right_right_finger_link", "torso_lift_link"),
-#     ("gripper_right_link", "torso_lift_link"),
-
-#     ("gripper_right_left_finger_link", "gripper_left_left_finger_link"),
-#     ("gripper_right_left_finger_link", "gripper_left_right_finger_link"),
-#     ("gripper_right_right_finger_link", "gripper_left_left_finger_link"),
-#     ("gripper_right_right_finger_link", "gripper_left_right_finger_link"),
-#     ("gripper_right_left_finger_link", "gripper_left_link"),
-#     ("gripper_right_right_finger_link", "gripper_left_link"),
-#     ("gripper_left_left_finger_link", "gripper_right_link"),
-#     ("gripper_left_right_finger_link", "gripper_right_link"),
-#     ("gripper_left_link", "gripper_right_link"),
-
-#     ("gripper_left_link", "arm_right_5_link"),
-#     ("gripper_right_link", "arm_left_5_link"),
-#     ("arm_left_5_link", "arm_right_5_link"),
-#     ("arm_left_5_link", "arm_right_4_link"),
-#     ("arm_left_4_link", "arm_right_5_link"),
-#     ("gripper_left_link", "arm_right_4_link"),
-#     ("gripper_left_link", "arm_right_5_link"),
-#     ("gripper_right_link", "arm_left_4_link"),
-#     ("gripper_right_link", "arm_left_5_link"),
-
-#     ("torso_fixed_column_link", "gripper_right_left_finger_link"),
-#     ("torso_fixed_column_link", "gripper_right_right_finger_link"),
-#     ("torso_fixed_column_link", "gripper_left_left_finger_link"),
-#     ("torso_fixed_column_link", "gripper_left_right_finger_link")
-# }
-# collision_avoidance.setCollisionList(collision_list)
+collision_set = {tuple(pair) for pair in collision_pairs["collision_list"]}
+collision_avoidance.setCollisionList(collision_set)
 
 # MechanumWheels4X constraint
 joint_wheels_name = ["wheel_front_left_joint", "wheel_front_right_joint", "wheel_rear_left_joint", "wheel_rear_right_joint"]
@@ -338,7 +283,7 @@ MechanumWheels4X = MechanumWheels4X(l1, l2, wheel_radius, joint_wheels_name, "ba
 #MechanumWheels4X.setIsGlobalVelocity(True)
 
 # STACK
-stack = ( (gripper_left + gripper_right + base%[0, 1, 5] + gaze) / postural) << qlims[10:] << dqlims << base2D%[2, 3, 4] << MechanumWheels4X #collision_avoidance <<
+stack = ( (gripper_left + gripper_right + base%[0, 1, 5] + gaze) / postural) << qlims[10:] << dqlims << collision_avoidance << base2D%[2, 3, 4] << MechanumWheels4X
 stack.update()
 
 # SOLVER
@@ -349,6 +294,8 @@ replay.interactive_marker(rviz.server, gripper_left, lock, slider_max=1., slider
 replay.interactive_marker(rviz.server, gripper_right, lock, slider_max=1., slider_step=0.1)
 replay.interactive_marker(rviz.server, base, lock, slider_max=1., slider_step=0.1)
 replay.postural_gui(rviz.server, model, postural, model.getJointNames()[5:], lock)
+
+coll_dist = replay.collision_distances(rviz.server)
 
 object_in_scene = False
 try:
@@ -382,8 +329,7 @@ try:
 
         rviz.update(q=np.append(0., toViserCgf(q)), base=q[:7])
 
-
-#         node.publishCollisionDistances(collision_avoidance.getOrderedWitnessPointVector(), msg.header.stamp)
+        coll_dist.update(collision_avoidance.getOrderedWitnessPointVector())
 #         if node.enable_external_obstacle:
 #             node.publishObstacle(msg.header.stamp, Marker.ADD)
 #         else:

@@ -7,6 +7,7 @@ from plot import plot
 from visualization import rvizer
 from interactive_marker import interactive_marker, com_marker
 from convex_hull_marker import convex_hull_marker
+from collision_distances import collision_distances
 from postural_gui import postural_gui
 
 
