@@ -348,7 +348,7 @@ lock = threading.Lock()
 replay.interactive_marker(rviz.server, gripper_left, lock, slider_max=1., slider_step=0.1)
 replay.interactive_marker(rviz.server, gripper_right, lock, slider_max=1., slider_step=0.1)
 replay.interactive_marker(rviz.server, base, lock, slider_max=1., slider_step=0.1)
-
+replay.postural_gui(rviz.server, model, postural, model.getJointNames()[5:], lock)
 
 object_in_scene = False
 try:

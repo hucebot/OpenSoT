@@ -68,7 +68,7 @@ lock = threading.Lock()
 replay.interactive_marker(rviz.server, c, lock)
 
 # Postural Gui
-replay.postural_gui(rviz.server, rviz.viser_urdf, p)
+replay.postural_gui(rviz.server, model, p, model.getJointNames(), lock)
 
 # IK loop
 t = 0.
