@@ -60,15 +60,15 @@ solver = pysot.iHQP(s, eps_regularisation=1e6, be_solver=pysot.solver_back_ends.
 
 # Visualization
 rviz = replay.rvizer(urdf_path)
-q_plot = replay.joint_plot(title="Joint Positions", size=model.nq, legend_label="q", server=rviz.server, dt=dt)
-v_plot = replay.joint_plot(title="Joint Velocities", size=model.nv, legend_label="v", server=rviz.server, dt=dt)
+q_plot = replay.plot(title="Joint Positions", size=model.nq, legend_label="q", server=rviz.server, dt=dt)
+v_plot = replay.plot(title="Joint Velocities", size=model.nv, legend_label="v", server=rviz.server, dt=dt)
 
 # Markers
 lock = threading.Lock()
 replay.interactive_marker(rviz.server, c, lock)
 
-# Solver tuning
-#replay.iHQP_sliders(rviz.server, solver, lock)
+# Postural Gui
+replay.postural_gui(rviz.server, model, p, model.getJointNames(), lock)
 
 # IK loop
 t = 0.
@@ -84,10 +84,11 @@ try:
         # Solve
         dq = solver.solve()
         q += dq # Is fixed base so we can simply sum the result
-        rviz.viser_urdf.update_cfg(q)
 
+        rviz.update(q)
         q_plot.update(q)
         v_plot.update(dq/dt)
+
 #
         time.sleep(dt)
 #

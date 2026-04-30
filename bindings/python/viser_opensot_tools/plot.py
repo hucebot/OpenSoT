@@ -1,7 +1,7 @@
 import viser
 import numpy as np
 
-class joint_plot:
+class plot:
     def __init__(self, title, size, legend_label, server, dt, max_len=1000):
         self.size = size
         self.max_len = max_len

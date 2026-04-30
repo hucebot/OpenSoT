@@ -1,18 +1,64 @@
-from pyopensot.tasks.velocity import Cartesian
 from scipy.spatial.transform import Rotation as R
 from xbot2_interface import Affine3
 import numpy as np
 
+class com_marker():
+    def __init__(self, server, com_task, lock, slider_max=1., slider_step=0.01):
+        self.com_task = com_task
+        self.lock = lock
+
+        p, _, *_ = self.com_task.getReference()
+
+        self.int_marker = server.scene.add_transform_controls(
+            "/"+com_task.getTaskID(),
+            position=p,
+            disable_rotations=True,
+            scale=0.4
+        )
+        self.int_marker.on_update(self.on_target_move())
+
+        with server.gui.add_folder(com_task.getTaskID()):
+            self.lambda_slider = server.gui.add_slider(label="lambda", min=0., max=slider_max, step=slider_step, initial_value=com_task.getLambda())
+            self.lambda_slider.on_update(self.on_slider_change())
+
+            self.is_active_checkbox = server.gui.add_checkbox("/Enable", initial_value=True)
+            self.is_active_checkbox.on_update(self.on_checkbox_change())
+
+
+    def on_target_move(self):
+        def _(_):
+            p = self.int_marker.position
+
+            new_p = np.array(p)
+
+            with self.lock:
+                self.com_task.setReference(new_p)
+        return _
+
+    def on_slider_change(self):
+        def _(_):
+            with self.lock:
+                self.com_task.setLambda(self.lambda_slider.value)
+        return _
+
+    def on_checkbox_change(self):
+        def _(_):
+            is_active = self.is_active_checkbox.value
+            if is_active: # switch to active
+                p = self.com_task.getActualPose()
+                self.int_marker.position = (p[0], p[1], p[2])
+            self.int_marker.visible = is_active
+        return _
+
 
 class interactive_marker():
 
-
-    def __init__(self, server, cartesian_task, lock):
+    def __init__(self, server, cartesian_task, lock, slider_max=1., slider_step=0.01):
 
         self.cartesian_task = cartesian_task
         self.lock = lock
 
-        T, _ = self.cartesian_task.getReference()
+        T, _, *_ = self.cartesian_task.getReference()
         quat = R.from_matrix(T.linear).as_quat()  # x y z w
 
         self.int_marker = server.scene.add_transform_controls(
@@ -24,10 +70,10 @@ class interactive_marker():
         self.int_marker.on_update(self.on_target_move())
 
         with server.gui.add_folder(cartesian_task.getTaskID()):
-            self.lambda_slider = server.gui.add_slider(label="lambda", min=0., max=1., step=0.01, initial_value=cartesian_task.getLambda())
+            self.lambda_slider = server.gui.add_slider(label="lambda", min=0., max=slider_max, step=slider_step, initial_value=cartesian_task.getLambda())
             self.lambda_slider.on_update(self.on_slider_change())
 
-            self.is_active_checkbox = server.gui.add_checkbox("/Play", initial_value=True)
+            self.is_active_checkbox = server.gui.add_checkbox("/Enable", initial_value=True)
             self.is_active_checkbox.on_update(self.on_checkbox_change())
 
 

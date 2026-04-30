@@ -1,5 +1,18 @@
 <?xml version='1.0' encoding='utf-8'?>
 <robot name="go2_description">
+
+<link name="world"/>
+  <joint name="reference" type="floating">
+    <parent link="world"/>
+    <child link="base"/>
+</joint>
+
+<link name="base_link"/>
+<joint name="base_link_frame" type="fixed">
+  <parent link="base" />
+  <child link="base_link" />
+</joint>
+
   <link name="base">
     <inertial>
       <origin xyz="0.021112 0 -0.005366" rpy="0 0 0" />
