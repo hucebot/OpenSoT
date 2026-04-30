@@ -119,7 +119,7 @@ class testQPOasesProblem : public TestBase
 {
 protected:
 
-    testQPOasesProblem(): TestBase("coman_floating_base")
+    testQPOasesProblem(): TestBase("coman_floating_base.urdf")
     {
 
     }
@@ -142,7 +142,7 @@ class testQPOasesTask: public TestBase
 {
 protected:
 
-    testQPOasesTask(): TestBase("coman_floating_base")
+    testQPOasesTask(): TestBase("coman_floating_base.urdf")
     {
 
     }
@@ -165,7 +165,7 @@ class testiHQP : public TestBase
 protected:
     std::ofstream _log;
 
-    testiHQP(): TestBase("coman_floating_base")
+    testiHQP(): TestBase("coman_floating_base.urdf")
     {
         _log.open("testiHqp->m");
     }

@@ -11,7 +11,7 @@ class testCartesianAdmittanceTask: public TestBase
 {
 protected:
 
-    testCartesianAdmittanceTask():TestBase("coman")
+    testCartesianAdmittanceTask():TestBase("coman.urdf")
     {
     }
 

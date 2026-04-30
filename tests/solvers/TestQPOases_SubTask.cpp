@@ -22,7 +22,7 @@ class testQPOases_SubTask: public TestBase
 {
 protected:
 
-    testQPOases_SubTask() : TestBase("coman_floating_base")
+    testQPOases_SubTask() : TestBase("coman_floating_base.urdf")
     {
 
     }

@@ -10,7 +10,7 @@ namespace {
 class testAutoStack: public TestBase
 {
 protected:
-    testAutoStack() : TestBase("coman_floating_base")
+    testAutoStack() : TestBase("coman_floating_base.urdf")
     {
 
 

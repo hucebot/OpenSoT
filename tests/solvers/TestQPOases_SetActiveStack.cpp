@@ -17,7 +17,7 @@ class testActivateStack: public TestBase
 {
 protected:
 
-    testActivateStack() : TestBase("coman_floating_base")
+    testActivateStack() : TestBase("coman_floating_base.urdf")
     {
 
     }

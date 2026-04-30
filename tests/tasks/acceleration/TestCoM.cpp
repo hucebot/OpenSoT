@@ -17,7 +17,7 @@ class testCoMTask: public TestBase
 {
 protected:
 
-    testCoMTask() : TestBase("coman_floating_base")
+    testCoMTask() : TestBase("coman_floating_base.urdf")
     {
         _q = _model_ptr->getNeutralQ();
         setGoodInitialPosition();

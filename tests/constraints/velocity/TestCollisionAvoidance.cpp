@@ -13,7 +13,7 @@
 
 #include <fstream>
 #include <iostream>
-
+#include <OpenSoT/utils/resources_utils.h>
 
 
 #define  s                1.0
@@ -57,18 +57,9 @@ public:
 
 
  protected:
-std::string ReadFile(std::string path)
-{
-    std::ifstream t(path);
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    return buffer.str();
-}
-
   testSelfCollisionAvoidanceConstraint()
   {
-
-      std::string urdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman_capsules.rviz";
+      std::string urdf_capsule_path = OpenSoT::resources_utils::find("bigman_capsules.rviz")->string();
       std::ifstream f(urdf_capsule_path);
       std::stringstream ss;
       ss << f.rdbuf();
@@ -76,13 +67,13 @@ std::string ReadFile(std::string path)
       urdf = std::make_shared<urdf::Model>();
       urdf->initFile(urdf_capsule_path);
 
-      std::string srdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman.srdf";
+      std::string srdf_capsule_path = OpenSoT::resources_utils::find("bigman.srdf")->string();
       srdf = std::make_shared<srdf::Model>();
       srdf->initFile(*urdf, srdf_capsule_path);
 
 
 
-      _model_ptr = XBot::ModelInterface::getModel(ReadFile(urdf_capsule_path), ReadFile(srdf_capsule_path), "pin");
+      _model_ptr = XBot::ModelInterface::getModel(OpenSoT::resources_utils::ReadFile(urdf_capsule_path), OpenSoT::resources_utils::ReadFile(srdf_capsule_path), "pin");
 
       if(_model_ptr)
           std::cout<<"pointer address: "<<_model_ptr.get()<<std::endl;
@@ -818,10 +809,6 @@ TEST_F(testSelfCollisionAvoidanceConstraint, testChangeWhitelistOnline){
     // start rechecking the distances of the capsules
 
     // check the actual distance between the hand capsule pair
-    std::string urdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman_capsules.rviz";
-    std::string srdf_capsule_path = OPENSOT_TEST_PATH "robots/bigman/bigman.srdf";
-
-
     this->sc_constraint->getOrderedDistanceVector(d);
     EXPECT_TRUE(d.size() == 1);
     for(unsigned int i = 0; i < d.size(); ++i)

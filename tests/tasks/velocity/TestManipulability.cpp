@@ -21,7 +21,7 @@ namespace {
 class testManipolability: public TestBase
 {
 protected:
-    testManipolability() : TestBase("coman_floating_base")
+    testManipolability() : TestBase("coman_floating_base.urdf")
     {
          //_log.open("testMinimizeAcceleration.m");
     }

@@ -18,7 +18,7 @@ class testVelocityLimits : public TestBase {
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  testVelocityLimits() : TestBase("coman_floating_base") {
+  testVelocityLimits() : TestBase("coman_floating_base.urdf") {
     // You can do set-up work for each test here.
       zeros.resize(_model_ptr->getNv());
       zeros.setZero(_model_ptr->getNv());

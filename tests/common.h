@@ -3,23 +3,16 @@
 
 #include <gtest/gtest.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <fstream>
+#include <OpenSoT/utils/resources_utils.h>
 
-std::string ReadFile(std::string path)
-{
-    std::ifstream t(path);
-    std::stringstream buffer;
-    buffer << t.rdbuf();
-    return buffer.str();
-}
 
 XBot::ModelInterface::Ptr GetTestModel(std::string name)
 {
-    std::string robot_folder = OPENSOT_TEST_PATH;
-    robot_folder += "/robots/" + name;
+    auto urdf_path = OpenSoT::resources_utils::find(name);
+    auto urdf_string = OpenSoT::resources_utils::ReadFile(urdf_path->string());
 
     return XBot::ModelInterface::getModel(
-        ReadFile(robot_folder + "/" + name + ".urdf"),
+        urdf_string,
         OPENSOT_TEST_MODEL_TYPE);
 }
 

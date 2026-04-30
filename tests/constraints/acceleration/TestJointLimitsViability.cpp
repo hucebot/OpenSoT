@@ -16,7 +16,7 @@ namespace {
 
 class testJointLimitsViability : public TestBase {
 protected:
-    testJointLimitsViability(): TestBase("coman_floating_base"),
+    testJointLimitsViability(): TestBase("coman_floating_base.urdf"),
         p_test(0.001, M_PI, 20.),
         p_dp(0.01, 2., 12.)
     {

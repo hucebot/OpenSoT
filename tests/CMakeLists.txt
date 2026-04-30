@@ -6,9 +6,7 @@ find_package(osqp QUIET)
 find_package(qpSWIFT QUIET)
 
 
-add_definitions(-DOPENSOT_TEST_PATH="${CMAKE_CURRENT_SOURCE_DIR}/")
 add_definitions(-DOPENSOT_TEST_MODEL_TYPE="pin")
-message(STATUS "DOPENSOT_TEST_PATH is ${CMAKE_CURRENT_SOURCE_DIR}")
 
 
 set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO}")
@@ -24,7 +22,6 @@ include_directories(${CMAKE_CURRENT_SOURCE_DIR} )
 enable_testing()
 
 
-add_definitions(-DOPENSOT_TESTS_ROBOTS_DIR="${CMAKE_CURRENT_BINARY_DIR}/robots/")
 
 SET(TestLibs OpenSoT ${GTEST_BOTH_LIBRARIES} ${qpOASES_LIBRARIES} ${catkin_LIBRARIES})
 

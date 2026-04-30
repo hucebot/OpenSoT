@@ -14,7 +14,7 @@ class testAffineUtils: public TestBase
 {
 protected:
 
-    testAffineUtils(): TestBase("coman_floating_base")
+    testAffineUtils(): TestBase("coman_floating_base.urdf")
     {
         model_ptr = _model_ptr;
 

@@ -18,7 +18,7 @@ protected:
     OpenSoT::constraints::velocity::JointLimits::Ptr _joint_limits;
     OpenSoT::constraints::velocity::CartesianVelocity::Ptr _vcom_constraint;
 
-    TestSubConstraint() : TestBase("coman_floating_base")
+    TestSubConstraint() : TestBase("coman_floating_base.urdf")
 
     {
         q = _model_ptr->getNeutralQ();

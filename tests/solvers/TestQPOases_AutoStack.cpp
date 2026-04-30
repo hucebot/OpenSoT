@@ -19,7 +19,7 @@ class testQPOases_AutoStack: public TestBase
 protected:
     std::ofstream _log;
 
-    testQPOases_AutoStack(): TestBase("coman_floating_base")
+    testQPOases_AutoStack(): TestBase("coman_floating_base.urdf")
     {
         _log.open("testQPOases_AutoStack.m");
     }

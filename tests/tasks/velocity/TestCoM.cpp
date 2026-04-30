@@ -15,7 +15,7 @@ public:
 
 protected:
 
-    testCoMTask() : TestBase("coman_floating_base")
+    testCoMTask() : TestBase("coman_floating_base.urdf")
     {
     }
 

@@ -34,7 +34,7 @@ public:
 class testTask: public TestBase
 {
 protected:
-    testTask(): TestBase("coman_floating_base")
+    testTask(): TestBase("coman_floating_base.urdf")
     {
 
     }

@@ -12,7 +12,7 @@ class testPosturalTask: public TestBase
 {
 protected:
 
-    testPosturalTask() : TestBase("coman_floating_base")
+    testPosturalTask() : TestBase("coman_floating_base.urdf")
     {
 
     }

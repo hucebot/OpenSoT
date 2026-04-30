@@ -17,7 +17,7 @@ class testAggregated : public TestBase {
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  testAggregated() : TestBase("coman_floating_base") {
+  testAggregated() : TestBase("coman_floating_base.urdf") {
     // You can do set-up work for each test here.
   }
 

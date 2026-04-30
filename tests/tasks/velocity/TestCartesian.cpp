@@ -12,7 +12,7 @@ class testCartesianTask: public TestBase
 {
 protected:
 
-    testCartesianTask(): TestBase("coman_floating_base")
+    testCartesianTask(): TestBase("coman_floating_base.urdf")
     {
 
     }

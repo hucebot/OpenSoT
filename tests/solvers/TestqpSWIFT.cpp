@@ -51,7 +51,7 @@ class testqpSWIFTProblem: public TestBase
 {
 protected:
 
-    testqpSWIFTProblem():TestBase("coman_floating_base")
+    testqpSWIFTProblem():TestBase("coman_floating_base.urdf")
     {
 
     }
@@ -585,7 +585,7 @@ class testiHQP: public TestBase
 {
 protected:
 
-    testiHQP():TestBase("coman_floating_base")
+    testiHQP():TestBase("coman_floating_base.urdf")
     {
     }
 

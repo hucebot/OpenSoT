@@ -22,7 +22,7 @@ protected:
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  testConvexHull(): TestBase("coman_floating_base")
+  testConvexHull(): TestBase("coman_floating_base.urdf")
   {
       // You can do set-up work for each test here.
 

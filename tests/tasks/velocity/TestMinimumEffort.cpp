@@ -12,7 +12,7 @@ class testMinimumEffortTask: public TestBase
 {
 
 protected:
-    testMinimumEffortTask() : TestBase("coman_floating_base")
+    testMinimumEffortTask() : TestBase("coman_floating_base.urdf")
     {
 
 

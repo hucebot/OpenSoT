@@ -20,7 +20,7 @@ namespace {
 class testJointLimitsNaive : public TestBase {
  protected:
 
-  testJointLimitsNaive() : TestBase("coman_floating_base")
+  testJointLimitsNaive() : TestBase("coman_floating_base.urdf")
   {
       _model_ptr->getJointLimits(qLowerBounds, qUpperBounds);
 
@@ -94,7 +94,7 @@ class testJointLimits : public TestBase {
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  testJointLimits(): TestBase("coman_floating_base")
+  testJointLimits(): TestBase("coman_floating_base.urdf")
   {
 
       _model_ptr->getJointLimits(qLowerBounds, qUpperBounds);

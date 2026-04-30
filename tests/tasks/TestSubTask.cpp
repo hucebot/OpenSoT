@@ -18,7 +18,7 @@ class TestSubTaskMap: public TestBase
 {
 protected:
 
-    TestSubTaskMap():TestBase("coman_floating_base")
+    TestSubTaskMap():TestBase("coman_floating_base.urdf")
     {
 
     }
@@ -45,7 +45,7 @@ protected:
     OpenSoT::tasks::velocity::Postural::Ptr _postural;
     OpenSoT::constraints::velocity::JointLimits::Ptr _joint_limits;
 
-    TestSubTask():TestBase("coman_floating_base")
+    TestSubTask():TestBase("coman_floating_base.urdf")
 
     {
         Eigen::VectorXd tmp;

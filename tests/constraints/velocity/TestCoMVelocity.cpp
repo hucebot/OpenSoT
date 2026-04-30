@@ -22,7 +22,7 @@ protected:
   // You can remove any or all of the following functions if its body
   // is empty.
 
-  testCoMVelocity() : TestBase("coman_floating_base")
+  testCoMVelocity() : TestBase("coman_floating_base.urdf")
   {
 
       velocityLimits.setZero();

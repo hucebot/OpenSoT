@@ -26,7 +26,7 @@ protected:
     Eigen::VectorXd q;
 
     testAggregatedTask():
-        TestBase("coman_floating_base")
+        TestBase("coman_floating_base.urdf")
     {
         q = _model_ptr->generateRandomQ();
         _model_ptr->setJointPosition(q);

@@ -50,7 +50,7 @@ class testeiQuadProgProblem: public TestBase
 {
 protected:
 
-    testeiQuadProgProblem():TestBase("coman_floating_base")
+    testeiQuadProgProblem():TestBase("coman_floating_base.urdf")
     {
 
     }
@@ -536,7 +536,7 @@ class testiHQP: public TestBase
 {
 protected:
 
-    testiHQP() : TestBase("coman_floating_base")
+    testiHQP() : TestBase("coman_floating_base.urdf")
     {
     }
 
