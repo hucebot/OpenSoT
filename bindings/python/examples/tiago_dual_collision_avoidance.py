@@ -15,176 +15,20 @@ import threading
 import json
 from pathlib import Path
 
-
-# class ros2_node(Node):
-#     def __init__(self):
-#         super().__init__('tiago_dual_collision_avoidance')
-#         self.get_logger().info("tiago_dual node has been started.")
-#         self.client = self.create_client(GetParameters, '/robot_state_publisher/get_parameters')
-
-#         while not self.client.wait_for_service(timeout_sec=1.0):
-#             self.get_logger().info('Waiting for parameter service...')
-
-#         request = GetParameters.Request()
-#         request.names = ['robot_description']
-
-#         future = self.client.call_async(request)
-#         rclpy.spin_until_future_complete(self, future)
-
-#         self.urdf = None
-#         if future.result() is not None:
-#             values = future.result().values
-#             for val in values:
-#                 self.urdf = val.string_value
-#         else:
-#             self.get_logger().error('Failed to call service')
-
-#         self.joint_state_publisher = self.create_publisher(JointState, 'joint_states', 10)
-#         self.base_link_broadcaster = TransformBroadcaster(self)
-
-#         self.server = InteractiveMarkerServer(self, 'six_dof_marker_server')
-#         self.marker_pose = PoseStamped()
-
-#         self.collision_distances_publisher = self.create_publisher(Marker, 'collision_distances', 10)
-
-#         self.srv = self.create_service(SetBool, 'enable_external_obstacle', self.handle_request) # ros2 service call /enable_external_obstacle std_srvs/srv/SetBool "{data: True}"
-#         self.enable_external_obstacle = False
-#         self.world_object_publisher = self.create_publisher(Marker, 'world_object', 10)
-
-#         self.cube = Marker()
-#         self.cube.header.frame_id = "world"
-#         self.cube.ns = "environment"
-#         self.cube.id = 0
-#         self.cube.type = Marker.CUBE
-#         self.cube.scale.x = 0.1
-#         self.cube.scale.y = 0.6
-#         self.cube.scale.z = 1.4
-#         self.cube.color.g = 1.0
-#         self.cube.color.a = 0.5
-#         self.cube.pose.position.x = 0.75
-#         self.cube.pose.position.y = 0.0
-#         self.cube.pose.position.z = 0.75
-#         self.cube.pose.orientation.x = self.cube.pose.orientation.y = self.cube.pose.orientation.z = 0.0
-#         self.cube.pose.orientation.w = 1.0
-
-#     def handle_request(self, request, response):
-#         self.get_logger().info(f"Received request: enable_external_obstacle = {request.data}")
-#         self.enable_external_obstacle = request.data
-#         response.success = True
-#         response.message = f"Received {request.data}"
-#         return response
-
-#     def publishObstacle(self, time, action):
-#         if self.enable_external_obstacle:
-#             self.cube.header.stamp = time
-#             self.cube.action = action
-#             self.world_object_publisher.publish(self.cube)
+from scipy.spatial.transform import Rotation as R
 
 
-#     def make_6dof_marker(self, name, pose, frame_id):
-#         int_marker = InteractiveMarker()
-#         int_marker.header.frame_id = frame_id
-#         int_marker.name = name
-#         int_marker.description = '6-DOF Control'
-#         int_marker.scale = 0.3
+def obstacle_box(server):
+    box = server.scene.add_box(
+        name="obstacle",
+        dimensions=(0.1, 0.6, 1.4),
+        color=(255, 0, 0),
+        opacity=0.5)
 
-#         int_marker.pose.position.x = pose.translation[0]
-#         int_marker.pose.position.y = pose.translation[1]
-#         int_marker.pose.position.z = pose.translation[2]
-
-#         quat_xyzw = R.from_matrix(pose.linear).as_quat() # Format: [x, y, z, w]
-#         int_marker.pose.orientation.x = quat_xyzw[0]
-#         int_marker.pose.orientation.y = quat_xyzw[1]
-#         int_marker.pose.orientation.z = quat_xyzw[2]
-#         int_marker.pose.orientation.w = quat_xyzw[3]
-
-#         self.marker_pose.pose = int_marker.pose
-
-#         # Add a visible marker (e.g., a cube)
-#         cube_marker = Marker()
-#         cube_marker.type = Marker.CUBE
-#         cube_marker.scale.x = 0.05
-#         cube_marker.scale.y = 0.05
-#         cube_marker.scale.z = 0.05
-#         cube_marker.color.r = 0.0
-#         cube_marker.color.g = 1.0
-#         cube_marker.color.b = 0.0
-#         cube_marker.color.a = 1.0
-
-#         control = InteractiveMarkerControl()
-#         control.always_visible = True
-#         control.markers.append(cube_marker)
-#         int_marker.controls.append(control)
-
-#         # Add 6-DOF controls
-#         self.add_6dof_controls(int_marker)
-
-
-#         self.server.insert(marker=int_marker, feedback_callback=self.process_feedback)
-#         self.server.applyChanges()
-#     def process_feedback(self, feedback):
-#         self.marker_pose.header = feedback.header
-#         self.marker_pose.pose = feedback.pose
-#     def add_6dof_controls(self, marker):
-#         axes = ['x', 'y', 'z']
-#         for axis in axes:
-#             # Rotation
-#             control = InteractiveMarkerControl()
-#             control.name = f'rotate_{axis}'
-#             control.orientation.w = 1.0
-#             setattr(control.orientation, axis, 1.0)
-#             control.interaction_mode = InteractiveMarkerControl.ROTATE_AXIS
-#             marker.controls.append(control)
-
-#             # Translation
-#             control = InteractiveMarkerControl()
-#             control.name = f'move_{axis}'
-#             control.orientation.w = 1.0
-#             setattr(control.orientation, axis, 1.0)
-#             control.interaction_mode = InteractiveMarkerControl.MOVE_AXIS
-#             marker.controls.append(control)
-
-#
-#     def publish(self, joint_state_msg, transform_msg):
-#         self.joint_state_publisher.publish(joint_state_msg)
-#         self.base_link_broadcaster.sendTransform(transform_msg)
-
-#     def publishCollisionDistances(self, collision_distance_points, time):
-#         marker = Marker()
-#         marker.pose.position.x = marker.pose.position.y = marker.pose.position.z = 0.0
-#         marker.pose.orientation.x = marker.pose.orientation.y = marker.pose.orientation.z = 0.0
-#         marker.pose.orientation.w = 1.0
-#         marker.type = Marker.LINE_LIST
-#         marker.action = Marker.ADD
-#         marker.header.frame_id = "world"
-#         marker.header.stamp = time
-#         marker.ns = "collision_distances"
-#         marker.id = 0
-#         marker.scale.x = 0.005  # Line width
-#         marker.color.r = 0.0
-#         marker.color.g = 1.0
-#         marker.color.b = 0.0
-#         marker.color.a = 1.0  # Opaque
-
-#         for point_pairs in collision_distance_points:
-#             pa = point_pairs[0]
-#             pb = point_pairs[1]
-
-#             point_a = Point()
-#             point_a.x = pa[0]
-#             point_a.y = pa[1]
-#             point_a.z = pa[2]
-
-#             point_b = Point()
-#             point_b.x = pb[0]
-#             point_b.y = pb[1]
-#             point_b.z = pb[2]
-
-#             marker.points.append(point_a)
-#             marker.points.append(point_b)
-
-
-#         self.collision_distances_publisher.publish(marker)
+    # set pose
+    box.position = np.array([0.75, 0.0, 0.75])     # xyz
+    box.wxyz = np.array([1, 0, 0, 0])
+    return box
 
 def toViserCgf(q):
     q_viser = np.zeros((q.shape[0] - 11, 1))
@@ -289,6 +133,8 @@ stack.update()
 # SOLVER
 solver = pysot.iHQP(stack)
 
+object_in_scene = rviz.server.gui.add_checkbox("/Obstacle", initial_value=False)
+
 lock = threading.Lock()
 replay.interactive_marker(rviz.server, gripper_left, lock, slider_max=1., slider_step=0.1)
 replay.interactive_marker(rviz.server, gripper_right, lock, slider_max=1., slider_step=0.1)
@@ -297,7 +143,9 @@ replay.postural_gui(rviz.server, model, postural, model.getJointNames()[5:], loc
 
 coll_dist = replay.collision_distances(rviz.server)
 
-object_in_scene = False
+
+obstacle = None
+box = None
 try:
     while True:
         model.setJointPosition(q)
@@ -306,18 +154,17 @@ try:
         gaze_ref = model.getPose("gripper_right_grasping_link", "base_link")
         gaze.setGaze(gaze_ref)
 
-#         #Environment Collision
-#         if node.enable_external_obstacle:
-#             if not collision_avoidance.setCollisionShapeActive("mybox", True):
-#                 box = pyxbot2_collision.shape.Box()
-#                 box.size = np.array([node.cube.scale.x, node.cube.scale.y, node.cube.scale.z])
-#                 w_T_c = pyaffine3.Affine3()
-#                 w_T_c.translation = np.array([node.cube.pose.position.x, node.cube.pose.position.y, node.cube.pose.position.z])
-#                 w_T_c.linear = R.from_quat([node.cube.pose.orientation.x, node.cube.pose.orientation.y, node.cube.pose.orientation.z, node.cube.pose.orientation.w]).as_matrix()
-#                 collision_avoidance.addCollisionShape("mybox", "world", box, w_T_c, [])
-#                 object_in_scene = True
-#         elif not node.enable_external_obstacle and object_in_scene:
-#             collision_avoidance.setCollisionShapeActive("mybox", False)
+        #Environment Collision
+        if object_in_scene.value:
+            if not collision_avoidance.setCollisionShapeActive("mybox", True):
+                box = pyxbot2_collision.shape.Box()
+                box.size = np.array([0.1, 0.6, 1.4])
+                w_T_c = pyaffine3.Affine3()
+                w_T_c.translation = np.array([0.75, 0.0, 0.75])
+                w_T_c.linear = R.from_quat([0., 0., 0., 1.]).as_matrix()
+                collision_avoidance.addCollisionShape("mybox", "world", box, w_T_c, [])
+        if not object_in_scene.value and box is not None:
+            collision_avoidance.setCollisionShapeActive("mybox", False)
 
         # Update Stack
         stack.update()
@@ -330,10 +177,11 @@ try:
         rviz.update(q=np.append(0., toViserCgf(q)), base=q[:7])
 
         coll_dist.update(collision_avoidance.getOrderedWitnessPointVector())
-#         if node.enable_external_obstacle:
-#             node.publishObstacle(msg.header.stamp, Marker.ADD)
-#         else:
-#             node.publishObstacle(msg.header.stamp, Marker.DELETE)
+        if object_in_scene.value and obstacle is None:
+            obstacle = obstacle_box(rviz.server)
+        elif not object_in_scene.value and obstacle is not None:
+            obstacle.remove()
+            obstacle = None
 
         time.sleep(dt)
 except KeyboardInterrupt:
