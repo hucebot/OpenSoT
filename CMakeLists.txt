@@ -275,9 +275,9 @@ include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
         DESTINATION include/OpenSoT)
 
-#######################
-# Add Testing and Examples target  #
-#######################
+######################################
+## Add Testing and Examples targets ##
+######################################
 if(OPENSOT_COMPILE_TESTS)
     add_subdirectory(tests)
 endif()
@@ -296,8 +296,4 @@ add_subdirectory(bindings/python)
 ##############
 add_subdirectory(resources)
 
-if(OPENSOT_COMPILE_TESTS OR OPENSOT_COMPILE_EXAMPLES)
-    add_custom_target(copy_robot_model_files ALL
-        ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/tests/robots" "${CMAKE_CURRENT_BINARY_DIR}/tests/robots")
-endif()
 
