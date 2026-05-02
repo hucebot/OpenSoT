@@ -30,7 +30,7 @@ public:
 
     old_gravity_gradient()
     {
-        _model_ptr = GetTestModel("coman_floating_base");
+        _model_ptr = GetTestModel("coman_floating_base.urdf");
     }
 
     Eigen::VectorXd computeMinEffort(const Eigen::VectorXd& q)
