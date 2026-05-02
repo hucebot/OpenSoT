@@ -118,7 +118,7 @@ TEST_F(testPosturalTask, floating_base_open_loop)
     Eigen::VectorXd qm = this->q;
     Eigen::VectorXd dqm = this->dq;
 
-    auto robot = GetTestModel("coman_floating_base");
+    auto robot = GetTestModel("coman_floating_base.urdf");
     robot->setJointPosition(qm);
     robot->setJointVelocity(dqm/this->dT);
     robot->update();

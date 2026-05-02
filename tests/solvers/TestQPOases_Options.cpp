@@ -51,7 +51,7 @@ public:
         _distal_link_0("l_wrist"),
         _type(type)
     {
-        _model_ptr = GetTestModel("coman_floating_base");
+        _model_ptr = GetTestModel("coman_floating_base.urdf");
 
 
         q = getGoodInitialPosition(_model_ptr);
@@ -212,7 +212,7 @@ public:
         _distal_link_1("r_wrist"),
         _type(type)
     {
-        _model_ptr = GetTestModel("coman_floating_base");
+        _model_ptr = GetTestModel("coman_floating_base.urdf");
 
 
 
@@ -408,7 +408,7 @@ public:
         _distal_link_1("r_wrist"),
         _type(type)
     {
-        _model_ptr = GetTestModel("coman_floating_base");
+        _model_ptr = GetTestModel("coman_floating_base.urdf");
 
 
         q = getGoodInitialPosition(_model_ptr);

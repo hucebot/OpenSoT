@@ -143,7 +143,7 @@ TEST_P(testQPOases_ConvexHull, tryFollowingBounds) {
 
 
     XBot::ModelInterface::Ptr _model_ptr_com;
-    _model_ptr_com = GetTestModel("coman_floating_base");
+    _model_ptr_com = GetTestModel("coman_floating_base.urdf");
     if(_model_ptr_com)
         std::cout<<"pointer address: "<<_model_ptr_com.get()<<std::endl;
     else

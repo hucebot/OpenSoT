@@ -217,7 +217,7 @@ endif()
  ADD_EXECUTABLE(testContactFloatingBaseTask tasks/floating_base/TestContact.cpp)
  TARGET_LINK_LIBRARIES(testContactFloatingBaseTask ${TestLibs})
  add_dependencies(testContactFloatingBaseTask   OpenSoT)
- add_test(NAME OpenSoT_task_floating_base_Postural COMMAND testContactFloatingBaseTask)
+ add_test(NAME OpenSoT_task_floating_base_contact COMMAND testContactFloatingBaseTask)
 
  ADD_EXECUTABLE(testCartesianVelocityTask tasks/velocity/TestCartesian.cpp)
  TARGET_LINK_LIBRARIES(testCartesianVelocityTask ${TestLibs})

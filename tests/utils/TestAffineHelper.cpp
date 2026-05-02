@@ -240,7 +240,7 @@ TEST_F( testAffineHelper, checkOperatorPile )
 
 TEST_F( testAffineHelper, checkTorque )
 {
-    auto model = GetTestModel("coman");
+    auto model = GetTestModel("coman.urdf");
     
     model->setJointPosition(Eigen::VectorXd::Random(model->getJointNum()));
     model->setJointVelocity(Eigen::VectorXd::Random(model->getJointNum()));
