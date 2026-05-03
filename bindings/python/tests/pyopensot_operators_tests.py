@@ -4,19 +4,21 @@ from pyopensot.constraints.velocity import JointLimits, VelocityLimits
 import pyopensot as pysot
 import numpy as np
 import unittest
-import os
 
 utest = unittest.TestCase()
 
-urdf_path = os.getcwd() + '/panda.urdf'
-urdf = open(urdf_path, 'r').read()
-model = xbi.ModelInterface2(urdf)
+resource = "panda.urdf";
+urdf_path = pysot.find(resource)
+print(f"Loading {urdf_path}")
+urdf_string = pysot.ReadFile(urdf_path)
+
+model = xbi.ModelInterface2(urdf_string)
 
 q = [0., -0.7, 0., -2.1, 0., 1.4, 0.]
 model.setJointPosition(q)
 model.update()
 
-C = Cartesian("Cartesian", model, "panda_link7", "world")
+C = Cartesian("Cartesian", model, "fp3_link8", "world")
 Cp = C%[0,1,2]
 Co = C%[3,4,5]
 CC = Cp + Co
@@ -34,8 +36,8 @@ utest.assertEqual(D.getA()[6,:].tolist(), p.getA()[0,:].tolist())
 utest.assertEqual(D.getb()[0:6].tolist(), C.getb().tolist())
 utest.assertEqual(D.getb()[6], p.getb()[0])
 
-C2 = Cartesian("Cartesian2", model, "panda_link4", "world")
-C3 = Cartesian("Cartesian3", model, "panda_link2", "world")
+C2 = Cartesian("Cartesian2", model, "fp3_link5", "world")
+C3 = Cartesian("Cartesian3", model, "fp3_link3", "world")
 
 A1 = C + C2 + C3
 A2 = A1 + p

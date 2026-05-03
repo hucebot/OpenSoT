@@ -49,13 +49,6 @@ void pyAggregatedConstraint(py::module& m) {
     py::class_<OpenSoT::constraints::Aggregated,
                std::shared_ptr<OpenSoT::constraints::Aggregated>,
                OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>>(m, "AggregatedConstraint")
-        // ctor(list<ConstraintPtr>, x_size, aggregationPolicy)
-        .def(py::init<const std::list<OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>::ConstraintPtr>&,
-                      const unsigned int, const unsigned int>(),
-             py::arg(), py::arg(), py::arg("aggregationPolicy") =
-             OpenSoT::constraints::Aggregated::AggregationPolicy::EQUALITIES_TO_INEQUALITIES |
-             OpenSoT::constraints::Aggregated::AggregationPolicy::UNILATERAL_TO_BILATERAL,
-             py::keep_alive<1, 2>())
 
         // ctor(ConstraintPtr, ConstraintPtr, x_size, aggregationPolicy)
         .def(py::init<OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>::ConstraintPtr,
@@ -66,6 +59,14 @@ void pyAggregatedConstraint(py::module& m) {
              OpenSoT::constraints::Aggregated::AggregationPolicy::UNILATERAL_TO_BILATERAL,
              py::keep_alive<1, 2>(),
              py::keep_alive<1, 3>())
+
+        // ctor(list<ConstraintPtr>, x_size, aggregationPolicy)
+        .def(py::init<const std::list<OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>::ConstraintPtr>&,
+                      const unsigned int, const unsigned int>(),
+             py::arg(), py::arg(), py::arg("aggregationPolicy") =
+             OpenSoT::constraints::Aggregated::AggregationPolicy::EQUALITIES_TO_INEQUALITIES |
+             OpenSoT::constraints::Aggregated::AggregationPolicy::UNILATERAL_TO_BILATERAL,
+             py::keep_alive<1, 2>())
 
         // expose update()
         //.def("update", &OpenSoT::constraints::Aggregated::update)
