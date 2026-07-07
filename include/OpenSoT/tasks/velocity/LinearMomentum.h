@@ -20,7 +20,6 @@
 
 #include <OpenSoT/Task.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <kdl/frames.hpp>
 #include <Eigen/Dense>
 
 namespace OpenSoT {
