@@ -5,7 +5,9 @@
 #include <pybind11/stl.h>
 #include <OpenSoT/utils/AutoStack.h>
 #include <OpenSoT/tasks/Aggregated.h>
+#include <OpenSoT/Constraint.h>
 #include <OpenSoT/constraints/Aggregated.h>
+#include <OpenSoT/constraints/TaskToConstraint.h>
 #include <iostream>
 #include <typeinfo>
 #include <memory>
@@ -14,15 +16,7 @@
 namespace py = pybind11;
 using namespace OpenSoT;
 
-// helper to demangle type names
-// static std::string demangle(const char* name) {
-//     int status = 0;
-//     std::unique_ptr<char, void(*)(void*)> res{
-//         abi::__cxa_demangle(name, nullptr, nullptr, &status),
-//         std::free
-//     };
-//     return (status == 0 && res) ? std::string(res.get()) : std::string(name);
-// }
+
 
 
 void pyAutostack(py::module& m) {
@@ -109,4 +103,30 @@ void pyAutostack(py::module& m) {
     m.def("subj", [](AutoStack::Ptr stack, constraints::Aggregated::ConstraintPtr c) -> AutoStack::Ptr { return stack << c; });
     m.def("subj", [](tasks::Aggregated::TaskPtr t1, tasks::Aggregated::TaskPtr t2) -> tasks::Aggregated::TaskPtr { return t1 << t2; });
     m.def("subj", [](AutoStack::Ptr stack, tasks::Aggregated::TaskPtr t) -> AutoStack::Ptr { return stack << t; });
+}
+
+
+void pyBilateralConstraint(py::module& m) {
+
+    py::class_<constraints::BilateralConstraint, OpenSoT::Constraint<Eigen::MatrixXd, Eigen::VectorXd>, constraints::BilateralConstraint::Ptr>(m, "BilateralConstraint")
+        .def(py::init<const Eigen::MatrixXd&, const Eigen::VectorXd&, const Eigen::VectorXd&>(),
+             py::arg("Aineq"), py::arg("bLowerBound"), py::arg("bUpperBound"))
+        .def(py::init<const std::string, const Eigen::MatrixXd&, const Eigen::VectorXd&, const Eigen::VectorXd&>(),
+             py::arg("constraintName"), py::arg("Aineq"), py::arg("bLowerBound"), py::arg("bUpperBound"));
+}
+
+
+void pyTaskToConstraint(py::module& m) {
+
+    py::class_<constraints::TaskToConstraint, constraints::BilateralConstraint, constraints::TaskToConstraint::Ptr>(m, "TaskToConstraint")
+        .def(py::init<constraints::TaskToConstraint::TaskPtr>(), 
+             py::arg("task"),
+             "Creates an equality TaskToConstraint from a task")
+        .def(py::init<constraints::TaskToConstraint::TaskPtr, const Eigen::VectorXd&, const Eigen::VectorXd&>(),
+             py::arg("task"), py::arg("err_lb"), py::arg("err_ub"),
+             "Creates a TaskToConstraint from a task with error bounds")
+        .def("setBounds", &constraints::TaskToConstraint::setBounds,
+             py::arg("err_lb"), py::arg("err_ub"),
+             "Set the error bounds for the constraint");
+
 }

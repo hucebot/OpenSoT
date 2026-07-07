@@ -26,6 +26,8 @@ PYBIND11_MODULE(pyopensot, m) {
     pyGenericTask(m);
     pyGenericConstraint(m);
     pyAutostack(m);
+    pyBilateralConstraint(m);
+    pyTaskToConstraint(m);
 
     pyResourcesUtils(m);
 
