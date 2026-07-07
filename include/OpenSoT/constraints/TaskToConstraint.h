@@ -62,6 +62,20 @@
                              const Eigen::VectorXd& err_lb, 
                              const Eigen::VectorXd& err_ub);
 
+            void setBounds(const Eigen::VectorXd& err_lb, const Eigen::VectorXd& err_ub)
+            {
+                if( ((err_ub-err_lb).array() < 0).any() ){
+                    throw std::runtime_error("Some components of err_ub are smaller than err_lb!!!");
+                }
+
+                if( err_lb.size() != _task->getA().rows() || err_ub.size() != _task->getA().rows() ){
+                    throw std::runtime_error("Either err_ub or err_lb has wrong dimension!!!");
+                }
+
+                _err_lb = err_lb;
+                _err_ub = err_ub;
+            }
+
         protected:
 
             void generateAll();
