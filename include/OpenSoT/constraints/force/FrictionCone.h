@@ -21,7 +21,6 @@
 
 #include <OpenSoT/Constraint.h>
 #include <xbot2_interface/xbotinterface2.h>
-#include <kdl/frames.hpp>
 #include <OpenSoT/utils/Affine.h>
 #include <OpenSoT/constraints/Aggregated.h>
 #include <memory>
