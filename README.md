@@ -1,10 +1,10 @@
-OpenSoT  ![Travis badge](https://app.travis-ci.com/ADVRHumanoids/OpenSoT.svg?token=iQZzUD6rXcPydQAabf7T&branch=devel)
+OpenSoT  ![Travis badge](https://app.travis-ci.com/hucebot/OpenSoT.svg?token=iQZzUD6rXcPydQAabf7T&branch=3_refactor_ci)
 ============
 OpenSoT is a library dedicated to hierarchical whole-body control of robots subject to linear constraints. 
 
 OpenSoT was initially developed under the EU Project [WALK-MAN](https://cordis.europa.eu/project/id/611832).
 Its development continued under the EU Projects  [CogIMon](https://cordis.europa.eu/project/id/644727) and [CENTAURO](https://cordis.europa.eu/project/id/644839). 
-In 2018 the OpenSoT library has been recognized as an [**EU funded Deep Tech Innovation** under the category Exploring](https://innovation-radar.ec.europa.eu/innovation/30633).
+In 2018, the OpenSoT library was recognized as an [**EU-funded Deep Tech Innovation** under the category Exploring](https://innovation-radar.ec.europa.eu/innovation/30633).
 Currently, OpenSoT is a joint project between the Inria Centre at Université de Lorraine (LARSEN/HUCEBOT team) and the Istituto Italiano di Tecnologia (HHCM Lab).
 
 Documentation can be found at https://advrhumanoids.github.io/OpenSoT/index.html
