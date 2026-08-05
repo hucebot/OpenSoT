@@ -1,4 +1,4 @@
-OpenSoT  ![Travis badge](https://app.travis-ci.com/hucebot/OpenSoT.svg?token=iQZzUD6rXcPydQAabf7T&branch=3_refactor_ci)
+OpenSoT  ![Travis badge](https://github.com/hucebot/OpenSoT/actions/workflows/build-and-test-complete.yml/badge.svg)
 ============
 OpenSoT is a library dedicated to hierarchical whole-body control of robots subject to linear constraints. 
 
