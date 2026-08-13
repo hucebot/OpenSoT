@@ -20,7 +20,7 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Build and Test
+      - name: Build
         shell: bash
         run: |
             source /opt/ros/jazzy/setup.bash
@@ -32,4 +32,20 @@ jobs:
                 ..
             make -j$(nproc)
             cmake --install .
+
+      - name: Test c++
+        shell: bash
+        run: |
+            source /opt/ros/jazzy/setup.bash
+            source /home/forest_ws/setup.bash
+            cd build
             ctest --output-on-failure
+
+      - name: Test python
+        shell: bash
+        run: |
+            source /opt/ros/jazzy/setup.bash
+            source /home/forest_ws/setup.bash
+            cd ./bindings/python
+            pytest .
+
