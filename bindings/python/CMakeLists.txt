@@ -63,7 +63,8 @@ if(${pybind11_FOUND})
 
     install(
         DIRECTORY viser_opensot_tools/
-        DESTINATION ${Python3_SITEARCH}
+        # DESTINATION ${Python3_SITEARCH}
+        DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
     )
 
     install(
