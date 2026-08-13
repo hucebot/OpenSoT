@@ -2,59 +2,64 @@ from pyopensot import GenericTask, GenericConstraint, AffineHelper, ConstraintTy
 import numpy as np
 import unittest
 
-M = np.array([[1.0, 2.0, 3.0],
-              [4.0, 5.0, 6.0]])
+class TestBasics(unittest.TestCase):
+    def test_basics(self):
+        M = np.array([[1.0, 2.0, 3.0],
+                    [4.0, 5.0, 6.0]])
 
-q = np.array((1.0, 2.0))
-print(f"M: {M}")
-print(f"q: {q}")
-v = AffineHelper(M, q)
-print(f"v: {v}")
+        q = np.array((1.0, 2.0))
+        print(f"M: {M}")
+        print(f"q: {q}")
+        v = AffineHelper(M, q)
+        print(f"v: {v}")
 
-min = np.array([-10., -5.])
-max = np.array([10., 5.])
-c = GenericConstraint("foo", v, max, min, ConstraintType.CONSTRAINT)
-c.update()
+        min = np.array([-10., -5.])
+        max = np.array([10., 5.])
+        c = GenericConstraint("foo", v, max, min, ConstraintType.CONSTRAINT)
+        c.update()
 
-print(f"c.getAineq(): {c.getAineq()}")
-print(f"c.getbLowerBound(): {c.getbLowerBound()}")
-print(f"c.getbUpperBound(): {c.getbUpperBound()}")
+        print(f"c.getAineq(): {c.getAineq()}")
+        print(f"c.getbLowerBound(): {c.getbLowerBound()}")
+        print(f"c.getbUpperBound(): {c.getbUpperBound()}")
 
-utest = unittest.TestCase()
-utest.assertTrue((c.getAineq() == v.getM()).all())
-utest.assertTrue((c.getbLowerBound() == min - v.getq()).all())
-utest.assertTrue((c.getbUpperBound() == max - v.getq()).all())
 
-min *= 0.
-max *= 0.
-c.setBounds(max, min)
-c.update()
-print(f"c.getAineq(): {c.getAineq()}")
-print(f"c.getbLowerBound(): {c.getbLowerBound()}")
-print(f"c.getbUpperBound(): {c.getbUpperBound()}")
+        self.assertTrue((c.getAineq() == v.getM()).all())
+        self.assertTrue((c.getbLowerBound() == min - v.getq()).all())
+        self.assertTrue((c.getbUpperBound() == max - v.getq()).all())
 
-utest.assertTrue((c.getAineq() == v.getM()).all())
-utest.assertTrue((c.getbLowerBound() == min - v.getq()).all())
-utest.assertTrue((c.getbUpperBound() == max - v.getq()).all())
+        min *= 0.
+        max *= 0.
+        c.setBounds(max, min)
+        c.update()
+        print(f"c.getAineq(): {c.getAineq()}")
+        print(f"c.getbLowerBound(): {c.getbLowerBound()}")
+        print(f"c.getbUpperBound(): {c.getbUpperBound()}")
 
-M = np.array([[1, 0, 0],[0, 1, 0], [0, 0, 1]])
-q = np.array([0, 0, 0])
-v = AffineHelper(M, q)
+        self.assertTrue((c.getAineq() == v.getM()).all())
+        self.assertTrue((c.getbLowerBound() == min - v.getq()).all())
+        self.assertTrue((c.getbUpperBound() == max - v.getq()).all())
 
-A = np.random.rand(3,3)
-b = np.random.rand(3,1)
-print(f"A: {A}")
-print(f"b: {b}")
+        M = np.array([[1, 0, 0],[0, 1, 0], [0, 0, 1]])
+        q = np.array([0, 0, 0])
+        v = AffineHelper(M, q)
 
-t = GenericTask("foo", A, b, v)
-t.update()
-print(f"t.getA(): {t.getA()}")
-print(f"t.getb(): {t.getb()}")
+        A = np.random.rand(3,3)
+        b = np.random.rand(3,1)
+        print(f"A: {A}")
+        print(f"b: {b}")
 
-A = np.identity(3)
-b = np.array([0,0,0])
-t.setAb(A, b)
-t.update()
-print(f"t.getA(): {t.getA()}")
-print(f"t.getb(): {t.getb()}")
+        t = GenericTask("foo", A, b, v)
+        t.update()
+        print(f"t.getA(): {t.getA()}")
+        print(f"t.getb(): {t.getb()}")
 
+        A = np.identity(3)
+        b = np.array([0,0,0])
+        t.setAb(A, b)
+        t.update()
+        print(f"t.getA(): {t.getA()}")
+        print(f"t.getb(): {t.getb()}")
+
+
+if __name__ == "__main__":
+    unittest.main()

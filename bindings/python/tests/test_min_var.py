@@ -3,52 +3,53 @@ import pyopensot as pysot
 import numpy as np
 import unittest
 
-utest = unittest.TestCase()
+class TestMinVar(unittest.TestCase):
+    def test_min_var(self):
+        var_dict = {}
+        var_dict["a"] = 3
+        var_dict["b"] = 3
+        variables = pysot.OptvarHelper(var_dict)
 
-var_dict = {}
-var_dict["a"] = 3
-var_dict["b"] = 3
-variables = pysot.OptvarHelper(var_dict)
+        ref = np.array([1,2,3])
 
-ref = np.array([1,2,3])
+        min_a = MinimizeVariable("a", variables.getVariable("a"))
+        min_b = MinimizeVariable("b", variables.getVariable("b"))
+        min_b.setReference(ref)
 
-min_a = MinimizeVariable("a", variables.getVariable("a"))
-min_b = MinimizeVariable("b", variables.getVariable("b"))
-min_b.setReference(ref)
+        stack = pysot.AutoStack(variables.getSize())
+        stack /= (min_a + min_b)
+        solver = pysot.iHQP(stack)
 
-stack = pysot.AutoStack(variables.getSize())
-stack /= (min_a + min_b)
-solver = pysot.iHQP(stack)
+        stack.update()
 
-stack.update()
+        x = solver.solve()
+        a_val = variables.getVariable("a").getValue(x)
+        b_val = variables.getVariable("b").getValue(x)
 
-x = solver.solve()
-a_val = variables.getVariable("a").getValue(x)
-b_val = variables.getVariable("b").getValue(x)
+        print(f"a ref: {min_a.getReference()}")
+        print(f"a: {a_val}")
+        print(f"b ref: {min_b.getReference()}")
+        print(f"b: {b_val}")
 
-print(f"a ref: {min_a.getReference()}")
-print(f"a: {a_val}")
-print(f"b ref: {min_b.getReference()}")
-print(f"b: {b_val}")
+        self.assertTrue(np.linalg.norm(min_a.getReference() - a_val)<=1e-9)
+        self.assertTrue(np.linalg.norm(min_b.getReference() - b_val)<=1e-9)
 
-utest.assertTrue(np.linalg.norm(min_a.getReference() - a_val)<=1e-9)
-utest.assertTrue(np.linalg.norm(min_b.getReference() - b_val)<=1e-9)
+        min_a.setReference(ref)
 
-min_a.setReference(ref)
+        stack.update()
 
-stack.update()
+        x = solver.solve()
+        a_val = variables.getVariable("a").getValue(x)
+        b_val = variables.getVariable("b").getValue(x)
 
-x = solver.solve()
-a_val = variables.getVariable("a").getValue(x)
-b_val = variables.getVariable("b").getValue(x)
+        print(f"a ref: {min_a.getReference()}")
+        print(f"a: {a_val}")
+        print(f"b ref: {min_b.getReference()}")
+        print(f"b: {b_val}")
 
-print(f"a ref: {min_a.getReference()}")
-print(f"a: {a_val}")
-print(f"b ref: {min_b.getReference()}")
-print(f"b: {b_val}")
-
-utest.assertTrue(np.linalg.norm(min_a.getReference() - a_val)<=1e-9)
-utest.assertTrue(np.linalg.norm(min_b.getReference() - b_val)<=1e-9)
+        self.assertTrue(np.linalg.norm(min_a.getReference() - a_val)<=1e-9)
+        self.assertTrue(np.linalg.norm(min_b.getReference() - b_val)<=1e-9)
 
 
-
+if __name__ == "__main__":
+    unittest.main()
