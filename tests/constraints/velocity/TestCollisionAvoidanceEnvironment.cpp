@@ -15,6 +15,7 @@
 #include <fstream>
 #include <OpenSoT/utils/resources_utils.h>
 
+#include <urdf_parser/urdf_parser.h>
 
 #define STATIC_POINTER_CAST std::static_pointer_cast
 #define DYNAMIC_POINTER_CAST std::dynamic_pointer_cast
@@ -30,12 +31,16 @@ public:
   {
 
       std::string urdf_capsule_path = OpenSoT::resources_utils::find("bigman_capsules.rviz")->string();
+      // TODO XXX what's this ? not used ?
       std::ifstream f(urdf_capsule_path);
       std::stringstream ss;
       ss << f.rdbuf();
 
-      urdf = std::make_shared<urdf::Model>();
-      urdf->initFile(urdf_capsule_path);
+      // urdf = std::make_shared<urdf::ModelInterface>();
+      // urdf->initFile(urdf_capsule_path);
+      std::string xml_string = ss.str();
+      urdf = urdf::parseURDF(xml_string);
+      // TODO XXX error checking
 
       std::string srdf_capsule_path = OpenSoT::resources_utils::find("bigman.srdf")->string();
       srdf = std::make_shared<srdf::Model>();
@@ -67,7 +72,7 @@ public:
   XBot::ModelInterface::Ptr _model_ptr;
   Eigen::VectorXd q;
 
-  urdf::ModelSharedPtr urdf;
+  urdf::ModelInterfaceSharedPtr urdf;
   srdf::ModelSharedPtr srdf;
 
 };

@@ -57,7 +57,7 @@ public:
      */
     CollisionAvoidance(const XBot::ModelInterface& robot,
                        int max_pairs = -1,
-                       urdf::ModelConstSharedPtr collision_urdf = nullptr,
+                       urdf::ModelInterfaceConstSharedPtr collision_urdf = nullptr,
                        srdf::ModelConstSharedPtr collision_srdf = nullptr);
 
 

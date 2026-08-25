@@ -6,6 +6,7 @@
 #include <OpenSoT/constraints/velocity/MechanumWheels4X.h>
 #include <OpenSoT/constraints/velocity/ConvexHull.h>
 #include <OpenSoT/constraints/velocity/CartesianPositionConstraint.h>
+#include <urdf_parser/urdf_parser.h>
 
 namespace py = pybind11;
 using namespace OpenSoT::constraints::velocity;
@@ -98,10 +99,15 @@ std::shared_ptr<CollisionAvoidanceC> make_collision_avoidance(
     const XBot::ModelInterface& model, int max_pairs, 
     std::string collision_urdf_str, std::string collision_srdf_str)
 {
-    urdf::ModelSharedPtr collision_urdf;
+    urdf::ModelInterfaceSharedPtr collision_urdf;
     if(!collision_urdf_str.empty()){
-        collision_urdf = std::make_shared<urdf::Model>();
-        if(!collision_urdf->initString(collision_urdf_str)){
+        // collision_urdf = std::make_shared<urdf::ModelInterface>();
+        // if(!collision_urdf->initString(collision_urdf_str)){
+        //     throw std::runtime_error("Failed to parse collision_urdf string");
+        // }
+        collision_urdf = urdf::parseURDF(collision_srdf_str);
+        if (!collision_urdf)
+        {
             throw std::runtime_error("Failed to parse collision_urdf string");
         }
     }
@@ -109,7 +115,7 @@ std::shared_ptr<CollisionAvoidanceC> make_collision_avoidance(
     srdf::ModelSharedPtr collision_srdf;
     if(!collision_srdf_str.empty()){
         collision_srdf = std::make_shared<srdf::Model>();
-        urdf::ModelConstSharedPtr active_urdf = collision_urdf ? collision_urdf : model.getUrdf();
+        urdf::ModelInterfaceConstSharedPtr active_urdf = collision_urdf ? collision_urdf : model.getUrdf();
         if(!collision_srdf->initString(*active_urdf, collision_srdf_str)){
             throw std::runtime_error("Failed to parse collision_srdf string");
         }

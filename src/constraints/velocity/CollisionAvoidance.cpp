@@ -24,7 +24,7 @@ using namespace XBot;
 CollisionAvoidance::CollisionAvoidance(
         const XBot::ModelInterface& robot,
         int max_pairs,
-        urdf::ModelConstSharedPtr collision_urdf,
+        urdf::ModelInterfaceConstSharedPtr collision_urdf,
         srdf::ModelConstSharedPtr collision_srdf):
     Constraint("self_collision_avoidance", robot.getNv()),
     _detection_threshold(std::numeric_limits<double>::max()),

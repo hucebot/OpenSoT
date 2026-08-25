@@ -15,6 +15,7 @@
 #include <iostream>
 #include <OpenSoT/utils/resources_utils.h>
 
+#include <urdf_parser/urdf_parser.h>
 
 #define  s                1.0
 #define  dT               0.001* s
@@ -64,8 +65,11 @@ public:
       std::stringstream ss;
       ss << f.rdbuf();
 
-      urdf = std::make_shared<urdf::Model>();
-      urdf->initFile(urdf_capsule_path);
+      // urdf = std::make_shared<urdf::ModelInterface>();
+      // urdf->initFile(urdf_capsule_path);
+      std::string xml_string = ss.str();
+      urdf = urdf::parseURDF(xml_string);
+      // TODO check error ?
 
       std::string srdf_capsule_path = OpenSoT::resources_utils::find("bigman.srdf")->string();
       srdf = std::make_shared<srdf::Model>();
@@ -84,8 +88,11 @@ public:
       q.resize(_model_ptr->getNq());
       q = _model_ptr->getNeutralQ();
 
-      urdf = std::make_shared<urdf::Model>();
+  /*    urdf = std::make_shared<urdf::ModelInterface>();
       urdf->initFile(urdf_capsule_path);
+ */
+      urdf = urdf::parseURDF(xml_string);
+      // TODO check error ?
 
       srdf = std::make_shared<srdf::Model>();
       srdf->initFile(*urdf, srdf_capsule_path);
@@ -114,7 +121,7 @@ public:
   XBot::ModelInterface::Ptr _model_ptr;
   Eigen::VectorXd q;
   OpenSoT::constraints::velocity::CollisionAvoidance::Ptr sc_constraint;
-  urdf::ModelSharedPtr urdf;
+  urdf::ModelInterfaceSharedPtr urdf;
   srdf::ModelSharedPtr srdf;
 
 };
