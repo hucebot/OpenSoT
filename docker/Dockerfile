@@ -1,121 +1,100 @@
-FROM osrf/ros:jazzy-simulation
+FROM ubuntu:22.04
 
 SHELL ["/bin/bash", "-c"]
 
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV TZ="Europe/Paris"
 
-RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y --no-install-recommends terminator gedit locate cmake-curses-gui python3-pip python3-venv liburdfdom-dev ros-jazzy-moveit-core clang python3-dbg libxcb-cursor0 gdb \
- ros-jazzy-xacro ros-jazzy-joint-state-publisher-gui libglpk-dev libopenblas-dev ros-jazzy-rosidl-generator-dds-idl && \
- rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y terminator gedit locate cmake-curses-gui python3-pip python3-venv liburdfdom-dev git-all libeigen3-dev libboost-all-dev libhdf5-dev liboctomap-dev octovis libassimp-dev python3-numpy python-is-python3 libgtest-dev pybind11-dev libccd-dev libtinyxml2-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home
-RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc
 
-WORKDIR /home/forest_ws
+SHELL ["bash", "-ic"]
+RUN echo "numpy==1.26.4" > constraints.txt
+ARG PIP_CONSTRAINT=/home/constraints.txt
+ENV PIP_CONSTRAINT=$PIP_CONSTRAINT
+RUN pip3 install --upgrade jinja2 typeguard ttictoc "setuptools<81"
+RUN pip3 install matplotlib h5py yourdfpy "viser==1.0.26"
 
-ENV PYTHONUNBUFFERED=1
-
-COPY templates/setup.bash /home/forest_ws/setup.bash
-RUN echo "source $PWD/setup.bash" >> ~/.bashrc
-
-# COAL
-WORKDIR /home/forest_ws/src
+# ENV PYTHONUNBUFFERED=1
+WORKDIR /home/src
 RUN git clone -b devel https://github.com/coal-library/coal.git && \
-    cd /home/forest_ws/src/coal && \
+    cd /home/src/coal && \
+    git checkout 9856e007971225d6948a8feff6da5b36cc6beacd && \
     git submodule init && \
     git submodule update && \
-    mkdir -p /home/forest_ws/build/coal && \
-    cd /home/forest_ws/build/coal && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_PYTHON_INTERFACE=OFF -DBUILD_TESTING=OFF -DBUILD_DOCUMENTATION=OFF ../../src/coal && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/coal /home/forest_ws/src/coal
+    mkdir -p /home/build/coal && \
+    cd /home/build/coal && \
+    cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_PYTHON_INTERFACE=OFF -DBUILD_TESTING=OFF -DBUILD_DOCUMENTATION=OFF ../../src/coal && \
+    make -j$(nproc) && \
+    make install && rm -r /home/build/coal /home/src/coal
 
-## PINOCCHIO
-WORKDIR /home/forest_ws/src
+# this version allows still to use aligned_vector
 RUN git clone -b devel https://github.com/stack-of-tasks/pinocchio.git && \
-    cd /home/forest_ws/src/pinocchio && \
+    cd /home/src/pinocchio && \
+    git checkout 4b2ed738b8342c6820ac12597ef2b3e32ddddd97 && \
     git submodule init && \
     git submodule update && \
-    mkdir -p /home/forest_ws/build/pinocchio && \
-    cd /home/forest_ws/build/pinocchio && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=FALSE -DBUILD_PYTHON_INTERFACE=OFF ../../src/pinocchio && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/pinocchio /home/forest_ws/src/pinocchio
-    
+    mkdir -p /home/build/pinocchio && \
+    cd /home/build/pinocchio && \
+    cmake -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_WITH_URDF_SUPPORT=ON -DBUILD_WITH_COLLISION_SUPPORT=OFF -DBUILD_TESTING=FALSE -DBUILD_PYTHON_INTERFACE=OFF ../../src/pinocchio && \
+    make -j$(nproc) && \
+    make install && rm -r /home/build/pinocchio /home/src/pinocchio
 
-# xbot2_interface
-WORKDIR /home/forest_ws/src
-RUN git clone -b devel https://github.com/hucebot/xbot2_interface.git && \   
-    mkdir -p /home/forest_ws/build/xbot2_interface && \
-    cd /home/forest_ws/build/xbot2_interface && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DXBOT2_IFC_BUILD_TESTS=OFF -DXBOT2_IFC_BUILD_ROS=OFF -DXBOT2_IFC_BUILD_ROS2=OFF -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release ../../src/xbot2_interface && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/xbot2_interface /home/forest_ws/src/xbot2_interface
-    
-# osqp
-WORKDIR /home/forest_ws/src
 RUN git clone https://github.com/oxfordcontrol/osqp.git && \
-    cd /home/forest_ws/src/osqp && \
+    cd /home/src/osqp && \
     git checkout 0b34f2ef5c5eec314e7945762e1c8167e937afbd && \
     git submodule init && \
     git submodule update && \
-    mkdir -p /home/forest_ws/build/osqp && \
-    cd /home/forest_ws/build/osqp && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DDLONG=OFF -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release ../../src/osqp && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/osqp /home/forest_ws/src/osqp
+    mkdir -p /home/build/osqp && \
+    cd /home/build/osqp && \
+    cmake -DDLONG=OFF -DCMAKE_BUILD_TYPE:STRING=Release ../../src/osqp && \
+    make -j$(nproc) && \
+    make install && rm -r /home/build/osqp /home/src/osqp
 
-# proxQP
 RUN git clone https://github.com/Simple-Robotics/proxsuite.git && \
-    cd /home/forest_ws/src/proxsuite && \
+    cd /home/src/proxsuite && \
     git checkout 9f58ebd7bf42fb364de995d25679dc3f675dee7f && \
     git submodule init && \
     git submodule update && \
-    mkdir -p /home/forest_ws/build/proxsuite && \
-    cd /home/forest_ws/build/proxsuite && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DBUILD_WITH_VECTORIZATION_SUPPORT=OFF -DBUILD_TESTING=OFF -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release ../../src/proxsuite && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/proxsuite /home/forest_ws/src/proxsuite
-    
-# qpSWIFT
+    mkdir -p /home/build/proxsuite && \
+    cd /home/build/proxsuite && \
+    cmake -DBUILD_WITH_VECTORIZATION_SUPPORT=OFF -DBUILD_TESTING=OFF -DCMAKE_BUILD_TYPE:STRING=Release ../../src/proxsuite && \
+    make -j$(nproc) && \
+    make install && rm -r /home/build/proxsuite /home/src/proxsuite
+
 RUN git clone https://github.com/qpSWIFT/qpSWIFT.git && \
-    mkdir -p /home/forest_ws/build/qpSWIFT && \
-    cd /home/forest_ws/build/qpSWIFT && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release ../../src/qpSWIFT && \
-    make -j$(nproc)  && \
-    make install &&  rm -r /home/forest_ws/build/qpSWIFT /home/forest_ws/src/qpSWIFT
+    cd /home/src/qpSWIFT && \
+    git checkout 24608b671d0e7ecde4d14ee8530d1656d6940fd1 && \
+    mkdir -p /home/build/qpSWIFT && \
+    cd /home/build/qpSWIFT && \
+    cmake -DCMAKE_BUILD_TYPE:STRING=Release ../../src/qpSWIFT && \
+    make -j$(nproc) && \
+    make install && rm -r /home/build/qpSWIFT /home/src/qpSWIFT
 
-# BLASFEO
-RUN git clone https://github.com/giaf/blasfeo && \
-    mkdir -p /home/forest_ws/build/blasfeo && \
-    cd /home/forest_ws/build/blasfeo && \
-    source /opt/ros/jazzy/setup.bash && \
-    source /home/forest_ws/setup.bash && \
-    cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release -DBUILD_SHARED_LIBS=ON -DBLASFEO_EXAMPLES=OFF ../../src/blasfeo && \
-    make -j$(nproc)  && \
-    make install && \
-    mkdir /home/forest_ws/install/share/cmake/lib && \
-    cp /home/forest_ws/install/lib/libblasfeo.so /home/forest_ws/install/share/cmake/lib && \
-    rm -r /home/forest_ws/build/blasfeo /home/forest_ws/src/blasfeo
+RUN git clone https://gitlab.inria.fr/rochelol/srdfdom-no-ros.git && \
+    cd srdfdom-no-ros && \
+    mkdir -p /home/build/srdfdom && \
+    cd /home/build/srdfdom && \
+    cmake -DCMAKE_BUILD_TYPE:STRING=Release -DTinyXML2_DIR=/usr/lib/x86_64-linux-gnu/cmake/tinyxml2 ../../src/srdfdom-no-ros && \
+    make -j$(nproc) && \
+    make install
 
-RUN echo "export PYTHONPATH=${PYTHONPATH}:/root/.local/lib/python3.12/site-packages:/usr/lib/python3/dist-packages/" >> ~/.bashrc
+RUN git clone -b devel https://github.com/hucebot/xbot2_interface.git && \
+    cd xbot2_interface && \
+    git checkout no_ros && \
+    mkdir -p /home/build/xbot2_interface && \
+    cd /home/build/xbot2_interface && \
+    cmake -DXBOT2_IFC_BUILD_TESTS=ON -DXBOT2_IFC_BUILD_ROS=OFF -DXBOT2_IFC_BUILD_ROS2=OFF -DCMAKE_BUILD_TYPE:STRING=Release -DBoost_USE_DEBUG_RUNTIME=OFF ../../src/xbot2_interface && \
+    make -j$(nproc) && \
+    make install
 
-RUN cd /home/forest_ws/src && git clone https://github.com/ADVRHumanoids/MatLogger2.git && \
- cd /home/forest_ws/build && mkdir MatLogger2 && cd MatLogger2 && \
- cmake ../../src/MatLogger2/ -DCPACK_PACKAGING_INSTALL_PREFIX=/opt/xbot -DPYBIND11_PYTHON_VERSION=3 -DPYTHON_EXECUTABLE=$(readlink -f $(which python3)) -DPYTHON_VERSION=3 -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install -DCMAKE_BUILD_TYPE:STRING=Release && \
- make -j 4 && make install &&  rm -r /home/forest_ws/build/MatLogger2  /home/forest_ws/src/MatLogger2
+RUN git clone -b master https://github.com/hucebot/MatLogger2.git && \
+    mkdir -p /home/build/MatLogger2 && \
+    cd /home/build/MatLogger2 && \
+    cmake -DCMAKE_BUILD_TYPE:STRING=Release ../../src/MatLogger2 && \
+    make -j4 && \
+    make install
 
-WORKDIR /home/forest_ws
+RUN echo "export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:${PYTHONPATH}" >> ~/.bashrc
+RUN ldconfig
