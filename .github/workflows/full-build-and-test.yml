@@ -39,5 +39,7 @@ jobs:
       - name: Test python
         shell: bash
         run: |
+            ldconfig
+            export PYTHONPATH=/usr/local/lib/python3.10/site-packages/:${PYTHONPATH}
             cd ./bindings/python
             pytest .
