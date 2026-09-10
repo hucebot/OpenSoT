@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     branches:
-      - 3_refactor_ci
+      - 5.0_devel
 
 jobs:
   build-and-test:
@@ -23,11 +23,8 @@ jobs:
       - name: Build
         shell: bash
         run: |
-            source /opt/ros/jazzy/setup.bash
-            source /home/forest_ws/setup.bash
             mkdir build && cd build
-            cmake -DCMAKE_INSTALL_PREFIX:STRING=/home/forest_ws/install \
-                -DCMAKE_BUILD_TYPE:STRING=Release \
+            cmake -DCMAKE_BUILD_TYPE:STRING=Release \
                 -DOPENSOT_COMPILE_TESTS=True \
                 ..
             make -j$(nproc)
@@ -36,16 +33,11 @@ jobs:
       - name: Test c++
         shell: bash
         run: |
-            source /opt/ros/jazzy/setup.bash
-            source /home/forest_ws/setup.bash
             cd build
             ctest --output-on-failure
 
       - name: Test python
         shell: bash
         run: |
-            source /opt/ros/jazzy/setup.bash
-            source /home/forest_ws/setup.bash
             cd ./bindings/python
             pytest .
-
