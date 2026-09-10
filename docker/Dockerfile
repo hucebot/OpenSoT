@@ -5,7 +5,7 @@ SHELL ["/bin/bash", "-c"]
 ENV DEBIAN_FRONTEND="noninteractive"
 ENV TZ="Europe/Paris"
 
-RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y terminator gedit locate cmake-curses-gui python3-pip python3-venv liburdfdom-dev git-all libeigen3-dev libboost-all-dev libhdf5-dev liboctomap-dev octovis libassimp-dev python3-numpy python-is-python3 libgtest-dev pybind11-dev libccd-dev libtinyxml2-dev && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get upgrade -y && apt-get clean  && apt-get install -y terminator gedit locate cmake-curses-gui python3-pip python3-venv liburdfdom-dev git-all libeigen3-dev libboost-all-dev libhdf5-dev liboctomap-dev octovis libassimp-dev python3-numpy python-is-python3 python3-pytest libgtest-dev pybind11-dev libccd-dev libtinyxml2-dev && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /home
 
