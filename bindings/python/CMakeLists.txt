@@ -32,15 +32,21 @@ if(${pybind11_FOUND})
 
     target_link_libraries(pyopensot PUBLIC OpenSoT)
 
-
-
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-    install(TARGETS pyopensot
-        COMPONENT python
-        LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-        ARCHIVE DESTINATION "lib"
-        RUNTIME DESTINATION "bin")
+    if(SKBUILD)
+        install(TARGETS pyopensot
+            COMPONENT python
+            LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}"
+            ARCHIVE DESTINATION "${SKBUILD_PLATLIB_DIR}"
+            RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}")
+    else()
+        install(TARGETS pyopensot
+            COMPONENT python
+            LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+            ARCHIVE DESTINATION "lib"
+            RUNTIME DESTINATION "bin")
+    endif()
 
     if(${OPENSOT_COMPILE_COLLISION})
         set(OPENSOT_BINDINGS_COLLISION_SOURCES pyopensot_collision.cpp constraints/velocity_collision.hpp)
@@ -50,27 +56,42 @@ if(${pybind11_FOUND})
 
         target_link_libraries(pyopensot_collision PUBLIC OpenSoT)
 
-
         find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-        install(TARGETS pyopensot_collision
-            COMPONENT python
-            LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-            ARCHIVE DESTINATION "lib"
-            RUNTIME DESTINATION "bin")
+        if(SKBUILD)
+            install(TARGETS pyopensot_collision
+                COMPONENT python
+                LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}"
+                ARCHIVE DESTINATION "${SKBUILD_PLATLIB_DIR}"
+                RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}")
+        else()
+            install(TARGETS pyopensot_collision
+                COMPONENT python
+                LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+                ARCHIVE DESTINATION "lib"
+                RUNTIME DESTINATION "bin")
+        endif()
     endif()
 
-
-    install(
-        DIRECTORY viser_opensot_tools/
-        # DESTINATION ${Python3_SITEARCH}
-        DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-    )
-
-    install(
-        PROGRAMS viser_opensot_tools/replay
-        DESTINATION bin
-    )
+    if(SKBUILD)
+        install(
+            DIRECTORY viser_opensot_tools/
+            DESTINATION "${SKBUILD_PLATLIB_DIR}"
+        )
+        install(
+            PROGRAMS viser_opensot_tools/replay
+            DESTINATION "${SKBUILD_SCRIPTS_DIR}"
+        )
+    else()
+        install(
+            DIRECTORY viser_opensot_tools/
+            DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
+        )
+        install(
+            PROGRAMS viser_opensot_tools/replay
+            DESTINATION bin
+        )
+    endif()
 
 else()
     message(STATUS "pybind not found")
