@@ -6,11 +6,10 @@ build-backend = "scikit_build_core.build"
 name = "openSoT"
 version = "5.0.0"
 description = "openSoT python"
-requires-python = ">=3.10" # XXX verify
-# XXX add readme here
+requires-python = ">=3.10"
 
 [tool.scikit-build]
-cmake.version = ">=3.20" # XXX verify
+cmake.version = ">=3.20"
 build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.define = { OPENSOT_COMPILE_EXAMPLES = "OFF", OPENSOT_COMPILE_TESTS = "OFF" }
