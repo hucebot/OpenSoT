@@ -28,25 +28,26 @@ if(${pybind11_FOUND})
                                     variables/torque.hpp)
 
     include_directories(${CMAKE_CURRENT_SOURCE_DIR} ${Eigen3_INCLUDE_DIR})
-    pybind11_add_module(pyopensot ${OPENSOT_BINDINGS_SOURCES})
+    pybind11_add_module(_pyopensot ${OPENSOT_BINDINGS_SOURCES})
 
-    target_link_libraries(pyopensot PUBLIC OpenSoT)
+    target_link_libraries(_pyopensot PUBLIC OpenSoT)
 
     find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
-
     if(SKBUILD)
-        install(TARGETS pyopensot
-            COMPONENT python
-            LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}"
-            ARCHIVE DESTINATION "${SKBUILD_PLATLIB_DIR}"
-            RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}")
+        set(OPENSOT_PY_PKG_DIR "${SKBUILD_PLATLIB_DIR}/pyopensot")
+        set(OPENSOT_PY_PKG_ROOT_DIR "${SKBUILD_PLATLIB_DIR}")
     else()
-        install(TARGETS pyopensot
-            COMPONENT python
-            LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-            ARCHIVE DESTINATION "lib"
-            RUNTIME DESTINATION "bin")
+        set(OPENSOT_PY_PKG_DIR "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages/pyopensot")
+        set(OPENSOT_PY_PKG_ROOT_DIR "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages")
     endif()
+
+    install(TARGETS _pyopensot
+        LIBRARY DESTINATION "${OPENSOT_PY_PKG_DIR}"
+        ARCHIVE DESTINATION "${OPENSOT_PY_PKG_DIR}"
+        RUNTIME DESTINATION "${OPENSOT_PY_PKG_DIR}")
+
+    install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/pyopensot/__init__.py
+            DESTINATION "${OPENSOT_PY_PKG_DIR}")
 
     if(${OPENSOT_COMPILE_COLLISION})
         set(OPENSOT_BINDINGS_COLLISION_SOURCES pyopensot_collision.cpp constraints/velocity_collision.hpp)
@@ -58,41 +59,28 @@ if(${pybind11_FOUND})
 
         find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
-        if(SKBUILD)
-            install(TARGETS pyopensot_collision
-                COMPONENT python
-                LIBRARY DESTINATION "${SKBUILD_PLATLIB_DIR}"
-                ARCHIVE DESTINATION "${SKBUILD_PLATLIB_DIR}"
-                RUNTIME DESTINATION "${SKBUILD_PLATLIB_DIR}")
-        else()
-            install(TARGETS pyopensot_collision
-                COMPONENT python
-                LIBRARY DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-                ARCHIVE DESTINATION "lib"
-                RUNTIME DESTINATION "bin")
-        endif()
+        install(TARGETS pyopensot_collision
+            COMPONENT python
+            LIBRARY DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}"
+            ARCHIVE DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}"
+            RUNTIME DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}")
     endif()
 
-    if(SKBUILD)
-        install(
-            DIRECTORY viser_opensot_tools/
-            DESTINATION "${SKBUILD_PLATLIB_DIR}"
-        )
-        install(
-            PROGRAMS viser_opensot_tools/replay
-            DESTINATION "${SKBUILD_SCRIPTS_DIR}"
-        )
-    else()
-        install(
-            DIRECTORY viser_opensot_tools/
-            DESTINATION "lib/python${Python3_VERSION_MAJOR}.${Python3_VERSION_MINOR}/site-packages"
-        )
-        install(
-            PROGRAMS viser_opensot_tools/replay
-            DESTINATION bin
-        )
-    endif()
+    install(
+        DIRECTORY viser_opensot_tools
+        DESTINATION "${OPENSOT_PY_PKG_DIR}"
+    )
+    # TODO is it useful / used ?
+    install(
+        PROGRAMS viser_opensot_tools/replay
+        DESTINATION "${OPENSOT_PY_PKG_DIR}"
+    )
 
 else()
-    message(STATUS "pybind not found")
+    message(STATUS "pybind11 not found")
 endif()
+
+# XXX TODO installer tout proprement... les resources, etc. Ne pas installer les include, .cmake, etc par défaut dans pip (?)
+# XXX je mets ça ici pour que ça crashe si je relance ...
+# XXX where do we put viser stuff ?
+

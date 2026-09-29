@@ -3,12 +3,12 @@ import numpy as np
 import argparse
 import pyopensot as pysot
 import h5py
-from plot import plot
-from visualization import rvizer
-from interactive_marker import interactive_marker, com_marker
-from convex_hull_marker import convex_hull_marker
-from collision_distances import collision_distances
-from postural_gui import postural_gui
+from .plot import plot
+from .visualization import rvizer
+from .interactive_marker import interactive_marker, com_marker
+from .convex_hull_marker import convex_hull_marker
+from .collision_distances import collision_distances
+from .postural_gui import postural_gui
 
 
 def play_robot_log(MAT_FILE, URDF_PATH, Q_VAR_NAME="q", V_VAR_NAME="v", FPS=30):

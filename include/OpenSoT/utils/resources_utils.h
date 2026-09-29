@@ -5,6 +5,7 @@
 #include <optional>
 #include <string>
 #include <fstream>
+#include <cstdlib>
 
 namespace OpenSoT {
 
@@ -12,6 +13,11 @@ namespace resources_utils{
 
 inline std::filesystem::path root()
 {
+    if (auto env = std::getenv("OPENSOT_RESOURCES_PATH"))
+    {
+        return std::filesystem::path(env);
+    }
+
     return std::filesystem::path(OPENSOT_RESOURCES_PATH);
 }
 

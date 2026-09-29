@@ -14,7 +14,7 @@
 #include "variables/torque.hpp"
 #include "resources_utils.hpp"
 
-PYBIND11_MODULE(pyopensot, m) {
+PYBIND11_MODULE(_pyopensot, m) {
     pyTask<Eigen::MatrixXd, Eigen::VectorXd>(m, "Task");
     pyConstraint<Eigen::MatrixXd, Eigen::VectorXd>(m, "Constraint");
     pyAggregatedTask(m);
