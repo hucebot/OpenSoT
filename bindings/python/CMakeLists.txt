@@ -83,4 +83,5 @@ endif()
 # XXX TODO installer tout proprement... les resources, etc. Ne pas installer les include, .cmake, etc par défaut dans pip (?)
 # XXX je mets ça ici pour que ça crashe si je relance ...
 # XXX where do we put viser stuff ?
+# XXX rendre viser et ressources optionnel dans pip: pip install pyopensot[viz]  ou [resources...]
 

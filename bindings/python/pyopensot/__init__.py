@@ -26,8 +26,13 @@ _register_submodules(_pyopensot, __name__)
 
 # import 1st level objects
 from ._pyopensot import *
+
 # temp solution: make replay easier to import TODO refactor viser_opensot_tools
-from .viser_opensot_tools import replay
+# optional, as user may not have required visualization tools
+try:
+    from .viser_opensot_tools import replay
+except ImportError:
+    pass
 
 # XXX TODO useless ? remove
 # try:

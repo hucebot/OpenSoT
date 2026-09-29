@@ -7,6 +7,12 @@ name = "openSoT"
 version = "5.0.0"
 description = "openSoT python"
 requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+]
+
+[project.optional-dependencies]
+viser = ["viser<=1.0.26", "yourdfpy", "h5py", "scipy"]
 
 [tool.scikit-build]
 cmake.version = ">=3.20"
