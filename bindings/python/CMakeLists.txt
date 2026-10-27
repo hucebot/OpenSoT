@@ -61,9 +61,9 @@ if(${pybind11_FOUND})
 
         install(TARGETS pyopensot_collision
             COMPONENT python
-            LIBRARY DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}"
-            ARCHIVE DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}"
-            RUNTIME DESTINATION "${OPENSOT_PY_PKG_ROOT_DIR}")
+            LIBRARY DESTINATION "${OPENSOT_PY_PKG_DIR}"
+            ARCHIVE DESTINATION "${OPENSOT_PY_PKG_DIR}"
+            RUNTIME DESTINATION "${OPENSOT_PY_PKG_DIR}")
     endif()
 
     install(
