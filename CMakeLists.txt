@@ -192,6 +192,11 @@ if(NOT qpOASES_FOUND)
     set(qpOASES_INCLUDE_DIRS "${qpOASES_SOURCE_DIR}/include")
     set(qpOASES_LIBRARIES qpOASES)
     set(qpOASES_FOUND TRUE)
+
+    # INSTALL_COMMAND "" skips qpOASES-ext's own install rules, but QPOasesBackEnd.h exposes
+    # qpOASES types (Options, SQProblem, Bounds, Constraints): install its headers here,
+    # the .ipp too, which the .hpp include
+    install(DIRECTORY "${qpOASES_SOURCE_DIR}/include/" DESTINATION include)
 endif()
 
 include_directories("${qpOASES_INCLUDE_DIRS}")
