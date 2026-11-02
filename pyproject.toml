@@ -3,12 +3,13 @@ requires = ["scikit-build-core>=0.8", "pybind11"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "openSoT"
+name = "pyopensot"
 version = "5.0.0"
 description = "openSoT python"
 requires-python = ">=3.10"
 dependencies = [
     "numpy<=1.26.4",
+    "xbot2_interface>=5.0,<5.1"
 ]
 
 [project.optional-dependencies]
