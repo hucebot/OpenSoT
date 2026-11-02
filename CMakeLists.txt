@@ -1,6 +1,7 @@
 # Copyright: (C) 2014 Walkman Consortium
 # Authors: Enrico Mingo Hoffman, Alessio Rocchi
 # CopyPolicy: Released under the terms of the GNU GPL v2.0.
+# XXX TODO license above !
 
 cmake_minimum_required(VERSION 3.20)
 include(ExternalProject)
@@ -26,6 +27,12 @@ set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 set(CMAKE_SKIP_BUILD_RPATH FALSE)
 
+if (SKBUILD)
+    set(OPENSOT_PY_PKG_DIR "${SKBUILD_PLATLIB_DIR}/pyopensot")
+    set(OPENSOT_LIB_INSTALL_DIR "${OPENSOT_PY_PKG_DIR}") # or .libs ?
+else()
+    set(OPENSOT_LIB_INSTALL_DIR "lib") # or something from GNUInstallDirs ?
+endif()
 add_subdirectory(doc)
 
                                                                                 
@@ -166,9 +173,10 @@ endif()
 
 configure_file(version.h.in include/OpenSoT/version.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
-        DESTINATION include/OpenSoT)
-
+if (NOT SKBUILD)
+    install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
+            DESTINATION include/OpenSoT)
+endif()
 
 
 TARGET_LINK_LIBRARIES(OpenSoT
@@ -258,10 +266,11 @@ library_install(OpenSotBackEndeiQuadProg 1 0 0)
 #############################################################
 # Export OpenSoT so that it can be found using find_package #
 #############################################################
-
-install(DIRECTORY include/
-    DESTINATION include
-    FILES_MATCHING PATTERN "*.h")
+if (NOT SKBUILD)
+    install(DIRECTORY include/
+            DESTINATION include
+            FILES_MATCHING PATTERN "*.h")
+endif()
 
 #include(AddUninstallTarget)
 include(MacroInstallLib)
@@ -277,8 +286,11 @@ include(GenerateDeb)
 
 configure_file(version.h.in include/OpenSoT/version.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
-        DESTINATION include/OpenSoT)
+# XXX TODO double ?
+if (NOT SKBUILD)
+    install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
+            DESTINATION include/OpenSoT)
+endif()
 
 ######################################
 ## Add Testing and Examples targets ##
@@ -299,6 +311,12 @@ add_subdirectory(bindings/python)
 ##############
 ## Resources ##
 ##############
-add_subdirectory(resources)
 
-
+# XXX TODO do we want resources in the wheel ?
+if(NOT SKBUILD)
+    add_subdirectory(resources)
+else()
+    target_compile_definitions(OpenSoT
+        PUBLIC OPENSOT_RESOURCES_PATH=""
+    )
+endif()
