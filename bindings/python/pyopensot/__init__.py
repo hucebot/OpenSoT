@@ -29,6 +29,26 @@ _register_submodules(_pyopensot, __name__)
 # import 1st level objects
 from ._pyopensot import *
 
+from pathlib import Path
+from importlib import resources
+
+_cpp_find = find
+
+def find(filename):
+    try:
+        base = Path(str(resources.files("pyopensot_resources")))
+        for entry in base.rglob(filename):
+            if entry.name == filename:
+                return str(entry)
+
+    except ModuleNotFoundError:
+        # TODO XXX better log / warning message (fallback to....)
+        print("warning: pyopensot_resources not found")
+        pass
+
+    # Fallback to C++ method directly (may use env var)
+    return _cpp_find(filename)
+
 # temp solution: make replay easier to import TODO refactor viser_opensot_tools
 # optional, as user may not have required visualization tools
 try:
