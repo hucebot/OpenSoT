@@ -49,6 +49,7 @@ option(OPENSOT_VERBOSE_MATLOG "Log all aggregated tasks/constraints to MAT-file"
 option(OPENSOT_DISABLE_VECTORIZATION "Disable Eigen3 vectorization" FALSE)
 option(OPENSOT_COMPILE_COLLISION "Compile OpenSoT collision avoidance" TRUE)
 option(OPENSOT_COMPILE_OSQP_BACKEND "Compile OpenSotBackEndOSQP" TRUE)
+option(OPENSOT_BUILD_DEB "Build debian package" FALSE)
 
 if(${OPENSOT_DISABLE_VECTORIZATION})
     add_definitions(-DEIGEN_DONT_VECTORIZE)
@@ -280,8 +281,9 @@ library_install(OpenSoT
     ${PROJECT_VERSION_MINOR}
     ${PROJECT_VERSION_PATCH})
 
-
-include(GenerateDeb)
+if(OPENSOT_BUILD_DEB)
+    include(GenerateDeb)
+endif()
 
 
 configure_file(version.h.in include/OpenSoT/version.h)
@@ -312,7 +314,6 @@ add_subdirectory(bindings/python)
 ## Resources ##
 ##############
 
-# XXX TODO do we want resources in the wheel ?
 if(NOT SKBUILD)
     add_subdirectory(resources)
 else()
