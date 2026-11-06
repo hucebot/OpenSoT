@@ -1,10 +1,13 @@
 cmake_minimum_required(VERSION 3.20)
 
-find_package(Python ${PYBIND11_PYTHON_VERSION} COMPONENTS Development Interpreter REQUIRED)
-find_package(pybind11 QUIET)
+# TODO XXX look for Python / Python3 (below), may need Development.Module ?
+# find_package(Python ${PYBIND11_PYTHON_VERSION} COMPONENTS Development Interpreter REQUIRED)
+find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
+# TODO XXX pybind11 is now required, we asked for python bindings so it can not be optional, right ?
+find_package(pybind11 REQUIRED)
 find_package(Eigen3 REQUIRED)
 
-find_package(Python3 REQUIRED COMPONENTS Interpreter)
+# find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 message(STATUS "check for pybind11")
 if(${pybind11_FOUND})
@@ -32,7 +35,7 @@ if(${pybind11_FOUND})
 
     target_link_libraries(_pyopensot PUBLIC OpenSoT)
 
-    find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+    # find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
     if(SKBUILD)
         set(OPENSOT_PY_PKG_DIR "${SKBUILD_PLATLIB_DIR}/pyopensot")
         set(OPENSOT_PY_PKG_ROOT_DIR "${SKBUILD_PLATLIB_DIR}")
@@ -57,7 +60,7 @@ if(${pybind11_FOUND})
 
         target_link_libraries(pyopensot_collision PUBLIC OpenSoT)
 
-        find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
+        # find_package(Python3 COMPONENTS Interpreter Development REQUIRED)
 
         install(TARGETS pyopensot_collision
             COMPONENT python
@@ -70,6 +73,10 @@ if(${pybind11_FOUND})
         DIRECTORY viser_opensot_tools
         DESTINATION "${OPENSOT_PY_PKG_DIR}"
     )
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples
+            DESTINATION "${OPENSOT_PY_PKG_DIR}")
+
     # TODO is it useful / used ?
     install(
         PROGRAMS viser_opensot_tools/replay
@@ -77,11 +84,6 @@ if(${pybind11_FOUND})
     )
 
 else()
+# TODO XXX clean this
     message(STATUS "pybind11 not found")
 endif()
-
-# XXX TODO installer tout proprement... les resources, etc. Ne pas installer les include, .cmake, etc par défaut dans pip (?)
-# XXX je mets ça ici pour que ça crashe si je relance ...
-# XXX where do we put viser stuff ?
-# XXX rendre viser et ressources optionnel dans pip: pip install pyopensot[viz]  ou [resources...]
-
