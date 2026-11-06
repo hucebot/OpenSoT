@@ -1,6 +1,6 @@
-from xbot2_interface import pyxbot2_interface as xbi
-from xbot2_interface import pyxbot2_collision
-from xbot2_interface import pyaffine3
+from opensot_model_interface import pyxbot2_interface as xbi
+from opensot_model_interface import pyxbot2_collision
+from opensot_model_interface import pyaffine3
 import time
 import numpy as np
 import array
@@ -8,9 +8,9 @@ import array
 import pyopensot as pysot
 from pyopensot.tasks.velocity import Postural, Cartesian, Gaze
 from pyopensot.constraints.velocity import JointLimits, VelocityLimits, MechanumWheels4X
-from pyopensot_collision.constraints.velocity import CollisionAvoidance
+from pyopensot.pyopensot_collision.constraints.velocity import CollisionAvoidance
 
-from pyopensot import replay
+from pyopensot.viser_opensot_tools import replay
 import threading
 import json
 from pathlib import Path

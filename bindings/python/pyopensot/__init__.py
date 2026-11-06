@@ -2,7 +2,7 @@ import os
 import types
 import sys
 
-import xbot2_interface # side effect: loads .so
+import opensot_model_interface # side effect: loads .so
 
 _pkg_dir = os.path.dirname(os.path.abspath(__file__))
 _platlib_root = os.path.dirname(_pkg_dir)

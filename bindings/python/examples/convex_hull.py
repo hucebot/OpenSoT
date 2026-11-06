@@ -1,4 +1,4 @@
-from xbot2_interface import pyxbot2_interface as xbi
+from opensot_model_interface import pyxbot2_interface as xbi
 import pyopensot as pysot
 import numpy as np
 import time

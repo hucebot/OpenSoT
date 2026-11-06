@@ -1,5 +1,5 @@
 
-from xbot2_interface import pyxbot2_interface as xbi
+from opensot_model_interface import pyxbot2_interface as xbi
 import time
 from pyopensot.tasks.velocity import Cartesian
 import numpy as np

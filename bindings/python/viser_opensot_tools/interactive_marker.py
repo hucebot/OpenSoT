@@ -1,5 +1,5 @@
 from scipy.spatial.transform import Rotation as R
-from xbot2_interface import Affine3
+from opensot_model_interface import Affine3
 import numpy as np
 
 class com_marker():

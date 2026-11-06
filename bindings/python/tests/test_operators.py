@@ -1,4 +1,4 @@
-from xbot2_interface import pyxbot2_interface as xbi
+from opensot_model_interface import pyxbot2_interface as xbi
 from pyopensot.tasks.velocity import Postural, Cartesian, Manipulability, MinimumEffort
 from pyopensot.constraints.velocity import JointLimits, VelocityLimits
 import pyopensot as pysot

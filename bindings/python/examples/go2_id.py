@@ -1,5 +1,5 @@
-from xbot2_interface import pyxbot2_interface as xbi
-from xbot2_interface import Affine3
+from opensot_model_interface import pyxbot2_interface as xbi
+from opensot_model_interface import Affine3
 
 from pyopensot.tasks.acceleration import Cartesian, CoM, DynamicFeasibility
 from pyopensot.constraints.acceleration import JointLimits, VelocityLimits
