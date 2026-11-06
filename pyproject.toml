@@ -9,15 +9,24 @@ description = "openSoT python"
 requires-python = ">=3.10"
 dependencies = [
     "numpy<=1.26.4",
-    "xbot2_interface>=5.0,<5.1"
+    "opensot_model_interface>=5.0,<5.1"
 ]
 
 [project.optional-dependencies]
 viser = ["viser<=1.0.26", "yourdfpy", "h5py", "scipy"]
+resources = ["pyopensot-resources"]
 
 [tool.scikit-build]
 cmake.version = ">=3.20"
-build-dir = "build/{wheel_tag}"
 cmake.build-type = "Release"
 cmake.define = { OPENSOT_COMPILE_EXAMPLES = "OFF", OPENSOT_COMPILE_TESTS = "OFF" }
+build-dir = "build/{wheel_tag}"
 wheel.packages = []
+
+[tool.cibuildwheel]
+build = "cp310-* cp311-* cp312-* cp313-*"
+skip = "*-musllinux_*"
+manylinux-x86_64-image = "manylinux_2_28"
+
+# test-command = "python -c 'import pyopensot'"
+
