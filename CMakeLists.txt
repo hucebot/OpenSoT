@@ -1,7 +1,6 @@
-# Copyright: (C) 2014 Walkman Consortium
+# Original copyright: (C) 2014 Walkman Consortium
 # Authors: Enrico Mingo Hoffman, Alessio Rocchi
-# CopyPolicy: Released under the terms of the GNU GPL v2.0.
-# XXX TODO license above !
+# CopyPolicy: Released under the terms of the Apache Licence v2.0.
 
 cmake_minimum_required(VERSION 3.20)
 include(ExternalProject)
