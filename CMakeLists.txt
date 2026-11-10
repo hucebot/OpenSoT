@@ -173,11 +173,6 @@ endif()
 
 configure_file(version.h.in include/OpenSoT/version.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-if (NOT SKBUILD)
-    install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
-            DESTINATION include/OpenSoT)
-endif()
-
 
 TARGET_LINK_LIBRARIES(OpenSoT
     PUBLIC
@@ -287,7 +282,7 @@ endif()
 
 configure_file(version.h.in include/OpenSoT/version.h)
 include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
-# XXX TODO double ?
+
 if (NOT SKBUILD)
     install(FILES ${CMAKE_BINARY_DIR}/include/OpenSoT/version.h
             DESTINATION include/OpenSoT)
