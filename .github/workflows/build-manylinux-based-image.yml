@@ -1,0 +1,27 @@
+name: Build Manylinux Based Docker Image
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'docker/Dockerfile.manylinux'
+
+jobs:
+  build-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Login to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: ./docker
+          file: ./docker/Dockerfile.manylinux
+          push: true
+          tags: ghcr.io/hucebot/opensot/opensot-manylinux:latest
