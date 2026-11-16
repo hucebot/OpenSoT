@@ -5,7 +5,7 @@ from pyopensot.constraints.velocity import JointLimits, VelocityLimits
 import pyopensot as pysot
 import numpy as np
 import time
-import replay
+from opensot_viser_tools import replay
 import threading
 
 resource = "panda.urdf";

@@ -6,7 +6,7 @@ from pyopensot.tasks.velocity import Cartesian
 from pyopensot.constraints.velocity import JointLimits, VelocityLimits, ConvexHull, CartesianPositionConstraint
 import array
 from scipy.spatial.transform import Rotation as R
-import replay
+from opensot_viser_tools import replay
 import threading
 
 def add_planes(server, A, b, size=0.5):

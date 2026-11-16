@@ -69,19 +69,23 @@ if(${pybind11_FOUND})
             RUNTIME DESTINATION "${OPENSOT_PY_PKG_DIR}")
     endif()
 
-    install(
-        DIRECTORY viser_opensot_tools
-        DESTINATION "${OPENSOT_PY_PKG_DIR}"
-    )
+    if (NOT SKBUILD)
+        # standard cmake-based install used to install viser tools here - may remove this later.
+        # pip- installed packaged will the other opensot_viser_tools python package, as a dep.
+        install(
+            DIRECTORY opensot_viser_tools
+            DESTINATION "${OPENSOT_PY_PKG_DIR}"
+        )
+    endif()
 
     install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/examples
             DESTINATION "${OPENSOT_PY_PKG_DIR}")
 
     # TODO is it useful / used ?
-    install(
-        PROGRAMS viser_opensot_tools/replay
-        DESTINATION "${OPENSOT_PY_PKG_DIR}"
-    )
+    # install(
+    #     PROGRAMS viser_opensot_tools/replay
+    #     DESTINATION "${OPENSOT_PY_PKG_DIR}"
+    # )
 
 else()
 # TODO XXX clean this

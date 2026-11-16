@@ -10,7 +10,7 @@ from pyopensot.tasks.velocity import Postural, Cartesian, Gaze
 from pyopensot.constraints.velocity import JointLimits, VelocityLimits, MechanumWheels4X
 from pyopensot.pyopensot_collision.constraints.velocity import CollisionAvoidance
 
-from pyopensot.viser_opensot_tools import replay
+from opensot_viser_tools import replay
 import threading
 import json
 from pathlib import Path

@@ -9,11 +9,12 @@ description = "openSoT python"
 requires-python = ">=3.10"
 dependencies = [
     "numpy<=1.26.4",
-    "opensot_model_interface>=5.0,<5.1"
+    "opensot-model-interface>=5.0,<5.1"
 ]
+license = "Apache-2.0"
 
 [project.optional-dependencies]
-viser = ["viser<=1.0.26", "yourdfpy", "h5py", "scipy"]
+viser = ["opensot-viser-tools"]
 resources = ["pyopensot-resources"]
 
 [tool.scikit-build]
@@ -27,5 +28,3 @@ wheel.packages = []
 build = "cp310-* cp311-* cp312-* cp313-*"
 skip = "*-musllinux_*"
 manylinux-x86_64-image = "ghcr.io/hucebot/opensot/opensot-manylinux:latest"
-
-

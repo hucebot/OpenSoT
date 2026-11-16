@@ -4,7 +4,7 @@ import time
 from pyopensot.tasks.velocity import Cartesian
 import numpy as np
 import pyopensot as pysot
-import replay
+from opensot_viser_tools import replay
 import threading
 
 

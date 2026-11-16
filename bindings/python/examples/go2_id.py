@@ -9,7 +9,7 @@ from pyopensot.tasks import MinimizeVariable
 import pyopensot as pysot
 import numpy as np
 import time
-import replay
+from opensot_viser_tools import replay
 import threading
 
 

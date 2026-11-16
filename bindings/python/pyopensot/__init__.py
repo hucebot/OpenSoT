@@ -52,7 +52,7 @@ def find(filename):
 # temp solution: make replay easier to import TODO refactor viser_opensot_tools
 # optional, as user may not have required visualization tools
 try:
-    from .viser_opensot_tools import replay
+    from .opensot_viser_tools import replay
 except ImportError:
     pass
 
