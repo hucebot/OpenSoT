@@ -42,22 +42,16 @@ def find(filename):
                 return str(entry)
 
     except ModuleNotFoundError:
-        # TODO XXX better log / warning message (fallback to....)
-        print("warning: pyopensot_resources not found")
+        print("Warning: pyopensot_resources not found. Falling back to the C++ lookup.")
         pass
 
     # Fallback to C++ method directly (may use env var)
     return _cpp_find(filename)
 
-# temp solution: make replay easier to import TODO refactor viser_opensot_tools
+# temp solution: make replay easier to import
 # optional, as user may not have required visualization tools
+# ugly, kept for compatibility with old examples (for now)
 try:
     from .opensot_viser_tools import replay
 except ImportError:
     pass
-
-# XXX TODO useless ? remove
-# try:
-#     from ._pyopensot_collision import *
-# except ImportError:
-#     pass
