@@ -13,6 +13,9 @@ dependencies = [
 ]
 license = "Apache-2.0"
 
+[project.urls]
+Homepage = "https://github.com/hucebot/opensot"
+
 [project.optional-dependencies]
 viser = ["opensot-viser-tools"]
 resources = ["pyopensot-resources"]
